@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>회원가입 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <h1>회원가입</h1>
+
+    <ul class="error-message" th:if="${validationErrors}">
+        <li th:each="msg : ${validationErrors}" th:text="${msg}"></li>
+    </ul>
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+
+    <form th:action="@{/members}" method="post">
+        <div>
+            <label>이메일 <input type="email" name="email"/></label>
+        </div>
+        <div>
+            <label>닉네임 <input type="text" name="nickname"/></label>
+        </div>
+        <div>
+            <label>회원 유형
+                <select name="memberType">
+                    <option th:each="type : ${memberTypes}" th:value="${type}" th:text="${type}"></option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>학습 레벨
+                <select name="level">
+                    <option th:each="lvl : ${levels}" th:value="${lvl}" th:text="${lvl}"></option>
+                </select>
+            </label>
+        </div>
+        <button type="submit">가입하기</button>
+    </form>
+
+    <p><a th:href="@{/}">홈으로</a></p>
+</body>
+</html>
