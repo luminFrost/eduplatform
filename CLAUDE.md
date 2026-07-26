@@ -85,8 +85,31 @@ com.edu.eduplatform
 ## Git
 
 - 원격: `git@github.com:luminFrost/eduplatform.git` (SSH)
-- 기본 브랜치: `main`
 - 이 프로젝트는 상위 폴더(연습용 git repo)와 분리된 **독립 저장소**다.
+
+### 브랜치 전략 (main + dev + feature/*)
+
+| 브랜치 | 용도 | 규칙 |
+|--------|------|------|
+| `main` | 배포/안정 | 항상 동작하는 상태 유지. dev에서 검증된 것만 병합. 직접 커밋 금지. |
+| `dev` | 개발 통합 | 기능들이 모이는 기본 개발 브랜치. feature 브랜치를 여기로 병합. |
+| `feature/*` | 기능 개발 | dev에서 분기, 기능 완성 후 dev로 병합하고 삭제. 예: `feature/member-signup` |
+
+**작업 흐름**
+```bash
+# 새 기능 시작
+git switch dev && git pull
+git switch -c feature/member-signup
+
+# 개발 후 dev로 병합
+git switch dev && git merge --no-ff feature/member-signup
+git push origin dev
+git branch -d feature/member-signup
+
+# 안정화되면 main으로 배포
+git switch main && git merge --no-ff dev && git push origin main
+```
+평소 개발은 `dev` 또는 `feature/*`에서 한다. `main`은 배포 시점에만 갱신.
 
 ## 작업 상태 / 다음 단계
 
