@@ -1,5 +1,10 @@
 package com.edu.eduplatform.member.service;
 
+import com.edu.eduplatform.member.domain.Member;
+import com.edu.eduplatform.member.dto.MemberCreateRequest;
+import com.edu.eduplatform.member.dto.MemberResponse;
+import com.edu.eduplatform.member.exception.DuplicateEmailException;
+import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,5 +17,26 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
 
-    // TODO: 회원 가입, 조회, 레벨 변경 등 비즈니스 로직 추가
+    @Transactional
+    public MemberResponse signUp(MemberCreateRequest request) {
+        memberRepository.findByEmail(request.email()).ifPresent(member -> {
+            throw new DuplicateEmailException(request.email());
+        });
+
+        Member member = Member.builder()
+                .email(request.email())
+                .nickname(request.nickname())
+                .memberType(request.memberType())
+                .level(request.level())
+                .build();
+
+        return MemberResponse.from(memberRepository.save(member));
+    }
+
+    public MemberResponse getMember(Long id) {
+        Member member = memberRepository.findById(id)
+                .orElseThrow(() -> new MemberNotFoundException(id));
+
+        return MemberResponse.from(member);
+    }
 }

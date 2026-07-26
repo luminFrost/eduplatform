@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>회원 정보 - eduplatform</title>
+</head>
+<body>
+    <h1 th:text="${member.nickname} + '님, 가입을 환영합니다'"></h1>
+
+    <ul>
+        <li th:text="'이메일: ' + ${member.email}"></li>
+        <li th:text="'회원 유형: ' + ${member.memberType}"></li>
+        <li th:text="'학습 레벨: ' + ${member.level}"></li>
+        <li th:text="'가입일: ' + ${member.createdAt}"></li>
+    </ul>
+
+    <p><a th:href="@{/}">홈으로</a></p>
+</body>
+</html>
