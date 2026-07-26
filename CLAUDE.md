@@ -114,7 +114,11 @@ git switch main && git merge --no-ff dev && git push origin main
 ## 작업 상태 / 다음 단계
 
 > 세션을 이어받는 Claude는 이 섹션을 먼저 확인하고, 작업 후 갱신한다.
-> 상세 설계(도메인 모델·화면·API·로드맵)는 **[docs/DESIGN.md](docs/DESIGN.md)** 참고.
+> 제품 기획("무엇을 만드나")은 **[docs/PRODUCT.md](docs/PRODUCT.md)**,
+> 기술 설계(도메인 모델·화면·API·로드맵)는 **[docs/DESIGN.md](docs/DESIGN.md)** 참고.
+
+**확정된 제품 방향**: 종합형 학습(듣기·말하기·읽기·쓰기+어휘) + 체계적 레벨/로드맵.
+MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 진도 표시.
 
 **완료됨**
 - 프로젝트 초기 세팅 (Spring Boot 4.1.0 / Java 21), GitHub 연동
