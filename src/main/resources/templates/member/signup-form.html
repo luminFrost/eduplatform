@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8"/>
     <title>회원가입 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
     <h1>회원가입</h1>
 
-    <ul th:if="${validationErrors}">
+    <ul class="error-message" th:if="${validationErrors}">
         <li th:each="msg : ${validationErrors}" th:text="${msg}"></li>
     </ul>
-    <p th:if="${errorMessage}" th:text="${errorMessage}"></p>
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
 
     <form th:action="@{/members}" method="post">
         <div>
