@@ -91,6 +91,7 @@ com.edu.eduplatform
 ## 작업 상태 / 다음 단계
 
 > 세션을 이어받는 Claude는 이 섹션을 먼저 확인하고, 작업 후 갱신한다.
+> 상세 설계(도메인 모델·화면·API·로드맵)는 **[docs/DESIGN.md](docs/DESIGN.md)** 참고.
 
 **완료됨**
 - 프로젝트 초기 세팅 (Spring Boot 4.1.0 / Java 21), GitHub 연동

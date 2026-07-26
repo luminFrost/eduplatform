@@ -1,0 +1,128 @@
+# eduplatform 개발 설계
+
+초등학생·성인 대상 영어 학습 플랫폼의 개발 설계 문서.
+Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 구현한다.
+
+---
+
+## 1. 서비스 목표
+
+- 초등학생과 성인 모두 사용하는 영어 학습 사이트.
+- 영어 **입문(BEGINNER)** 단계부터 시작해 단계별로 학습을 제공.
+- 회원의 유형(초등/성인)과 레벨에 맞는 코스를 추천·제공.
+- 학습 진행 상황을 기록하고 진도율을 보여준다.
+
+## 2. 사용자 유형
+
+| 유형 | 설명 | 특징 |
+|------|------|------|
+| 초등학생(CHILD) | 어린이 학습자 | 쉬운 UI, 그림/음성 중심, 짧은 레슨 |
+| 성인(ADULT) | 성인 학습자 | 실용 회화·문법 중심, 밀도 있는 레슨 |
+
+레벨: `BEGINNER`(입문) → `ELEMENTARY`(초급) → `INTERMEDIATE`(중급) → `ADVANCED`(고급)
+
+## 3. 도메인 모델
+
+### Member (회원)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| email | String | 로그인 ID, 유니크 |
+| nickname | String | 표시 이름 |
+| memberType | Enum | CHILD / ADULT |
+| level | Enum | 현재 학습 레벨 |
+| (추후) password | String | 인증 도입 시 |
+
+### Course (코스)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| title | String | 코스명 |
+| description | String | 설명 |
+| targetType | Enum | 대상(CHILD/ADULT) |
+| level | Enum | 난이도 |
+
+### Lesson (레슨 — 코스 하위 학습 단위)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| courseId | Long | 소속 코스 |
+| title | String | 레슨명 |
+| orderNo | int | 코스 내 순서 |
+| content | Text | 본문/스크립트 |
+| (추후) lessonType | Enum | VOCAB/READING/LISTENING/QUIZ |
+
+### LearningProgress (학습 진행)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| memberId | Long | 학습자 |
+| lessonId | Long | 대상 레슨 |
+| completed | boolean | 완료 여부 |
+| completedAt | DateTime | 완료 시각 |
+
+### 추후 확장 후보
+- **Enrollment(수강신청)**: memberId, courseId — 회원이 코스 등록.
+- **Word(단어)**: lessonId, word, meaning, example — 단어 학습.
+- **Quiz/Question(문제)**: lessonId, question, options, answer — 이해도 점검.
+
+> 연관관계는 현재 id 참조(Long)로 느슨하게 두고, 도메인이 안정되면 `@ManyToOne` 등으로 전환한다.
+
+## 4. 화면 설계 (Thymeleaf)
+
+| 경로 | 화면 | 설명 |
+|------|------|------|
+| `/` | 랜딩 | 서비스 소개 |
+| `/courses` | 코스 목록 | 대상/레벨 필터 |
+| `/courses/{id}` | 코스 상세 | 레슨 목록 |
+| `/lessons/{id}` | 레슨 학습 | 본문 + 완료 처리 |
+| `/my` | 마이페이지 | 내 진도율, 학습 이력 |
+| `/h2-console` | (개발) DB 콘솔 | |
+
+## 5. API 설계 (REST, /api)
+
+| 메서드 | 경로 | 기능 |
+|--------|------|------|
+| POST | `/api/members` | 회원 가입 |
+| GET | `/api/members/{id}` | 회원 조회 |
+| GET | `/api/courses` | 코스 목록(대상/레벨 필터) |
+| POST | `/api/courses` | 코스 등록(관리) |
+| GET | `/api/courses/{id}/lessons` | 코스의 레슨 목록 |
+| POST | `/api/progress/complete` | 레슨 완료 처리 |
+| GET | `/api/members/{id}/progress` | 회원 진도 조회 |
+
+요청/응답은 DTO로 분리하고, 엔티티를 직접 노출하지 않는다.
+공통 응답 포맷(예: `ApiResponse<T>`)을 `common`에 두는 것을 권장.
+
+## 6. 개발 단계 (로드맵)
+
+### Phase 1 — 회원 기반 (현재 다음 작업)
+- 회원 가입/조회 구현: `MemberService`, `MemberApiController`, 요청/응답 DTO.
+- `@DataJpaTest`로 `MemberRepository` 검증, `@SpringBootTest`로 컨텍스트 검증.
+
+### Phase 2 — 코스 · 레슨
+- Course/Lesson CRUD(서비스·컨트롤러) + 관리자용 등록.
+- 코스 목록/상세, 레슨 학습 페이지(Thymeleaf).
+
+### Phase 3 — 학습 진행
+- 레슨 완료 처리(`LearningProgress.complete()`), 코스별 진도율 계산.
+- 마이페이지에서 진도 표시.
+
+### Phase 4 — 학습 콘텐츠 강화
+- 단어(Word), 퀴즈(Quiz) 도메인 추가.
+- 레슨 타입별 학습 화면 분기.
+
+### Phase 5 — 개인화
+- 대상(초등/성인)·레벨별 코스 추천·필터.
+- 학습 대시보드.
+
+### Phase 6 — 인증 · 배포
+- Spring Security 도입(회원 로그인, 권한).
+- 운영 DB 전환(H2 → MySQL/PostgreSQL), 프로파일 분리(dev/prod).
+- 배포 파이프라인.
+
+## 7. 기술 결정 메모
+
+- 개발 DB는 H2 인메모리(`ddl-auto: create`). Phase 6에서 운영 DB로 전환하며 마이그레이션(Flyway 등) 검토.
+- 뷰는 Thymeleaf 서버 렌더링 + 필요한 곳만 REST. 추후 프론트 분리 여부는 규모 보고 판단.
+- 검증(Bean Validation), 예외 처리(@RestControllerAdvice)는 Phase 1~2에서 공통화.
