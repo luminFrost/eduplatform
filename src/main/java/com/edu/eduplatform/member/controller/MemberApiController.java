@@ -1,0 +1,16 @@
+package com.edu.eduplatform.member.controller;
+
+import com.edu.eduplatform.member.service.MemberService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/members")
+public class MemberApiController {
+
+    private final MemberService memberService;
+
+    // TODO: 회원 관련 REST 엔드포인트 추가
+}
