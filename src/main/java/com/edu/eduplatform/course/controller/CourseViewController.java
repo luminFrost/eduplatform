@@ -38,8 +38,8 @@ public class CourseViewController {
             @RequestParam(required = false) String level,
             Model model
     ) {
-        MemberType targetType = StringUtils.hasText(target) ? MemberType.valueOf(target) : null;
-        EnglishLevel levelFilter = StringUtils.hasText(level) ? EnglishLevel.valueOf(level) : null;
+        MemberType targetType = parseEnum(MemberType.class, target);
+        EnglishLevel levelFilter = parseEnum(EnglishLevel.class, level);
 
         model.addAttribute("courses", courseService.list(targetType, levelFilter));
         model.addAttribute("memberTypes", MemberType.values());
@@ -58,7 +58,7 @@ public class CourseViewController {
             model.addAttribute("course", courseService.getCourse(id));
 
             List<LessonSummaryResponse> allLessons = lessonService.listByCourse(id);
-            LessonType selectedType = StringUtils.hasText(type) ? LessonType.valueOf(type) : null;
+            LessonType selectedType = parseEnum(LessonType.class, type);
             List<LessonSummaryResponse> lessons = selectedType == null
                     ? allLessons
                     : allLessons.stream().filter(lesson -> lesson.lessonType() == selectedType).toList();
@@ -107,6 +107,18 @@ public class CourseViewController {
             return "redirect:/courses/" + course.id();
         } catch (MemberNotFoundException e) {
             return "redirect:/members/new";
+        }
+    }
+
+    /** 잘못된 필터 값(예: 오타 섞인 쿼리 파라미터)은 500 대신 "필터 없음"으로 조용히 무시한다. */
+    private static <E extends Enum<E>> E parseEnum(Class<E> enumType, String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(enumType, value);
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 }

@@ -7,6 +7,7 @@ import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,12 @@ public class MemberService {
                 .level(request.level())
                 .build();
 
-        return MemberResponse.from(memberRepository.save(member));
+        try {
+            // saveAndFlush: 동시 가입 레이스로 unique 제약을 위반하면 이 안에서 바로 터지게 해서 잡아낸다.
+            return MemberResponse.from(memberRepository.saveAndFlush(member));
+        } catch (DataIntegrityViolationException e) {
+            throw new DuplicateEmailException(request.email());
+        }
     }
 
     public MemberResponse getMember(Long id) {

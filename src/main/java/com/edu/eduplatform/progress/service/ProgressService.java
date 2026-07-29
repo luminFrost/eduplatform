@@ -3,7 +3,9 @@ package com.edu.eduplatform.progress.service;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
+import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
@@ -23,6 +25,7 @@ public class ProgressService {
     private final LearningProgressRepository learningProgressRepository;
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
+    private final MemberService memberService;
 
     public boolean isCompleted(Long memberId, Long lessonId) {
         return learningProgressRepository.findByMemberIdAndLessonId(memberId, lessonId)
@@ -32,6 +35,11 @@ public class ProgressService {
 
     @Transactional
     public void complete(Long memberId, Long lessonId) {
+        memberService.getMember(memberId);
+        if (!lessonRepository.existsById(lessonId)) {
+            throw new LessonNotFoundException(lessonId);
+        }
+
         LearningProgress progress = learningProgressRepository.findByMemberIdAndLessonId(memberId, lessonId)
                 .orElseGet(() -> LearningProgress.builder()
                         .memberId(memberId)
