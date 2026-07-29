@@ -32,7 +32,11 @@
            th:text="'← ' + ${lesson.prevLessonTitle}"></a>
         <span th:unless="${lesson.prevLessonId != null}" class="btn-disabled">← 이전 레슨 없음</span>
 
-        <button type="button" disabled title="다음 단계에서 연결 예정">학습 완료</button>
+        <form th:if="${currentMemberId != null and !completed}" th:action="@{/lessons/{id}/complete(id=${lesson.id})}" method="post">
+            <button type="submit">학습 완료</button>
+        </form>
+        <button th:if="${currentMemberId != null and completed}" type="button" disabled>완료함 ✓</button>
+        <a th:if="${currentMemberId == null}" href="/members/new" class="btn-disabled" title="회원가입 후 이용할 수 있어요">학습 완료 (회원가입 필요)</a>
 
         <a th:if="${lesson.nextLessonId != null}"
            class="next"
@@ -41,6 +45,10 @@
         <span th:unless="${lesson.nextLessonId != null}" class="btn-disabled">다음 레슨 없음 →</span>
     </div>
 
-    <p><a th:href="@{/courses/{id}(id=${lesson.courseId})}">코스로 돌아가기</a></p>
+    <p>
+        <a th:href="@{/courses/{id}(id=${lesson.courseId})}">코스로 돌아가기</a>
+        &middot;
+        <a th:href="@{/my}">마이페이지</a>
+    </p>
 </body>
 </html>

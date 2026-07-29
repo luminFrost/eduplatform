@@ -1,5 +1,6 @@
 package com.edu.eduplatform.member.controller;
 
+import com.edu.eduplatform.common.web.CurrentMemberSession;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberCreateRequest;
@@ -7,6 +8,7 @@ import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.service.MemberService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class MemberViewController {
 
     private final MemberService memberService;
+    private final CurrentMemberSession currentMemberSession;
 
     @GetMapping("/new")
     public String signUpForm(Model model) {
@@ -32,7 +35,8 @@ public class MemberViewController {
     }
 
     @PostMapping
-    public String signUp(@Valid MemberCreateRequest request, BindingResult bindingResult, Model model) {
+    public String signUp(@Valid MemberCreateRequest request, BindingResult bindingResult, Model model,
+                          HttpServletRequest httpRequest) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("validationErrors", bindingResult.getAllErrors().stream()
                     .map(DefaultMessageSourceResolvable::getDefaultMessage)
@@ -43,6 +47,7 @@ public class MemberViewController {
 
         try {
             MemberResponse response = memberService.signUp(request);
+            currentMemberSession.set(httpRequest, response.id());
             return "redirect:/members/" + response.id();
         } catch (DuplicateEmailException e) {
             model.addAttribute("errorMessage", e.getMessage());
@@ -59,6 +64,18 @@ public class MemberViewController {
         } catch (MemberNotFoundException e) {
             return "redirect:/members/new";
         }
+    }
+
+    @PostMapping("/{id}/select")
+    public String select(@PathVariable Long id, HttpServletRequest httpRequest) {
+        try {
+            memberService.getMember(id);
+        } catch (MemberNotFoundException e) {
+            return "redirect:/members/new";
+        }
+
+        currentMemberSession.set(httpRequest, id);
+        return "redirect:/courses";
     }
 
     private void addFormOptions(Model model) {
