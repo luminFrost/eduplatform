@@ -1,5 +1,7 @@
 package com.edu.eduplatform.course.controller;
 
+import com.edu.eduplatform.common.web.CurrentMemberId;
+import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.lesson.domain.LessonType;
@@ -7,8 +9,10 @@ import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
+import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -16,6 +20,7 @@ import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -68,6 +73,40 @@ public class CourseViewController {
             return "course/detail";
         } catch (CourseNotFoundException e) {
             return "redirect:/courses";
+        }
+    }
+
+    @GetMapping("/personal/new")
+    public String personalCourseForm(@CurrentMemberId Long memberId, Model model) {
+        if (memberId == null) {
+            return "redirect:/members/new";
+        }
+
+        model.addAttribute("lessonTypes", LessonType.values());
+        return "course/personal-new";
+    }
+
+    @PostMapping("/personal")
+    public String createPersonalCourse(
+            @CurrentMemberId Long memberId,
+            @RequestParam(required = false) Set<LessonType> focusAreas,
+            Model model
+    ) {
+        if (memberId == null) {
+            return "redirect:/members/new";
+        }
+
+        if (focusAreas == null || focusAreas.isEmpty()) {
+            model.addAttribute("errorMessage", "비중을 둘 영역을 하나 이상 선택해 주세요.");
+            model.addAttribute("lessonTypes", LessonType.values());
+            return "course/personal-new";
+        }
+
+        try {
+            var course = courseService.createPersonalCourse(new PersonalCourseCreateRequest(memberId, focusAreas));
+            return "redirect:/courses/" + course.id();
+        } catch (MemberNotFoundException e) {
+            return "redirect:/members/new";
         }
     }
 }

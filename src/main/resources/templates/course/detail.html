@@ -8,6 +8,11 @@
 <body>
     <div class="course-header">
         <span class="course-emoji large" th:text="${course.emoji}"></span>
+        <span class="personal-course-badge" th:if="${course.personal}" th:switch="${course.criteriaSource.name()}">
+            <span th:case="'SELF_SELECTED'">개인 코스 · 자가 선택</span>
+            <span th:case="'HISTORY_BASED'">개인 코스 · 학습 이력 기반</span>
+            <span th:case="'DIAGNOSTIC_TEST'">개인 코스 · 진단 테스트</span>
+        </span>
         <span class="badge" th:text="${course.targetType}"></span>
         <span class="badge" th:text="${course.level}"></span>
         <h1 th:text="${course.title}"></h1>

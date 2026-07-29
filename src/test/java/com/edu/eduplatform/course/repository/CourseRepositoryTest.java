@@ -34,4 +34,35 @@ class CourseRepositoryTest {
                 .extracting(Course::getTitle)
                 .containsExactly("왕초보 회화");
     }
+
+    @Test
+    void search_개인_코스는_결과에서_제외한다() {
+        courseRepository.save(Course.builder()
+                .title("공식 코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        courseRepository.save(Course.builder()
+                .title("개인 코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER))
+                .extracting(Course::getTitle)
+                .containsExactly("공식 코스");
+    }
+
+    @Test
+    void findByOwnerIdOrderByIdDesc_해당_회원의_개인_코스만_최신순으로_반환한다() {
+        courseRepository.save(Course.builder()
+                .title("남의 개인 코스").description("설명").ownerId(2L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Course first = courseRepository.save(Course.builder()
+                .title("내 첫 코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Course second = courseRepository.save(Course.builder()
+                .title("내 두번째 코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        assertThat(courseRepository.findByOwnerIdOrderByIdDesc(1L))
+                .extracting(Course::getId)
+                .containsExactly(second.getId(), first.getId());
+    }
 }
