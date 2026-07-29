@@ -7,13 +7,32 @@
 </head>
 <body>
     <div class="course-header">
+        <span class="course-emoji large" th:text="${course.emoji}"></span>
         <span class="badge" th:text="${course.targetType}"></span>
         <span class="badge" th:text="${course.level}"></span>
         <h1 th:text="${course.title}"></h1>
         <p th:text="${course.description}"></p>
     </div>
 
-    <p class="empty-state" th:if="${#lists.isEmpty(lessons)}">아직 등록된 레슨이 없습니다.</p>
+    <div class="skill-tabs">
+        <a th:href="@{/courses/{id}(id=${course.id})}"
+           th:class="${selectedType == null} ? 'skill-tab active' : 'skill-tab'">전체</a>
+        <th:block th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+            <a th:case="'VOCAB'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">어휘 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'READING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">읽기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'WRITING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">쓰기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'LISTENING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">듣기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'SPEAKING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">말하기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+        </th:block>
+    </div>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(lessons) and selectedType == null}">아직 등록된 레슨이 없습니다.</p>
+    <p class="empty-state" th:if="${#lists.isEmpty(lessons) and selectedType != null}">이 영역은 아직 준비 중이에요.</p>
 
     <ul class="lesson-list" th:unless="${#lists.isEmpty(lessons)}">
         <li th:each="lesson : ${lessons}">

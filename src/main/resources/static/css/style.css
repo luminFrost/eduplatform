@@ -81,6 +81,42 @@ ul {
     min-width: 140px;
 }
 
+.level-path {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.level-node {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 2px solid #ddd;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.level-node:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.level-node.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.level-connector {
+    flex: 1;
+    height: 2px;
+    background: #ddd;
+    margin: 0 4px;
+    min-width: 12px;
+}
+
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -97,6 +133,18 @@ ul {
 .card h3 {
     margin: 0 0 8px;
     font-size: 1.05rem;
+}
+
+.course-emoji {
+    display: block;
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.course-emoji.large {
+    font-size: 3rem;
+    margin-bottom: 12px;
 }
 
 .card p {
@@ -129,6 +177,34 @@ ul {
 
 .course-header p {
     color: #555;
+}
+
+.skill-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.skill-tab {
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid #ddd;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.skill-tab:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.skill-tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
 }
 
 .lesson-list {
@@ -169,12 +245,54 @@ ul {
 }
 
 .lesson-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+}
+
+.lesson-intro,
+.lesson-phrase {
+    grid-column: 1 / -1;
+}
+
+.lesson-intro {
+    font-size: 1.15rem;
+    font-weight: 600;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.lesson-phrase {
     border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 16px 18px;
     background: #fafafa;
-    margin: 16px 0 24px;
-    white-space: pre-line;
+}
+
+.lesson-phrase .en {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.lesson-phrase .kr {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.lesson-note {
+    display: flex;
+    align-items: center;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: #fafafa;
+    font-size: 1.05rem;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 .lesson-nav {

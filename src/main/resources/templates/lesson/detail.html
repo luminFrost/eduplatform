@@ -14,7 +14,16 @@
     <h1 th:text="${lesson.orderNo} + '과. ' + ${lesson.title}"></h1>
     <p th:text="${lesson.totalLessonsInCourse} + '개 레슨 중 ' + ${lesson.orderNo} + '번째'"></p>
 
-    <div class="lesson-content" th:text="${lesson.content}"></div>
+    <div class="lesson-content">
+        <th:block th:each="line : ${lesson.contentLines}" th:switch="${line.type.name()}">
+            <div th:case="'INTRO'" class="lesson-intro" th:text="${line.text}"></div>
+            <div th:case="'PHRASE'" class="lesson-phrase">
+                <div class="en" th:text="${line.text}"></div>
+                <div class="kr" th:text="${line.subtext}"></div>
+            </div>
+            <div th:case="'NOTE'" class="lesson-note" th:text="${line.text}"></div>
+        </th:block>
+    </div>
 
     <div class="lesson-nav">
         <a th:if="${lesson.prevLessonId != null}"

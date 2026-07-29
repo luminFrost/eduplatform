@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
@@ -81,9 +82,9 @@ class CourseApiControllerTest {
                 .title("레슨목록테스트코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
         lessonRepository.save(Lesson.builder()
-                .courseId(course.getId()).orderNo(2).title("2과").content("내용2").build());
+                .courseId(course.getId()).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build());
         lessonRepository.save(Lesson.builder()
-                .courseId(course.getId()).orderNo(1).title("1과").content("내용1").build());
+                .courseId(course.getId()).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build());
 
         mockMvc.perform(get("/api/courses/{id}/lessons", course.getId()))
                 .andExpect(status().isOk())
