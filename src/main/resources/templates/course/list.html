@@ -19,18 +19,26 @@
                         th:text="${type}"></option>
             </select>
         </div>
-        <div>
-            <label>레벨</label>
-            <select name="level">
-                <option value="" th:selected="${selectedLevel == null or selectedLevel == ''}">전체</option>
-                <option th:each="lvl : ${levels}"
-                        th:value="${lvl}"
-                        th:selected="${selectedLevel == lvl.name()}"
-                        th:text="${lvl}"></option>
-            </select>
-        </div>
+        <input type="hidden" name="level" th:value="${selectedLevel}"/>
         <button type="submit">필터 적용</button>
     </form>
+
+    <div class="level-path">
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget})}"
+           th:classappend="${selectedLevel == null or selectedLevel == ''} ? ' active' : ''">전체</a>
+        <span class="level-connector"></span>
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='BEGINNER')}"
+           th:classappend="${selectedLevel == 'BEGINNER'} ? ' active' : ''">입문</a>
+        <span class="level-connector"></span>
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ELEMENTARY')}"
+           th:classappend="${selectedLevel == 'ELEMENTARY'} ? ' active' : ''">초급</a>
+        <span class="level-connector"></span>
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='INTERMEDIATE')}"
+           th:classappend="${selectedLevel == 'INTERMEDIATE'} ? ' active' : ''">중급</a>
+        <span class="level-connector"></span>
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ADVANCED')}"
+           th:classappend="${selectedLevel == 'ADVANCED'} ? ' active' : ''">고급</a>
+    </div>
 
     <p class="empty-state" th:if="${#lists.isEmpty(courses)}">조건에 맞는 코스가 없습니다.</p>
 

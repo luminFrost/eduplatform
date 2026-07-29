@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
@@ -36,9 +37,9 @@ class LessonServiceTest {
         Course course = withId(Course.builder()
                 .title("코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 1L);
-        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").build(), 10L);
-        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").build(), 11L);
-        Lesson lesson3 = withLessonId(Lesson.builder().courseId(1L).orderNo(3).title("3과").content("내용3").build(), 12L);
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson lesson3 = withLessonId(Lesson.builder().courseId(1L).orderNo(3).title("3과").content("내용3").lessonType(LessonType.VOCAB).build(), 12L);
         List<Lesson> siblings = List.of(lesson1, lesson2, lesson3);
 
         when(lessonRepository.findById(11L)).thenReturn(Optional.of(lesson2));
@@ -57,8 +58,8 @@ class LessonServiceTest {
         Course course = withId(Course.builder()
                 .title("코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 1L);
-        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").build(), 10L);
-        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").build(), 11L);
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
         List<Lesson> siblings = List.of(lesson1, lesson2);
 
         when(lessonRepository.findById(10L)).thenReturn(Optional.of(lesson1));

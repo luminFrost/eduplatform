@@ -3,6 +3,8 @@ package com.edu.eduplatform.lesson.domain;
 import com.edu.eduplatform.common.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,11 +39,16 @@ public class Lesson extends BaseTimeEntity {
     @Lob
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LessonType lessonType;
+
     @Builder
-    public Lesson(Long courseId, String title, int orderNo, String content) {
+    public Lesson(Long courseId, String title, int orderNo, String content, LessonType lessonType) {
         this.courseId = courseId;
         this.title = title;
         this.orderNo = orderNo;
         this.content = content;
+        this.lessonType = lessonType;
     }
 }

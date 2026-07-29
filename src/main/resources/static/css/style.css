@@ -81,6 +81,42 @@ ul {
     min-width: 140px;
 }
 
+.level-path {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.level-node {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 2px solid #ddd;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.level-node:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.level-node.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.level-connector {
+    flex: 1;
+    height: 2px;
+    background: #ddd;
+    margin: 0 4px;
+    min-width: 12px;
+}
+
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -141,6 +177,34 @@ ul {
 
 .course-header p {
     color: #555;
+}
+
+.skill-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.skill-tab {
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid #ddd;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.skill-tab:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.skill-tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
 }
 
 .lesson-list {
