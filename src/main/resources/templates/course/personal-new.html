@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>개인 코스 만들기 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <h1>개인 코스 만들기</h1>
+    <p>비중을 두고 싶은 영역을 골라주세요. 회원님의 대상·레벨에 맞는 공식 코스 레슨들을 모아 나만의 코스로 만들어드려요.</p>
+
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+
+    <form th:action="@{/courses/personal}" method="post">
+        <div th:each="t : ${lessonTypes}">
+            <label>
+                <input type="checkbox" name="focusAreas" th:value="${t}"
+                       th:disabled="${t.name() == 'LISTENING' or t.name() == 'SPEAKING'}"/>
+                <span th:switch="${t.name()}">
+                    <span th:case="'VOCAB'">어휘</span>
+                    <span th:case="'READING'">읽기</span>
+                    <span th:case="'WRITING'">쓰기</span>
+                    <span th:case="'LISTENING'">듣기 (준비 중)</span>
+                    <span th:case="'SPEAKING'">말하기 (준비 중)</span>
+                </span>
+            </label>
+        </div>
+        <button type="submit">만들기</button>
+    </form>
+
+    <p><a th:href="@{/my}">마이페이지로</a></p>
+</body>
+</html>

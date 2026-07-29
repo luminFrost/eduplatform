@@ -2,12 +2,14 @@ package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
+import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
+import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +53,19 @@ public class CourseApiController {
         return lessonService.listByCourse(id);
     }
 
+    @PostMapping("/personal")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CourseResponse createPersonal(@Valid @RequestBody PersonalCourseCreateRequest request) {
+        return courseService.createPersonalCourse(request);
+    }
+
     @ExceptionHandler(CourseNotFoundException.class)
     public ResponseEntity<String> handleCourseNotFound(CourseNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<String> handleMemberNotFound(MemberNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
     }
 }

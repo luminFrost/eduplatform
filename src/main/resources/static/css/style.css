@@ -367,3 +367,21 @@ ul {
     color: #666;
     font-size: 0.85rem;
 }
+
+input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+    border: none;
+    margin-right: 6px;
+}
+
+.personal-course-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #ecfdf5;
+    color: #065f46;
+    margin-right: 6px;
+}

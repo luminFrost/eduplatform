@@ -151,6 +151,14 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - 화면: 레슨 페이지 "학습 완료" 버튼 실제 연결(`POST /lessons/{id}/complete`, 완료 시 "완료함 ✓"로 전환), 세션 없으면 회원가입 유도.
   - `GET /my` 마이페이지 — 회원이 손댄 코스별 진도(완료/전체, %, 진행바). `ProgressService.getCourseProgress()`가 LearningProgress→Lesson→Course를 조인해 집계.
   - 테스트: `ProgressServiceTest`(Mockito), `ProgressApiControllerTest`, `LearningProgressFlowTest`(세션 유지 e2e: 가입→마이페이지→완료→마이페이지 재확인)
+- 개인 코스(Phase 5, 자가 선택) 구현 (dev 병합됨)
+  - `Course`에 `ownerId`(nullable, 소유 회원)/`focusAreas`(`Set<LessonType>`, `@ElementCollection`)/`criteriaSource`(신규 `CourseCriteriaSource`: SELF_SELECTED/HISTORY_BASED/DIAGNOSTIC_TEST) 추가.
+    `LessonType`을 그대로 재사용(DESIGN.md의 SkillArea = 레슨 활동 유형과 동일 5종이라고 이미 정리해둔 대로).
+  - `CourseRepository.search()`는 `ownerId is null`만 반환하도록 수정 — 개인 코스는 일반 코스 목록/필터에 노출되지 않음. `findByOwnerIdOrderByIdDesc`로 본인 코스만 조회.
+  - `CourseService.createPersonalCourse()` — 회원의 대상·레벨과 같은 공식 코스들에서 선택한 영역(focusAreas)의 레슨만 걸러 **복사**해 새 코스에 담음(레슨 공유 없음, PRODUCT.md 3-2 결정 그대로). 듣기·말하기는 아직 레슨이 없어 골라도 빈 코스가 됨 — 정직하게 그대로 둠.
+  - 화면: `GET /courses/personal/new`(영역 체크박스, 듣기/말하기는 "준비 중" 비활성), `POST /courses/personal` → 생성 후 상세로 리다이렉트. 코스 상세에 "개인 코스 · 자가 선택" 배지. 마이페이지에 "내 개인 코스" 목록 + 만들기 링크.
+  - API: `POST /api/courses/personal` (DESIGN.md 문서화된 엔드포인트).
+  - 테스트: `CourseServiceTest`(Mockito, 영역별 레슨 필터링/복사 검증), `CourseRepositoryTest`에 개인 코스 제외/소유자별 조회 케이스 추가.
 - Boot 4.1 참고: 테스트 스타터가 기능별로 세분화됨 — MockMvc/Jackson용 `spring-boot-starter-webmvc-test`, JPA 테스트용 `spring-boot-starter-data-jpa-test` 추가 필요.
   Jackson은 3.x로 `tools.jackson.databind` 패키지 사용(`com.fasterxml.jackson` 아님).
   `@DataJpaTest`→`org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureMockMvc`→`org.springframework.boot.webmvc.test.autoconfigure`로 패키지 이동.
@@ -158,5 +166,5 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
-3. 개인 코스(Phase 5, PRODUCT.md 3-2 참고) — 자가 선택 방식부터
+3. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
 4. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체

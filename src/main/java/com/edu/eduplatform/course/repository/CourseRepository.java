@@ -12,9 +12,12 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     @Query("""
             select c from Course c
-            where (:targetType is null or c.targetType = :targetType)
+            where c.ownerId is null
+              and (:targetType is null or c.targetType = :targetType)
               and (:level is null or c.level = :level)
             order by c.id asc
             """)
     List<Course> search(@Param("targetType") MemberType targetType, @Param("level") EnglishLevel level);
+
+    List<Course> findByOwnerIdOrderByIdDesc(Long ownerId);
 }
