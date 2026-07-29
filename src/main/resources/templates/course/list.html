@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>코스 목록 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <h1>코스 목록</h1>
+
+    <form class="filter-form" th:action="@{/courses}" method="get">
+        <div>
+            <label>대상</label>
+            <select name="target">
+                <option value="" th:selected="${selectedTarget == null or selectedTarget == ''}">전체</option>
+                <option th:each="type : ${memberTypes}"
+                        th:value="${type}"
+                        th:selected="${selectedTarget == type.name()}"
+                        th:text="${type}"></option>
+            </select>
+        </div>
+        <div>
+            <label>레벨</label>
+            <select name="level">
+                <option value="" th:selected="${selectedLevel == null or selectedLevel == ''}">전체</option>
+                <option th:each="lvl : ${levels}"
+                        th:value="${lvl}"
+                        th:selected="${selectedLevel == lvl.name()}"
+                        th:text="${lvl}"></option>
+            </select>
+        </div>
+        <button type="submit">필터 적용</button>
+    </form>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(courses)}">조건에 맞는 코스가 없습니다.</p>
+
+    <div class="card-grid" th:unless="${#lists.isEmpty(courses)}">
+        <div class="card" th:each="c : ${courses}">
+            <span class="badge" th:text="${c.targetType}"></span>
+            <span class="badge" th:text="${c.level}"></span>
+            <h3 th:text="${c.title}"></h3>
+            <p th:text="${c.description}"></p>
+            <a th:href="@{/courses/{id}(id=${c.id})}">레슨 보기 →</a>
+        </div>
+    </div>
+
+    <p><a th:href="@{/}">홈으로</a></p>
+</body>
+</html>

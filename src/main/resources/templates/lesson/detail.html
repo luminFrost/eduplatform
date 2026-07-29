@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${lesson.title} + ' - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <p class="breadcrumb">
+        <a th:href="@{/courses/{id}(id=${lesson.courseId})}" th:text="${lesson.courseTitle}"></a>
+        &rsaquo; <span th:text="${lesson.orderNo} + '과 ' + ${lesson.title}"></span>
+    </p>
+
+    <h1 th:text="${lesson.orderNo} + '과. ' + ${lesson.title}"></h1>
+    <p th:text="${lesson.totalLessonsInCourse} + '개 레슨 중 ' + ${lesson.orderNo} + '번째'"></p>
+
+    <div class="lesson-content" th:text="${lesson.content}"></div>
+
+    <div class="lesson-nav">
+        <a th:if="${lesson.prevLessonId != null}"
+           class="prev"
+           th:href="@{/lessons/{id}(id=${lesson.prevLessonId})}"
+           th:text="'← ' + ${lesson.prevLessonTitle}"></a>
+        <span th:unless="${lesson.prevLessonId != null}" class="btn-disabled">← 이전 레슨 없음</span>
+
+        <button type="button" disabled title="다음 단계에서 연결 예정">학습 완료</button>
+
+        <a th:if="${lesson.nextLessonId != null}"
+           class="next"
+           th:href="@{/lessons/{id}(id=${lesson.nextLessonId})}"
+           th:text="${lesson.nextLessonTitle} + ' →'"></a>
+        <span th:unless="${lesson.nextLessonId != null}" class="btn-disabled">다음 레슨 없음 →</span>
+    </div>
+
+    <p><a th:href="@{/courses/{id}(id=${lesson.courseId})}">코스로 돌아가기</a></p>
+</body>
+</html>

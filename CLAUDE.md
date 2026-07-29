@@ -127,17 +127,22 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
 - 프로젝트 초기 세팅 (Spring Boot 4.1.0 / Java 21), GitHub 연동
 - 기능별 패키지 스켈레톤 생성 (member 예시 + course/lesson/progress 도메인)
 - H2 + JPA 설정, 랜딩 페이지
-- 회원 가입/조회 구현 (`feature/member-signup`, dev 병합 전)
+- 회원 가입/조회 구현 (dev 병합됨)
   - API: `POST /api/members`, `GET /api/members/{id}` (`MemberService`, `MemberApiController`, DTO, 중복 이메일/미존재 예외 처리)
   - 화면: `GET /members/new`(가입 폼), `POST /members`(가입 처리), `GET /members/{id}`(상세) — `MemberViewController`
   - 테스트: `MemberRepositoryTest`(@DataJpaTest), `MemberApiControllerTest`(@SpringBootTest + MockMvc)
-  - Boot 4.1 관련 참고: 테스트 스타터가 기능별로 세분화됨 — MockMvc/Jackson용 `spring-boot-starter-webmvc-test`, JPA 테스트용 `spring-boot-starter-data-jpa-test` 추가 필요.
-    Jackson은 3.x로 `tools.jackson.databind` 패키지 사용(`com.fasterxml.jackson` 아님).
-    `@DataJpaTest`→`org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureMockMvc`→`org.springframework.boot.webmvc.test.autoconfigure`로 패키지 이동.
+- 코스·레슨 학습(Phase 2) 구현 (`feature/course-lesson`, dev 병합 전)
+  - API: `GET/POST /api/courses`(대상·레벨 필터), `GET /api/courses/{id}/lessons` — `CourseService`, `LessonService`
+  - 화면: `GET /courses`(필터+목록), `GET /courses/{id}`(코스 상세+레슨 목록), `GET /lessons/{id}`(레슨 학습, 이전/다음 이동)
+    - "학습 완료" 버튼은 자리만 배치 — Phase 3(LearningProgress 연동)에서 실제 동작 연결 예정.
+  - 샘플 데이터: `SampleDataInitializer`(CommandLineRunner)가 대상×레벨 8개 조합에 각 3개씩, 총 24개 코스 시딩.
+  - 테스트: `CourseRepositoryTest`, `CourseApiControllerTest`, `LessonServiceTest`(Mockito, 이전/다음 레슨 계산 검증)
+- Boot 4.1 참고: 테스트 스타터가 기능별로 세분화됨 — MockMvc/Jackson용 `spring-boot-starter-webmvc-test`, JPA 테스트용 `spring-boot-starter-data-jpa-test` 추가 필요.
+  Jackson은 3.x로 `tools.jackson.databind` 패키지 사용(`com.fasterxml.jackson` 아님).
+  `@DataJpaTest`→`org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureMockMvc`→`org.springframework.boot.webmvc.test.autoconfigure`로 패키지 이동.
 
 **다음 단계 (예시, 우선순위 순)**
-1. `feature/member-signup` → `dev` 병합 (터미널에서 `git merge --no-ff`)
-2. 코스·레슨 CRUD 및 목록/상세 페이지(Thymeleaf)
-3. 학습 진행 처리(레슨 완료 시 LearningProgress 갱신)
-4. 초등/성인 및 레벨별 코스 필터링
-5. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
+1. `feature/course-lesson` → `dev` 병합
+2. 학습 진행 처리(레슨 완료 시 `LearningProgress` 갱신, "학습 완료" 버튼 실제 연결) + 마이페이지 진도 표시
+3. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
+4. 개인 코스(Phase 5, PRODUCT.md 3-2 참고) — 자가 선택 방식부터
