@@ -99,6 +99,18 @@ ul {
     font-size: 1.05rem;
 }
 
+.course-emoji {
+    display: block;
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.course-emoji.large {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
 .card p {
     margin: 0 0 12px;
     color: #555;
@@ -169,12 +181,54 @@ ul {
 }
 
 .lesson-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+}
+
+.lesson-intro,
+.lesson-phrase {
+    grid-column: 1 / -1;
+}
+
+.lesson-intro {
+    font-size: 1.15rem;
+    font-weight: 600;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.lesson-phrase {
     border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 16px 18px;
     background: #fafafa;
-    margin: 16px 0 24px;
-    white-space: pre-line;
+}
+
+.lesson-phrase .en {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.lesson-phrase .kr {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.lesson-note {
+    display: flex;
+    align-items: center;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: #fafafa;
+    font-size: 1.05rem;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 .lesson-nav {

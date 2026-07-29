@@ -7,6 +7,7 @@
 </head>
 <body>
     <div class="course-header">
+        <span class="course-emoji large" th:text="${course.emoji}"></span>
         <span class="badge" th:text="${course.targetType}"></span>
         <span class="badge" th:text="${course.level}"></span>
         <h1 th:text="${course.title}"></h1>

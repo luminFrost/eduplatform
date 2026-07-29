@@ -33,6 +33,9 @@ public class Course extends BaseTimeEntity {
     @Column(length = 1000)
     private String description;
 
+    /** 코스 목록·상세에서 보여주는 대표 이모지 (예: "🦊"). 실제 삽화 도입 전까지 시각 요소로 사용. */
+    private String emoji;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MemberType targetType;
@@ -42,9 +45,10 @@ public class Course extends BaseTimeEntity {
     private EnglishLevel level;
 
     @Builder
-    public Course(String title, String description, MemberType targetType, EnglishLevel level) {
+    public Course(String title, String description, String emoji, MemberType targetType, EnglishLevel level) {
         this.title = title;
         this.description = description;
+        this.emoji = emoji;
         this.targetType = targetType;
         this.level = level;
     }

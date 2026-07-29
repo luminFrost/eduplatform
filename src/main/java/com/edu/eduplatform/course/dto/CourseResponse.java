@@ -8,6 +8,7 @@ public record CourseResponse(
         Long id,
         String title,
         String description,
+        String emoji,
         MemberType targetType,
         EnglishLevel level
 ) {
@@ -17,6 +18,7 @@ public record CourseResponse(
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
+                course.getEmoji(),
                 course.getTargetType(),
                 course.getLevel()
         );

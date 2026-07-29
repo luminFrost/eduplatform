@@ -12,6 +12,8 @@ public record CourseCreateRequest(
 
         String description,
 
+        String emoji,
+
         @NotNull(message = "대상을 선택해 주세요.")
         MemberType targetType,
 

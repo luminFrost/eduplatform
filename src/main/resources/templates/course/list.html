@@ -35,7 +35,8 @@
     <p class="empty-state" th:if="${#lists.isEmpty(courses)}">조건에 맞는 코스가 없습니다.</p>
 
     <div class="card-grid" th:unless="${#lists.isEmpty(courses)}">
-        <div class="card" th:each="c : ${courses}">
+        <div class="card course-card" th:each="c : ${courses}">
+            <span class="course-emoji" th:text="${c.emoji}"></span>
             <span class="badge" th:text="${c.targetType}"></span>
             <span class="badge" th:text="${c.level}"></span>
             <h3 th:text="${c.title}"></h3>

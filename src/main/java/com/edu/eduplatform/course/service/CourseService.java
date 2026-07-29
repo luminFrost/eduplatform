@@ -37,6 +37,7 @@ public class CourseService {
         Course course = Course.builder()
                 .title(request.title())
                 .description(request.description())
+                .emoji(request.emoji())
                 .targetType(request.targetType())
                 .level(request.level())
                 .build();
