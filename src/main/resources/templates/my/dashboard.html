@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>마이페이지 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <h1 th:text="${member.nickname} + '님의 학습 현황'"></h1>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(courseProgress)}">
+        아직 학습을 시작한 코스가 없어요.
+        <a th:href="@{/courses}">코스를 둘러보고 레슨을 완료해보세요 →</a>
+    </p>
+
+    <div class="progress-list" th:unless="${#lists.isEmpty(courseProgress)}">
+        <div class="progress-card" th:each="p : ${courseProgress}">
+            <span class="course-emoji" th:text="${p.emoji}"></span>
+            <div class="progress-card-body">
+                <a th:href="@{/courses/{id}(id=${p.courseId})}" th:text="${p.courseTitle}"></a>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" th:style="'width: ' + ${p.percentage()} + '%'"></div>
+                </div>
+                <span class="progress-label" th:text="${p.completedLessons} + ' / ' + ${p.totalLessons} + '개 완료 (' + ${p.percentage()} + '%)'"></span>
+            </div>
+        </div>
+    </div>
+
+    <p><a th:href="@{/}">홈으로</a></p>
+</body>
+</html>

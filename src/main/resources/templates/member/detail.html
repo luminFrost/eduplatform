@@ -15,6 +15,10 @@
         <li th:text="'가입일: ' + ${member.createdAt}"></li>
     </ul>
 
+    <form th:action="@{/members/{id}/select(id=${member.id})}" method="post">
+        <button type="submit">이 회원으로 학습 시작하기</button>
+    </form>
+
     <p><a th:href="@{/}">홈으로</a></p>
 </body>
 </html>

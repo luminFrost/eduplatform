@@ -302,6 +302,10 @@ ul {
     gap: 12px;
 }
 
+.lesson-nav form {
+    margin: 0;
+}
+
 .lesson-nav a,
 .lesson-nav .btn-disabled {
     padding: 8px 14px;
@@ -319,4 +323,47 @@ ul {
 .lesson-nav .btn-disabled {
     color: #bbb;
     border: 1px solid #eee;
+}
+
+.progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.progress-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.progress-card-body {
+    flex: 1;
+}
+
+.progress-card-body a {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.progress-bar-track {
+    background: #eee;
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+    background: #2563eb;
+    height: 100%;
+}
+
+.progress-label {
+    color: #666;
+    font-size: 0.85rem;
 }
