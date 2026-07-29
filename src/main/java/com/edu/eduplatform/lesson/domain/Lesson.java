@@ -37,6 +37,7 @@ public class Lesson extends BaseTimeEntity {
     private int orderNo;
 
     @Lob
+    @Column(nullable = false)
     private String content;
 
     @Enumerated(EnumType.STRING)

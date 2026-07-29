@@ -1,10 +1,14 @@
 package com.edu.eduplatform.progress.controller;
 
+import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
+import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.progress.dto.ProgressCompleteRequest;
 import com.edu.eduplatform.progress.service.ProgressService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,5 +26,15 @@ public class ProgressApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void complete(@Valid @RequestBody ProgressCompleteRequest request) {
         progressService.complete(request.memberId(), request.lessonId());
+    }
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<String> handleMemberNotFound(MemberNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(LessonNotFoundException.class)
+    public ResponseEntity<String> handleLessonNotFound(LessonNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
     }
 }

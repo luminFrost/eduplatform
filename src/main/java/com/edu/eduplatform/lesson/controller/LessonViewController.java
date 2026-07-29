@@ -38,7 +38,12 @@ public class LessonViewController {
             return "redirect:/members/new";
         }
 
-        progressService.complete(memberId, id);
+        try {
+            progressService.complete(memberId, id);
+        } catch (LessonNotFoundException e) {
+            return "redirect:/courses";
+        }
+
         return "redirect:/lessons/" + id;
     }
 }

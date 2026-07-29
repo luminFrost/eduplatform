@@ -159,6 +159,12 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - 화면: `GET /courses/personal/new`(영역 체크박스, 듣기/말하기는 "준비 중" 비활성), `POST /courses/personal` → 생성 후 상세로 리다이렉트. 코스 상세에 "개인 코스 · 자가 선택" 배지. 마이페이지에 "내 개인 코스" 목록 + 만들기 링크.
   - API: `POST /api/courses/personal` (DESIGN.md 문서화된 엔드포인트).
   - 테스트: `CourseServiceTest`(Mockito, 영역별 레슨 필터링/복사 검증), `CourseRepositoryTest`에 개인 코스 제외/소유자별 조회 케이스 추가.
+- 전체 코드 리뷰 후 버그 4건 수정 (dev 병합됨)
+  - `CourseViewController`에서 `MemberType/EnglishLevel/LessonType.valueOf()`를 직접 호출해 잘못된 쿼리 파라미터(`?target=BOGUS` 등)로 500이 나던 것을 `parseEnum()` 헬퍼(실패 시 null=필터 없음)로 수정. 재현 후 수정 확인함.
+  - `ProgressService.complete()`가 존재하지 않는 memberId/lessonId도 그냥 받아 고아 `LearningProgress` row를 만들던 것을 회원/레슨 존재 검증 추가(`MemberNotFoundException`/`LessonNotFoundException` → API는 404). 재현 후 수정 확인함.
+  - `MemberService.signUp()`의 이메일 중복 체크-저장 사이 레이스 컨디션 — `saveAndFlush()` + `DataIntegrityViolationException` 캐치로 `DuplicateEmailException`으로 변환.
+  - `Lesson.content`가 스키마상 nullable인데 코드는 항상 값 있다고 가정하던 불일치 — `@Column(nullable = false)` 추가.
+  - 테스트: `CourseViewControllerTest`(잘못된 필터 값 200 확인), `MemberServiceTest`(레이스 시뮬레이션), `ProgressServiceTest`/`ProgressApiControllerTest`에 존재하지 않는 회원/레슨 케이스 추가.
 - Boot 4.1 참고: 테스트 스타터가 기능별로 세분화됨 — MockMvc/Jackson용 `spring-boot-starter-webmvc-test`, JPA 테스트용 `spring-boot-starter-data-jpa-test` 추가 필요.
   Jackson은 3.x로 `tools.jackson.databind` 패키지 사용(`com.fasterxml.jackson` 아님).
   `@DataJpaTest`→`org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureMockMvc`→`org.springframework.boot.webmvc.test.autoconfigure`로 패키지 이동.
@@ -168,3 +174,4 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
 2. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
 3. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
 4. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
+5. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`, `ProgressService.getCourseProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
