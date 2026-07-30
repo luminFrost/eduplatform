@@ -35,14 +35,18 @@
         <a th:href="@{/courses/personal/new}">비중을 둘 영역을 골라 나만의 코스를 만들어보세요 →</a>
     </p>
     <div class="card-grid" th:unless="${#lists.isEmpty(personalCourses)}">
-        <div class="card course-card" th:each="c : ${personalCourses}">
-            <span class="course-emoji" th:text="${c.emoji}"></span>
-            <span class="badge" th:text="${c.targetType}"></span>
-            <span class="badge" th:text="${c.level}"></span>
+        <a class="card course-card" th:each="c, cStat : ${personalCourses}"
+           th:href="@{/courses/{id}(id=${c.id})}"
+           th:classappend="'accent-' + (${cStat.index} % 4)">
+            <span class="course-card-icon" th:text="${c.emoji}"></span>
+            <div class="course-card-badges">
+                <span class="badge" th:text="${c.targetType}"></span>
+                <span class="badge" th:text="${c.level}"></span>
+            </div>
             <h3 th:text="${c.title}"></h3>
             <p th:text="${c.description}"></p>
-            <a th:href="@{/courses/{id}(id=${c.id})}">레슨 보기 →</a>
-        </div>
+            <span class="card-cta">레슨 보기 <span class="lesson-chevron">›</span></span>
+        </a>
     </div>
     <p th:unless="${#lists.isEmpty(personalCourses)}">
         <a th:href="@{/courses/personal/new}">+ 개인 코스 하나 더 만들기</a>

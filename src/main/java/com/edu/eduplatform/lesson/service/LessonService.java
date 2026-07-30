@@ -27,7 +27,13 @@ public class LessonService {
 
     public List<LessonSummaryResponse> listByCourse(Long courseId) {
         return lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()
-                .map(LessonSummaryResponse::from)
+                .map(lesson -> new LessonSummaryResponse(
+                        lesson.getId(),
+                        lesson.getTitle(),
+                        lesson.getOrderNo(),
+                        lesson.getLessonType(),
+                        imageFor(firstContentIcon(lesson.getContent()))
+                ))
                 .toList();
     }
 
@@ -88,6 +94,21 @@ public class LessonService {
 
     private String imageFor(String icon) {
         return iconCatalog.resolveImagePath(icon);
+    }
+
+    /**
+     * 레슨 목록에서 썸네일로 쓸 대표 이모지 하나를 고른다.
+     * INTRO(마스코트 인사) 줄은 모든 레슨에서 반복돼 대표성이 없으므로 건너뛰고,
+     * 실제 학습 내용이 담긴 첫 줄의 이모지를 사용한다.
+     */
+    private String firstContentIcon(String content) {
+        return content.lines()
+                .map(String::strip)
+                .filter(line -> !line.isBlank() && !line.startsWith("INTRO:"))
+                .findFirst()
+                .map(this::splitLeadingIcon)
+                .map(IconSplit::icon)
+                .orElse(null);
     }
 
     /**
