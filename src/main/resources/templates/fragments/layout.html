@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <header class="site-header" th:fragment="header">
+        <a class="brand" th:href="@{/}"><span class="brand-emoji">🦊</span> eduplatform</a>
+        <nav class="site-nav">
+            <a th:href="@{/courses}">코스</a>
+            <a th:href="@{/my}">마이페이지</a>
+            <a th:href="@{/members/new}">회원가입</a>
+        </nav>
+    </header>
+
+    <footer class="site-footer" th:fragment="footer">
+        <p>아이콘: <a href="https://www.openmoji.org" target="_blank" rel="noopener noreferrer">OpenMoji</a> (CC BY-SA 4.0)</p>
+    </footer>
+</body>
+</html>

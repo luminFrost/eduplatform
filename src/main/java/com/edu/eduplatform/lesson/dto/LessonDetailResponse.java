@@ -25,6 +25,6 @@ public record LessonDetailResponse(
         NOTE
     }
 
-    public record ContentLine(LineType type, String text, String subtext) {
+    public record ContentLine(LineType type, String text, String subtext, String icon, String iconImage) {
     }
 }

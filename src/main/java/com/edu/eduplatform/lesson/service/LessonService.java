@@ -23,6 +23,7 @@ public class LessonService {
 
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
+    private final IconCatalog iconCatalog;
 
     public List<LessonSummaryResponse> listByCourse(Long courseId) {
         return lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()
@@ -69,16 +70,42 @@ public class LessonService {
 
     private ContentLine toContentLine(String line) {
         if (line.startsWith("INTRO:")) {
-            return new ContentLine(LineType.INTRO, line.substring("INTRO:".length()).strip(), null);
+            IconSplit split = splitLeadingIcon(line.substring("INTRO:".length()).strip());
+            return new ContentLine(LineType.INTRO, split.text(), null, split.icon(), imageFor(split.icon()));
         }
 
         int dashIndex = line.indexOf(" — ");
         if (dashIndex >= 0) {
             String english = line.substring(0, dashIndex).strip();
             String korean = line.substring(dashIndex + " — ".length()).strip();
-            return new ContentLine(LineType.PHRASE, english, korean);
+            IconSplit split = splitLeadingIcon(english);
+            return new ContentLine(LineType.PHRASE, split.text(), korean, split.icon(), imageFor(split.icon()));
         }
 
-        return new ContentLine(LineType.NOTE, line, null);
+        IconSplit split = splitLeadingIcon(line);
+        return new ContentLine(LineType.NOTE, split.text(), null, split.icon(), imageFor(split.icon()));
+    }
+
+    private String imageFor(String icon) {
+        return iconCatalog.resolveImagePath(icon);
+    }
+
+    /**
+     * 콘텐츠 줄 맨 앞의 이모지(예: "🍎 Red apple.")를 본문과 분리해 카드에서 큰 아이콘으로 보여줄 수 있게 한다.
+     * 이모지 토큰은 알파벳을 포함하지 않는다는 점으로 구분한다 — 영어 문장은 항상 알파벳으로 시작하므로 오탐이 없다.
+     */
+    private IconSplit splitLeadingIcon(String line) {
+        int spaceIndex = line.indexOf(' ');
+        if (spaceIndex <= 0) {
+            return new IconSplit(null, line);
+        }
+        String firstToken = line.substring(0, spaceIndex);
+        if (firstToken.chars().anyMatch(Character::isLetter)) {
+            return new IconSplit(null, line);
+        }
+        return new IconSplit(firstToken, line.substring(spaceIndex + 1).strip());
+    }
+
+    private record IconSplit(String icon, String text) {
     }
 }

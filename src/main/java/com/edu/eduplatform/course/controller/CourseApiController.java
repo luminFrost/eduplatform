@@ -5,6 +5,7 @@ import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.service.CourseService;
+import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
@@ -36,9 +37,10 @@ public class CourseApiController {
     @GetMapping
     public List<CourseResponse> list(
             @RequestParam(required = false) MemberType target,
-            @RequestParam(required = false) EnglishLevel level
+            @RequestParam(required = false) EnglishLevel level,
+            @RequestParam(required = false) LessonType type
     ) {
-        return courseService.list(target, level);
+        return courseService.list(target, level, type);
     }
 
     @PostMapping

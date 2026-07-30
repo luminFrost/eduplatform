@@ -6,6 +6,9 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
     <div class="course-header">
         <span class="course-emoji large" th:text="${course.emoji}"></span>
         <span class="personal-course-badge" th:if="${course.personal}" th:switch="${course.criteriaSource.name()}">
@@ -47,5 +50,7 @@
     </ul>
 
     <p><a th:href="@{/courses}">코스 목록으로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>
