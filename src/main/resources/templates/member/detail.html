@@ -6,6 +6,9 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
     <h1 th:text="${member.nickname} + '님, 가입을 환영합니다'"></h1>
 
     <ul>
@@ -19,6 +22,7 @@
         <button type="submit">이 회원으로 학습 시작하기</button>
     </form>
 
-    <p><a th:href="@{/}">홈으로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>

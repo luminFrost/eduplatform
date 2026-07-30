@@ -6,6 +6,9 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
     <h1>회원가입</h1>
 
     <ul class="error-message" th:if="${validationErrors}">
@@ -37,6 +40,7 @@
         <button type="submit">가입하기</button>
     </form>
 
-    <p><a th:href="@{/}">홈으로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>

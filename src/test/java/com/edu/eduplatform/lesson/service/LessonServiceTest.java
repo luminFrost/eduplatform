@@ -29,6 +29,9 @@ class LessonServiceTest {
     @Mock
     private CourseRepository courseRepository;
 
+    @Mock
+    private IconCatalog iconCatalog;
+
     @InjectMocks
     private LessonService lessonService;
 

@@ -6,6 +6,9 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
     <p class="breadcrumb">
         <a th:href="@{/courses/{id}(id=${lesson.courseId})}" th:text="${lesson.courseTitle}"></a>
         &rsaquo; <span th:text="${lesson.orderNo} + '과 ' + ${lesson.title}"></span>
@@ -15,13 +18,28 @@
     <p th:text="${lesson.totalLessonsInCourse} + '개 레슨 중 ' + ${lesson.orderNo} + '번째'"></p>
 
     <div class="lesson-content">
-        <th:block th:each="line : ${lesson.contentLines}" th:switch="${line.type.name()}">
-            <div th:case="'INTRO'" class="lesson-intro" th:text="${line.text}"></div>
-            <div th:case="'PHRASE'" class="lesson-phrase">
-                <div class="en" th:text="${line.text}"></div>
-                <div class="kr" th:text="${line.subtext}"></div>
+        <th:block th:each="line, lineStat : ${lesson.contentLines}" th:switch="${line.type.name()}">
+            <div th:case="'INTRO'" class="lesson-intro">
+                <img class="intro-icon" th:if="${line.iconImage != null}" th:src="@{${line.iconImage}}" alt=""/>
+                <span th:text="${line.text}"></span>
             </div>
-            <div th:case="'NOTE'" class="lesson-note" th:text="${line.text}"></div>
+            <div th:case="'PHRASE'" class="lesson-phrase"
+                 th:classappend="${line.iconImage != null ? ('has-image accent-' + (lineStat.index % 4)) : ''}">
+                <div class="phrase-image" th:if="${line.iconImage != null}">
+                    <img th:src="@{${line.iconImage}}" alt=""/>
+                </div>
+                <div class="phrase-body">
+                    <div class="en" th:text="${line.text}"></div>
+                    <div class="kr" th:text="${line.subtext}"></div>
+                </div>
+            </div>
+            <div th:case="'NOTE'" class="lesson-note"
+                 th:classappend="${line.iconImage != null ? ('has-image accent-' + (lineStat.index % 4)) : ''}">
+                <div class="phrase-image" th:if="${line.iconImage != null}">
+                    <img th:src="@{${line.iconImage}}" alt=""/>
+                </div>
+                <div class="note-body" th:text="${line.text}"></div>
+            </div>
         </th:block>
     </div>
 
@@ -50,5 +68,7 @@
         &middot;
         <a th:href="@{/my}">마이페이지</a>
     </p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>

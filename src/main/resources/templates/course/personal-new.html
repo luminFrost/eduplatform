@@ -6,6 +6,9 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
     <h1>개인 코스 만들기</h1>
     <p>비중을 두고 싶은 영역을 골라주세요. 회원님의 대상·레벨에 맞는 공식 코스 레슨들을 모아 나만의 코스로 만들어드려요.</p>
 
@@ -29,5 +32,7 @@
     </form>
 
     <p><a th:href="@{/my}">마이페이지로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>

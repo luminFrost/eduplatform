@@ -8,6 +8,7 @@ import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
@@ -27,8 +28,8 @@ public class CourseService {
     private final LessonRepository lessonRepository;
     private final MemberService memberService;
 
-    public List<CourseResponse> list(MemberType targetType, EnglishLevel level) {
-        return courseRepository.search(targetType, level).stream()
+    public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType) {
+        return courseRepository.search(targetType, level, lessonType).stream()
                 .map(CourseResponse::from)
                 .toList();
     }
@@ -68,7 +69,7 @@ public class CourseService {
     public CourseResponse createPersonalCourse(PersonalCourseCreateRequest request) {
         MemberResponse member = memberService.getMember(request.memberId());
 
-        List<Lesson> matchingLessons = courseRepository.search(member.memberType(), member.level()).stream()
+        List<Lesson> matchingLessons = courseRepository.search(member.memberType(), member.level(), null).stream()
                 .flatMap(officialCourse -> lessonRepository.findByCourseIdOrderByOrderNoAsc(officialCourse.getId()).stream())
                 .filter(lesson -> request.focusAreas().contains(lesson.getLessonType()))
                 .toList();

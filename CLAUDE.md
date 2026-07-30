@@ -168,10 +168,26 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
 - Boot 4.1 참고: 테스트 스타터가 기능별로 세분화됨 — MockMvc/Jackson용 `spring-boot-starter-webmvc-test`, JPA 테스트용 `spring-boot-starter-data-jpa-test` 추가 필요.
   Jackson은 3.x로 `tools.jackson.databind` 패키지 사용(`com.fasterxml.jackson` 아님).
   `@DataJpaTest`→`org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureMockMvc`→`org.springframework.boot.webmvc.test.autoconfigure`로 패키지 이동.
+- 코스 필터·CSS·콘텐츠 보강 (dev 병합 대기 중, `feature/content-and-ux-polish`)
+  - 코스 목록/상세에 영역별(어휘/읽기/쓰기/듣기/말하기) 필터 탭 추가 — `CourseRepository.search()`가 `MemberType/EnglishLevel/LessonType` 3개 필터를 조합해 처리(레슨 타입은 "해당 타입 레슨을 가진 코스"로 서브쿼리 매칭). `CourseViewController`/`CourseApiController`/`course/list.html`에 `type` 파라미터 관통.
+  - **24개 공식 코스 전체를 레슨 2~4개 → 7개로 확장** (총 168개 레슨). 4개 백그라운드 에이전트로 대상×레벨 조합별 콘텐츠를 병렬 작성시켜 `SampleDataInitializer.COURSE_SEEDS`에 반영. 기존 콘텐츠 포맷 컨벤션(`INTRO:` 줄, "영어. — 한국어." 페어, 초등 여우 마스코트 인사말) 그대로 유지.
+  - **배경/여백 CSS 전면 개편** — 기존엔 순백색 배경에 720px 폭 제한이라 "빈 공간이 너무 많다"는 피드백. `style.css`를 CSS 변수 기반 팔레트로 재작성(연한 블루→민트→크림 그라디언트 배경, 카드에 그림자, 페이지 폭을 880px/1080px(`page`/`page-wide`)로 확장해 코스 카드 그리드가 3~4열로 보이게 함).
+  - **공용 헤더 내비 도입** — `templates/fragments/layout.html`에 `th:fragment="header"` 정의(로고 + 코스/마이페이지/회원가입 링크), 8개 템플릿 전부에서 `th:replace`로 삽입. 각 페이지 하단에 중복돼 있던 "홈으로" 링크 제거.
+  - 랜딩 페이지(`index.html`)를 문구 3줄짜리 페이지에서 실제 히어로 섹션(헤드라인+CTA 2개+레벨 pill 4개+영역 소개 카드 4개)으로 재구성.
+  - 빌드/테스트(`./gradlew build`) 통과, `run-dev.sh`로 띄워 브라우저에서 랜딩/코스목록/코스상세/레슨상세/회원가입 페이지 직접 확인 완료.
+  - **레슨 카드 2차 품질 개선** — `LessonService.splitLeadingIcon()`을 추가해 콘텐츠 줄 맨 앞 이모지(예: "🍎 Red apple.")를 본문과 분리(첫 토큰에 알파벳이 없으면 이모지로 판단 — 영어 문장은 항상 알파벳으로 시작해 오탐 없음). `LessonDetailResponse.ContentLine`에 `icon` 필드 추가.
+    구글 폰트 도입(`Noto Sans KR`: 본문/한글 전체, `Poppins`: 레슨 카드 영어 문장 `.en` 및 브랜드/뱃지용 `--font-display`) — 브라우저가 문자 단위로 폰트 폴백을 하므로 한/영 혼용 요소도 깨지지 않음.
+  - **레슨 카드 3차 개선: 진짜 플래시카드로 전환** (사용자가 아동용 단어 플래시카드 이미지를 레퍼런스로 제시 — "카드 느낌이 나야지, 지금은 네모 영역에 텍스트랑 이미지 집어넣은거잖아"). 2차의 작은 유니코드 이모지 배지 방식은 폐기.
+    - `IconCatalog`(`lesson/service`) 신규 — `openmoji-map.tsv`(클래스패스 리소스)를 읽어 이모지 → OpenMoji SVG 경로를 매핑. 콘텐츠에 실제로 쓰인 이모지 171종을 `github.com/hfg-gmuend/openmoji`(CC BY-SA 4.0)에서 스크립트로 내려받아 `static/images/openmoji/`에 저장(파일명은 유니코드 코드포인트지만 변형 선택자(FE0F) 포함 여부가 문자마다 달라 런타임 계산 대신 실제로 받아둔 매핑 그대로 사용).
+    - `ContentLine`에 `iconImage` 필드 추가, `LessonService`가 아이콘을 큰 SVG 경로로 해석해 채움.
+    - `lesson/detail.html` 카드 구조를 세로형 플래시카드로 전환 — 이미지가 있는 PHRASE/NOTE 카드는 위쪽에 큰 아이콘(88px) + 컬러 배경 밴드, 아래에 굵은 문장 + 번역, 카드 테두리는 4색(파랑/초록/노랑/분홍) 순환(`accent-0~3`). 그리드도 전체폭 1열 스택에서 여러 장이 나란히 보이는 카드 그리드로 변경. 이모지가 없는 성인 코스 문장(대부분)은 기존처럼 이미지 없는 가로형 텍스트 카드로 그대로 표시 — 확인함.
+    - OpenMoji 라이선스 표기를 위해 `fragments/layout.html`에 `footer` 프래그먼트 추가, 8개 템플릿 전부에 삽입.
+    - 테스트: `LessonServiceTest`에 `IconCatalog` 목(mock) 추가.
 
 **다음 단계 (예시, 우선순위 순)**
-1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
-3. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
-4. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
-5. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`, `ProgressService.getCourseProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+1. `feature/content-and-ux-polish`를 dev로 병합·push (사용자가 "병합하고 push해"라고 명시적으로 지시할 때까지 대기 중)
+2. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
+3. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
+4. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
+5. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
+6. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`, `ProgressService.getCourseProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

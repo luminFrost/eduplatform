@@ -51,7 +51,7 @@ class CourseServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("왕초보 회화").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson = withId(Lesson.builder()

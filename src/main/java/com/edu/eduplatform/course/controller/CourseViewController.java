@@ -36,15 +36,19 @@ public class CourseViewController {
     public String list(
             @RequestParam(required = false) String target,
             @RequestParam(required = false) String level,
+            @RequestParam(required = false) String type,
             Model model
     ) {
         MemberType targetType = parseEnum(MemberType.class, target);
         EnglishLevel levelFilter = parseEnum(EnglishLevel.class, level);
+        LessonType typeFilter = parseEnum(LessonType.class, type);
 
-        model.addAttribute("courses", courseService.list(targetType, levelFilter));
+        model.addAttribute("courses", courseService.list(targetType, levelFilter, typeFilter));
         model.addAttribute("memberTypes", MemberType.values());
+        model.addAttribute("lessonTypes", LessonType.values());
         model.addAttribute("selectedTarget", target);
         model.addAttribute("selectedLevel", level);
+        model.addAttribute("selectedSkillType", type);
         return "course/list";
     }
 
