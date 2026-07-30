@@ -2,7 +2,9 @@ package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
+import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
+import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
@@ -100,17 +102,15 @@ public class CourseViewController {
             return "redirect:/members/new";
         }
 
-        if (focusAreas == null || focusAreas.isEmpty()) {
-            model.addAttribute("errorMessage", "비중을 둘 영역을 하나 이상 선택해 주세요.");
-            model.addAttribute("lessonTypes", LessonType.values());
-            return "course/personal-new";
-        }
-
         try {
-            var course = courseService.createPersonalCourse(new PersonalCourseCreateRequest(memberId, focusAreas));
-            return "redirect:/courses/" + course.id();
+            PersonalCourseCreationResult result = courseService.createPersonalCourse(new PersonalCourseCreateRequest(memberId, focusAreas));
+            return "redirect:/courses/" + result.course().id();
         } catch (MemberNotFoundException e) {
             return "redirect:/members/new";
+        } catch (InvalidFocusAreasException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("lessonTypes", LessonType.values());
+            return "course/personal-new";
         }
     }
 

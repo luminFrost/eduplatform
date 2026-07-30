@@ -3,7 +3,9 @@ package com.edu.eduplatform.course.controller;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
+import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
+import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
@@ -56,9 +58,10 @@ public class CourseApiController {
     }
 
     @PostMapping("/personal")
-    @ResponseStatus(HttpStatus.CREATED)
-    public CourseResponse createPersonal(@Valid @RequestBody PersonalCourseCreateRequest request) {
-        return courseService.createPersonalCourse(request);
+    public ResponseEntity<CourseResponse> createPersonal(@Valid @RequestBody PersonalCourseCreateRequest request) {
+        PersonalCourseCreationResult result = courseService.createPersonalCourse(request);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.course());
     }
 
     @ExceptionHandler(CourseNotFoundException.class)
@@ -69,5 +72,10 @@ public class CourseApiController {
     @ExceptionHandler(MemberNotFoundException.class)
     public ResponseEntity<String> handleMemberNotFound(MemberNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidFocusAreasException.class)
+    public ResponseEntity<String> handleInvalidFocusAreas(InvalidFocusAreasException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 }

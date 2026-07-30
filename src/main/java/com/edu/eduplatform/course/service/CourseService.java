@@ -5,7 +5,9 @@ import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
+import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
+import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
@@ -15,6 +17,7 @@ import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.service.MemberService;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,10 +67,22 @@ public class CourseService {
      * 자가 선택(SELF_SELECTED) 기준으로 개인 코스를 만든다.
      * 회원과 같은 대상·레벨의 공식 코스들에서 선택한 영역(focusAreas)에 해당하는 레슨을 그대로 복사해 담는다
      * (레슨을 여러 코스가 공유하지 않는다 — PRODUCT.md 3-2).
+     * 이미 같은 focusAreas로 만든 개인 코스가 있으면(중복 제출 등) 새로 만들지 않고 그 코스를 그대로 반환한다.
      */
     @Transactional
-    public CourseResponse createPersonalCourse(PersonalCourseCreateRequest request) {
+    public PersonalCourseCreationResult createPersonalCourse(PersonalCourseCreateRequest request) {
+        if (request.focusAreas() == null || request.focusAreas().isEmpty()) {
+            throw new InvalidFocusAreasException();
+        }
+
         MemberResponse member = memberService.getMember(request.memberId());
+
+        Optional<Course> existing = courseRepository.findByOwnerIdOrderByIdDesc(member.id()).stream()
+                .filter(c -> c.getFocusAreas().equals(request.focusAreas()))
+                .findFirst();
+        if (existing.isPresent()) {
+            return new PersonalCourseCreationResult(CourseResponse.from(existing.get()), false);
+        }
 
         List<Lesson> matchingLessons = courseRepository.search(member.memberType(), member.level(), null).stream()
                 .flatMap(officialCourse -> lessonRepository.findByCourseIdOrderByOrderNoAsc(officialCourse.getId()).stream())
@@ -96,7 +111,7 @@ public class CourseService {
                     .build());
         }
 
-        return CourseResponse.from(personalCourse);
+        return new PersonalCourseCreationResult(CourseResponse.from(personalCourse), true);
     }
 
     private String describeFocusAreas(PersonalCourseCreateRequest request) {
