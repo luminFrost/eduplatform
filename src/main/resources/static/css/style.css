@@ -433,11 +433,6 @@ ul {
     transform: translateX(3px);
 }
 
-.accent-0 .course-card-icon { background: #eff6ff; }
-.accent-1 .course-card-icon { background: #f0fdf4; }
-.accent-2 .course-card-icon { background: #fffbeb; }
-.accent-3 .course-card-icon { background: #fdf2f8; }
-
 .badge {
     display: inline-block;
     font-family: var(--font-display);
@@ -526,6 +521,10 @@ ul {
     background: var(--color-primary-light);
 }
 
+.lesson-list li:hover .lesson-chevron {
+    transform: translateX(3px);
+}
+
 .lesson-row {
     display: flex;
     align-items: center;
@@ -595,6 +594,7 @@ ul {
     color: var(--color-text-muted);
     font-size: 1.2rem;
     line-height: 1;
+    transition: transform 0.15s ease;
 }
 
 .type-vocab .lesson-icon,
@@ -741,18 +741,6 @@ ul {
     font-size: 1rem;
 }
 
-.accent-0 { border-color: #93c5fd; }
-.accent-0 .phrase-image { background: #eff6ff; }
-
-.accent-1 { border-color: #86efac; }
-.accent-1 .phrase-image { background: #f0fdf4; }
-
-.accent-2 { border-color: #fcd34d; }
-.accent-2 .phrase-image { background: #fffbeb; }
-
-.accent-3 { border-color: #f9a8d4; }
-.accent-3 .phrase-image { background: #fdf2f8; }
-
 .lesson-nav {
     display: flex;
     justify-content: space-between;
@@ -805,23 +793,38 @@ ul {
 .progress-card {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
     background: var(--color-surface);
+    border: 2px solid var(--color-border);
     box-shadow: var(--shadow-card);
     border-radius: var(--radius-lg);
     padding: 18px 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.progress-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+}
+
+.progress-card:hover .lesson-chevron {
+    transform: translateX(3px);
 }
 
 .progress-card-body {
     flex: 1;
+    min-width: 0;
 }
 
-.progress-card-body a {
+.progress-card-title {
     display: block;
+    font-family: var(--font-display);
     font-weight: 600;
-    margin-bottom: 8px;
+    font-size: 1.05rem;
     color: var(--color-text);
-    text-decoration: none;
+    margin-bottom: 8px;
 }
 
 .progress-bar-track {
@@ -859,3 +862,24 @@ input[type="checkbox"] {
     color: #065f46;
     margin-right: 6px;
 }
+
+/* ---------- accent rotation (course cards, progress cards, flashcards) ---------- */
+/* Kept at the end of the file on purpose: several components share this same class
+   (.card, .progress-card, .lesson-phrase.has-image, ...) and each also sets its own
+   `border` shorthand. Same specificity + later source order is what lets this win. */
+
+.accent-0 { border-color: #93c5fd; }
+.accent-0 .course-card-icon,
+.accent-0 .phrase-image { background: #eff6ff; }
+
+.accent-1 { border-color: #86efac; }
+.accent-1 .course-card-icon,
+.accent-1 .phrase-image { background: #f0fdf4; }
+
+.accent-2 { border-color: #fcd34d; }
+.accent-2 .course-card-icon,
+.accent-2 .phrase-image { background: #fffbeb; }
+
+.accent-3 { border-color: #f9a8d4; }
+.accent-3 .course-card-icon,
+.accent-3 .phrase-image { background: #fdf2f8; }

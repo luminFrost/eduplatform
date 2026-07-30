@@ -17,16 +17,19 @@
     </p>
 
     <div class="progress-list" th:unless="${#lists.isEmpty(courseProgress)}">
-        <div class="progress-card" th:each="p : ${courseProgress}">
-            <span class="course-emoji" th:text="${p.emoji}"></span>
+        <a class="progress-card" th:each="p, pStat : ${courseProgress}"
+           th:href="@{/courses/{id}(id=${p.courseId})}"
+           th:classappend="'accent-' + (${pStat.index} % 4)">
+            <span class="course-card-icon" th:text="${p.emoji}"></span>
             <div class="progress-card-body">
-                <a th:href="@{/courses/{id}(id=${p.courseId})}" th:text="${p.courseTitle}"></a>
+                <span class="progress-card-title" th:text="${p.courseTitle}"></span>
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill" th:style="'width: ' + ${p.percentage()} + '%'"></div>
                 </div>
                 <span class="progress-label" th:text="${p.completedLessons} + ' / ' + ${p.totalLessons} + '개 완료 (' + ${p.percentage()} + '%)'"></span>
             </div>
-        </div>
+            <span class="lesson-chevron">›</span>
+        </a>
     </div>
 
     <h2>내 개인 코스</h2>
