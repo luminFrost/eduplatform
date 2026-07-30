@@ -466,10 +466,6 @@ ul {
 }
 
 .lesson-list li {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
     border-bottom: 1px solid var(--color-border);
 }
 
@@ -481,19 +477,71 @@ ul {
     background: var(--color-primary-light);
 }
 
-.lesson-list .order-no {
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-    width: 36px;
-    flex-shrink: 0;
+.lesson-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    text-decoration: none;
+    color: inherit;
 }
 
-.lesson-list a {
+.lesson-number {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.lesson-title {
     flex: 1;
-    text-decoration: none;
-    font-weight: 500;
+    min-width: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
     color: var(--color-text);
 }
+
+.lesson-type-tag {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.lesson-chevron {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.type-vocab .lesson-number,
+.type-vocab .lesson-type-tag { background: #dbeafe; color: #1d4ed8; }
+
+.type-reading .lesson-number,
+.type-reading .lesson-type-tag { background: #dcfce7; color: #15803d; }
+
+.type-writing .lesson-number,
+.type-writing .lesson-type-tag { background: #fef3c7; color: #92400e; }
+
+.type-listening .lesson-number,
+.type-listening .lesson-type-tag { background: #ede9fe; color: #6d28d9; }
+
+.type-speaking .lesson-number,
+.type-speaking .lesson-type-tag { background: #fce7f3; color: #be185d; }
 
 /* ---------- lesson detail ---------- */
 
