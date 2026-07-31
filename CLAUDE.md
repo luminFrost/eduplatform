@@ -243,8 +243,26 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     클릭 시 `speechSynthesis`가 실제로 발화 시작(`onstart` 이벤트)하는지 몽키패치로 확인, VOCAB
     레슨엔 버튼이 안 뜨는지(조건부 렌더링) 확인.
 
+- 듣기·말하기 콘텐츠를 전체 대상·레벨 조합으로 확장 (dev 병합됨)
+  - 지난 작업에서 ADULT/BEGINNER 1쌍만 검증해두고 "다른 조합은 후속 과제"로 남겨뒀던 것을 마저 채움 —
+    이제 8개 대상·레벨 조합(CHILD/ADULT × 4레벨) 전부에 LISTENING·SPEAKING 코스가 1개씩 있다.
+    공식 코스 24개 → 38개, 레슨 168개 → 266개.
+  - 기술 패턴(재생 버튼, `speechSynthesis`, 조건부 렌더링)은 이미 검증돼 있어 이번엔 순수 콘텐츠
+    작성이라 판단 — 3개 배경 에이전트에 조합을 나눠 맡기고(CHILD 3개 조합 / CHILD 1개+ADULT 1개 조합 /
+    ADULT 2개 조합), 각각 **파일을 직접 수정하지 않고 완성된 Java 코드만 텍스트로 반환**하게 해서
+    동시 편집 충돌 없이 직접 `SampleDataInitializer.java`에 순서대로 붙여넣는 방식으로 처리.
+  - 레벨별 톤 보정: CHILD는 `INTRO:` 마스코트 인사 + 이모지 아이콘 유지, ADULT는 인사말·아이콘 없이
+    바로 "en — kr" 문장만. BEGINNER는 단어 수준의 짧은 명령문(예: "Stand up."), ADVANCED는 뉴스 앵커·
+    면접 답변 수준의 복문(예: "Critics argue that the policy fails to address the root cause.").
+  - **실수 하나 발견·수정**: 에이전트 3개 결과를 파일에 붙여넣던 중 ADULT/INTERMEDIATE+ADVANCED를
+    맡은 에이전트가 반환한 4개 코스 중 뒤쪽 2개(ADULT/ADVANCED 몫)를 붙여넣는 걸 빠뜨림 — 코스/레슨
+    개수를 계산해보고(38개/266개여야 하는데 실제론 코스 수가 안 맞음) API로 대상·레벨×타입 조합별
+    개수를 전수 확인하다가 `ADULT/ADVANCED: LISTENING=0 SPEAKING=0`을 발견해 잡아냄. 챗봇이 직접
+    데이터를 조립할 때도 결과를 다시 세어서 확인하는 게 중요하다는 교훈.
+  - claude-in-chrome으로 CHILD/BEGINNER, ADULT/ADVANCED 각각 신규 코스 진입 → 카드 렌더링 → 재생
+    버튼 클릭 시 `speechSynthesis.speak()` 정상 호출까지 재확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. 듣기·말하기 콘텐츠를 다른 대상·레벨 조합으로 확장 — 지금은 ADULT/BEGINNER 1개씩만 있음
-4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
