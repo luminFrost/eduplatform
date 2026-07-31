@@ -48,7 +48,7 @@ class ProgressApiControllerTest {
     void 레슨완료_요청하면_204를_반환하고_진행_기록이_완료로_저장된다() throws Exception {
         Member member = memberRepository.save(Member.builder()
                 .email("progress-api-test@example.com").nickname("진도API테스터")
-                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("password1234").build());
         Course course = courseRepository.save(Course.builder()
                 .title("진도테스트코스").description("설명").emoji("📘")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
@@ -100,7 +100,7 @@ class ProgressApiControllerTest {
     void 존재하지_않는_레슨이면_404를_반환한다() throws Exception {
         Member member = memberRepository.save(Member.builder()
                 .email("progress-api-test2@example.com").nickname("진도API테스터2")
-                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("password1234").build());
 
         String requestBody = objectMapper.writeValueAsString(new CompleteRequest(member.getId(), 999_999L));
 

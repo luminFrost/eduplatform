@@ -198,9 +198,20 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - `CourseService.createPersonalCourse()`를 `buildPersonalCourse()` 공통 메서드로 리팩터링하고 `createPersonalCourseFromHistory(memberId)` 추가 — 추천된 focusAreas로 자가 선택과 동일한 방식(레슨 복사, 중복 시 기존 코스 재사용)으로 코스를 만들되 `criteriaSource=HISTORY_BASED`.
   - API: `POST /api/courses/personal/history-based` (`HistoryBasedCourseCreateRequest`), 화면: `POST /courses/personal/history-based` — `course/personal-new.html`에 "학습 이력 기반으로 만들기" 버튼 추가.
   - 테스트: `ProgressServiceTest`/`CourseServiceTest`에 커버리지 계산·동률·이력 부족 케이스 추가. curl로 실서버에서 VOCAB 전량 완료·WRITING 일부만 완료 → WRITING 추천 → 레슨 7개 복사 → 재요청 시 200(기존 코스 재사용) 전체 확인.
+- Phase 6: 진짜 인증(Spring Security) 도입 (dev 병합됨)
+  - CLAUDE.md에 미리 적어둔 대로 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver`/`WebMvcConfig` 세 파일만 내부 교체 — 컨트롤러 시그니처(`@CurrentMemberId Long memberId`)는 그대로 유지. 리졸버는 이제 세션 attribute 대신 `SecurityContextHolder`에서 `MemberPrincipal`을 꺼내 읽는다.
+  - `Member.password`(BCrypt 해시) 추가, `MemberCreateRequest`에 `password`(`@NotBlank` + `@Size(min=8)`, 확인 필드는 생략) 추가. `member/security` 패키지 신규: `MemberPrincipal implements UserDetails`(memberId 직접 보유, DB 재조회 없이 리졸버가 즉시 꺼내 씀), `MemberUserDetailsService`(이메일로 조회).
+  - `SecurityConfig` 신규 — 이메일+비밀번호 `formLogin`(`/login`), `logout`. `/my`·`/courses/personal/**`·학습완료 POST는 `authenticated()`, 코스/레슨 브라우징(`GET /courses/**`, `GET /lessons/*`)과 `/api/**`는 계속 공개. **`/api/**`는 이번 범위에서 제외**(아래 후속 과제 참고).
+  - **비밀번호 없이 아무 회원이나 "선택"할 수 있던 `POST /members/{id}/select` 제거.** 그 버튼이 유일한 진입점이었던 `GET /members/{id}` 페이지(`member/detail.html`)도 함께 삭제 — 가입 성공 리다이렉트를 `/members/{id}` → `/my`로 바꾸면서 완전히 죽은 페이지가 됐음을 `grep`으로 확인 후 제거.
+  - 헤더 네비게이션에 로그인 상태 토글 추가(`sec:authorize="isAuthenticated()"`/`isAnonymous()`, `thymeleaf-extras-springsecurity6`). 닉네임 표시는 `sec:authentication="name"`이 이메일만 주기 때문에 별도 `@ModelAttribute` 컨트롤러 어드바이스가 필요해 이번엔 범위에서 뺌(로그인/로그아웃 링크만).
+  - CSRF는 세션 폼 경로에서 유지, `/api/**`·`/h2-console/**`만 제외. 모든 POST 폼에 hidden CSRF input을 수동으로 추가했는데, 실행해보니 `thymeleaf-extras-springsecurity6`가 `RequestDataValueProcessor`로 **같은 값을 자동으로도 주입**하고 있었음(폼에 동일 토큰의 hidden input이 2개 렌더링됨, 브라우저 제출 시 무해). 계획 단계에서 "자동 주입이 이 조합에서 실제로 동작하는지 확신할 수 없다"고 플래그했던 부분이 실서버 검증으로 확인됨.
+  - Security가 이미 `authenticated()`로 막는 라우트(`/my`, `POST /lessons/{id}/complete`, `/courses/personal/**`)에 남아있던 `if (memberId == null) return "redirect:/members/new"` 방어 코드 삭제 — 해당 경로는 Security 게이트를 통과해야만 컨트롤러에 도달하므로 도달 불가능한 코드였음.
+  - `authorizeHttpRequests` 규칙 순서 주의: `/courses/personal/**`(authenticated) 같은 특정 규칙은 `GET /courses/**`(permitAll) 같은 일반 규칙보다 **먼저** 선언해야 한다 — 순서가 바뀌면 일반 규칙에 먼저 매치되어 의도와 달리 뚫린다. curl로 `/courses/personal/new`가 익명 접근 시 실제로 `/login`으로 막히는지 확인함.
+  - 테스트: `LearningProgressFlowTest`(가입 폼에 password 추가, CSRF `.with(csrf())`, 네거티브 케이스의 기대 리다이렉트를 `/members/new` → `/login`으로 변경 — CSRF 필터가 인가 로직보다 먼저 걸리므로 "인증 없음"을 검증하려면 CSRF 토큰은 유효하게 줘야 함), `MemberApiControllerTest`/`MemberServiceTest`/`MemberRepositoryTest`/`ProgressApiControllerTest`에 password 필드 반영.
+  - curl 세션 플로우로 가입(자동 로그인)→마이페이지→로그아웃→마이페이지(로그인 리다이렉트 확인)→재로그인→마이페이지, 잘못된 비밀번호 로그인 실패, 중복 이메일/짧은 비밀번호 검증, H2 콘솔·API 계속 공개 전부 실서버에서 확인.
 
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
+3. **REST API(`/api/progress/complete`, `/api/courses/personal` 등)가 요청 본문의 `memberId`를 그대로 신뢰하는 문제** — 실사용 화면은 전부 세션 기반 `@CurrentMemberId`라 이미 안전하지만, API 단독 클라이언트(모바일 앱 등)가 생기면 손봐야 함. Phase 6에서 의도적으로 범위 밖에 둠.
 4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

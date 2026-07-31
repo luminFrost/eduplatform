@@ -15,6 +15,7 @@
     <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
 
     <form th:action="@{/courses/personal}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <div th:each="t : ${lessonTypes}">
             <label>
                 <input type="checkbox" name="focusAreas" th:value="${t}"
@@ -36,6 +37,7 @@
     <h2>또는, 학습 이력으로 자동 추천받기</h2>
     <p>레슨을 3개 이상 완료하면 완료율이 가장 낮은 영역을 분석해 자동으로 코스를 만들어드려요.</p>
     <form th:action="@{/courses/personal/history-based}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <button type="submit">학습 이력 기반으로 만들기</button>
     </form>
 

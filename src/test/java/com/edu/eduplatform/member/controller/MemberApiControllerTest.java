@@ -35,7 +35,7 @@ class MemberApiControllerTest {
     @Test
     void 회원가입_성공하면_201과_회원정보를_반환한다() throws Exception {
         String requestBody = objectMapper.writeValueAsString(new SignUpRequest(
-                "new-learner@example.com", "새러너", MemberType.ADULT, EnglishLevel.BEGINNER));
+                "new-learner@example.com", "새러너", MemberType.ADULT, EnglishLevel.BEGINNER, "password1234"));
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -52,10 +52,11 @@ class MemberApiControllerTest {
                 .nickname("기존회원")
                 .memberType(MemberType.CHILD)
                 .level(EnglishLevel.BEGINNER)
+                .password("password1234")
                 .build());
 
         String requestBody = objectMapper.writeValueAsString(new SignUpRequest(
-                "dup@example.com", "새회원", MemberType.CHILD, EnglishLevel.BEGINNER));
+                "dup@example.com", "새회원", MemberType.CHILD, EnglishLevel.BEGINNER, "password1234"));
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -67,7 +68,7 @@ class MemberApiControllerTest {
     @Test
     void 회원가입_이메일_형식이_아니면_400을_반환한다() throws Exception {
         String requestBody = objectMapper.writeValueAsString(new SignUpRequest(
-                "not-an-email", "닉네임", MemberType.ADULT, EnglishLevel.BEGINNER));
+                "not-an-email", "닉네임", MemberType.ADULT, EnglishLevel.BEGINNER, "password1234"));
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,6 +83,7 @@ class MemberApiControllerTest {
                 .nickname("조회대상")
                 .memberType(MemberType.ADULT)
                 .level(EnglishLevel.INTERMEDIATE)
+                .password("password1234")
                 .build());
 
         mockMvc.perform(get("/api/members/{id}", saved.getId()))
@@ -95,6 +97,6 @@ class MemberApiControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    private record SignUpRequest(String email, String nickname, MemberType memberType, EnglishLevel level) {
+    private record SignUpRequest(String email, String nickname, MemberType memberType, EnglishLevel level, String password) {
     }
 }

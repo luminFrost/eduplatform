@@ -1,26 +1,34 @@
 package com.edu.eduplatform.common.web;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 
 /**
- * "현재 회원"을 세션에 기억해두는 유일한 창구.
- * 실제 로그인(비밀번호 검증)은 Phase 6에서 붙는다 — 그 전까지는 회원가입/선택 시점에
- * 이 클래스로 세션에 회원 id만 기록해두고, {@link CurrentMemberIdArgumentResolver}가 꺼내 쓴다.
- * 나중에 토큰/AOP 기반으로 바꿀 때도 변경 범위는 이 클래스 + 리졸버로 한정된다.
+ * 회원가입 직후 "가입했으니 바로 로그인된 상태로 시작" UX를 위해 프로그램적으로 인증 처리하는 창구.
+ * SecurityContextHolderFilter는 컨텍스트를 읽기만 하고 자동 저장하지 않으므로,
+ * securityContextRepository.saveContext()로 직접 세션에 남겨야 다음 요청에서도 인증이 유지된다.
  */
 @Component
+@RequiredArgsConstructor
 public class CurrentMemberSession {
 
-    private static final String SESSION_KEY = "CURRENT_MEMBER_ID";
+    private final SecurityContextRepository securityContextRepository;
 
-    public void set(HttpServletRequest request, Long memberId) {
-        request.getSession(true).setAttribute(SESSION_KEY, memberId);
-    }
+    public void login(HttpServletRequest request, HttpServletResponse response, UserDetails userDetails) {
+        Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
+                userDetails, null, userDetails.getAuthorities());
 
-    public Long get(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        return session != null ? (Long) session.getAttribute(SESSION_KEY) : null;
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
     }
 }

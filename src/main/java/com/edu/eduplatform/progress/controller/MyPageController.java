@@ -19,10 +19,6 @@ public class MyPageController {
 
     @GetMapping("/my")
     public String dashboard(@CurrentMemberId Long memberId, Model model) {
-        if (memberId == null) {
-            return "redirect:/members/new";
-        }
-
         model.addAttribute("member", memberService.getMember(memberId));
         model.addAttribute("courseProgress", progressService.getCourseProgress(memberId));
         model.addAttribute("personalCourses", courseService.listPersonalCourses(memberId));

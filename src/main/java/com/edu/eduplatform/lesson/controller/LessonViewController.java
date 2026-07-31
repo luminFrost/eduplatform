@@ -34,10 +34,6 @@ public class LessonViewController {
 
     @PostMapping("/{id}/complete")
     public String complete(@PathVariable Long id, @CurrentMemberId Long memberId) {
-        if (memberId == null) {
-            return "redirect:/members/new";
-        }
-
         try {
             progressService.complete(memberId, id);
         } catch (LessonNotFoundException e) {

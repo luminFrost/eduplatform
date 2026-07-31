@@ -84,11 +84,7 @@ public class CourseViewController {
     }
 
     @GetMapping("/personal/new")
-    public String personalCourseForm(@CurrentMemberId Long memberId, Model model) {
-        if (memberId == null) {
-            return "redirect:/members/new";
-        }
-
+    public String personalCourseForm(Model model) {
         model.addAttribute("lessonTypes", LessonType.values());
         return "course/personal-new";
     }
@@ -99,10 +95,6 @@ public class CourseViewController {
             @RequestParam(required = false) Set<LessonType> focusAreas,
             Model model
     ) {
-        if (memberId == null) {
-            return "redirect:/members/new";
-        }
-
         try {
             PersonalCourseCreationResult result = courseService.createPersonalCourse(new PersonalCourseCreateRequest(memberId, focusAreas));
             return "redirect:/courses/" + result.course().id();
@@ -117,10 +109,6 @@ public class CourseViewController {
 
     @PostMapping("/personal/history-based")
     public String createPersonalCourseFromHistory(@CurrentMemberId Long memberId, Model model) {
-        if (memberId == null) {
-            return "redirect:/members/new";
-        }
-
         try {
             PersonalCourseCreationResult result = courseService.createPersonalCourseFromHistory(memberId);
             return "redirect:/courses/" + result.course().id();

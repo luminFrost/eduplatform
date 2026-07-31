@@ -23,6 +23,7 @@ class MemberRepositoryTest {
                 .nickname("러너")
                 .memberType(MemberType.ADULT)
                 .level(EnglishLevel.BEGINNER)
+                .password("password1234")
                 .build();
         memberRepository.save(member);
 

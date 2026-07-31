@@ -8,6 +8,7 @@ import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public MemberResponse signUp(MemberCreateRequest request) {
@@ -29,6 +31,7 @@ public class MemberService {
                 .nickname(request.nickname())
                 .memberType(request.memberType())
                 .level(request.level())
+                .password(passwordEncoder.encode(request.password()))
                 .build();
 
         try {

@@ -6,17 +6,18 @@ import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberCreateRequest;
 import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
-import com.edu.eduplatform.member.exception.MemberNotFoundException;
+import com.edu.eduplatform.member.security.MemberUserDetailsService;
 import com.edu.eduplatform.member.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class MemberViewController {
 
     private final MemberService memberService;
+    private final MemberUserDetailsService memberUserDetailsService;
     private final CurrentMemberSession currentMemberSession;
 
     @GetMapping("/new")
@@ -36,7 +38,7 @@ public class MemberViewController {
 
     @PostMapping
     public String signUp(@Valid MemberCreateRequest request, BindingResult bindingResult, Model model,
-                          HttpServletRequest httpRequest) {
+                          HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("validationErrors", bindingResult.getAllErrors().stream()
                     .map(DefaultMessageSourceResolvable::getDefaultMessage)
@@ -48,36 +50,15 @@ public class MemberViewController {
 
         try {
             MemberResponse response = memberService.signUp(request);
-            currentMemberSession.set(httpRequest, response.id());
-            return "redirect:/members/" + response.id();
+            UserDetails userDetails = memberUserDetailsService.loadUserByUsername(response.email());
+            currentMemberSession.login(httpRequest, httpResponse, userDetails);
+            return "redirect:/my";
         } catch (DuplicateEmailException e) {
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("form", request);
             addFormOptions(model);
             return "member/signup-form";
         }
-    }
-
-    @GetMapping("/{id}")
-    public String detail(@PathVariable Long id, Model model) {
-        try {
-            model.addAttribute("member", memberService.getMember(id));
-            return "member/detail";
-        } catch (MemberNotFoundException e) {
-            return "redirect:/members/new";
-        }
-    }
-
-    @PostMapping("/{id}/select")
-    public String select(@PathVariable Long id, HttpServletRequest httpRequest) {
-        try {
-            memberService.getMember(id);
-        } catch (MemberNotFoundException e) {
-            return "redirect:/members/new";
-        }
-
-        currentMemberSession.set(httpRequest, id);
-        return "redirect:/courses";
     }
 
     private void addFormOptions(Model model) {
