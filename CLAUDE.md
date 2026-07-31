@@ -262,7 +262,25 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - claude-in-chrome으로 CHILD/BEGINNER, ADULT/ADVANCED 각각 신규 코스 진입 → 카드 렌더링 → 재생
     버튼 클릭 시 `speechSynthesis.speak()` 정상 호출까지 재확인.
 
+- 학습 대시보드 (마이페이지 확장) (dev 병합됨)
+  - `/my`에 stat tile 3개(완료한 레슨 수·학습 중인 코스 수·전체 진도율)와 영역별(어휘/읽기/쓰기/듣기/말하기)
+    진도 막대그래프를 코스 리스트 위에 추가. 새 추적 데이터(streak, 점수 등) 없이 기존 `LearningProgress`
+    완료 여부만으로 구성 — dataviz 스킬 가이드에 따라 설계함.
+  - `recommendFocusAreas()`가 이미 계산하던 "영역별 완료/가능 레슨 수" 로직을 `computeSkillAreaCounts()`
+    private 헬퍼로 뽑아 새 `getSkillAreaProgress()`와 공유(중복 제거, 기존 테스트로 회귀 확인됨).
+  - 영역별 막대는 5개를 카테고리 비교(색으로 구분)가 아니라 각자 이름표 붙은 독립 진도 막대로 봐서 새
+    카테고리컬 팔레트를 안 만들고 사이트에 이미 있는 단일 강조색(`.progress-bar-track`/`-fill`, 코스
+    진도 카드에서 쓰던 것 그대로)만 재사용 — 팔레트 검증 스크립트 안 돌려도 됨.
+  - 새 DTO `SkillAreaProgressResponse.percentage()`는 100%로 캡 — 개인 코스가 공식 레슨을 복사해서 만들어
+    (다른 id, 같은 lessonType) 완료 수가 분모(공식 커리큘럼 레슨 수)보다 커질 수 있음.
+  - 테스트에서 실수 하나 발견: `getCourseProgress()`의 `touchedCourseIds`가 `HashMap` 스트림에서 나와
+    순서가 보장 안 되는데, 새 `getDashboardSummary` 테스트가 `courseRepository.findAllById(List.of(100L, 200L))`처럼
+    특정 순서로 스텁해놔서 실행할 때마다 순서가 바뀌어 간헐적으로 실패할 뻔함 — `any()` 매처로 바꿔 해결.
+  - claude-in-chrome으로 신규 회원(전부 0%)과 VOCAB만 3개 완료한 회원 둘 다 확인 — 후자는 어휘만 막대가
+    차고 듣기·말하기는 0%로 남아 "균형있게 학습하라"는 메시지가 실제로 전달되는지 눈으로 판단함.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. 운영 DB 전환/배포 준비 — 지금까지 전부 H2 인메모리 + 로컬 개발
+4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

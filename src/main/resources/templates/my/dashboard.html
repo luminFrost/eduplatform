@@ -11,6 +11,36 @@
     <main class="page">
     <h1 th:text="${member.nickname} + '님의 학습 현황'"></h1>
 
+    <div class="stat-tile-row">
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${summary.completedLessons}"></span>
+            <span class="stat-label">완료한 레슨</span>
+        </div>
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${summary.coursesInProgress}"></span>
+            <span class="stat-label">학습 중인 코스</span>
+        </div>
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${summary.overallPercentage} + '%'"></span>
+            <span class="stat-label">전체 진도율</span>
+        </div>
+    </div>
+
+    <div class="skill-area-chart" th:if="${not #lists.isEmpty(skillAreaProgress)}">
+        <h2>영역별 학습 현황</h2>
+        <div class="skill-area-row" th:each="s : ${skillAreaProgress}" th:switch="${s.lessonType.name()}">
+            <span class="skill-area-label" th:case="'VOCAB'">어휘</span>
+            <span class="skill-area-label" th:case="'READING'">읽기</span>
+            <span class="skill-area-label" th:case="'WRITING'">쓰기</span>
+            <span class="skill-area-label" th:case="'LISTENING'">듣기</span>
+            <span class="skill-area-label" th:case="'SPEAKING'">말하기</span>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" th:style="'width: ' + ${s.percentage()} + '%'"></div>
+            </div>
+            <span class="progress-label" th:text="${s.completedLessons} + ' / ' + ${s.totalLessons} + '개 (' + ${s.percentage()} + '%)'"></span>
+        </div>
+    </div>
+
     <p class="empty-state" th:if="${#lists.isEmpty(courseProgress)}">
         아직 학습을 시작한 코스가 없어요.
         <a th:href="@{/courses}">코스를 둘러보고 레슨을 완료해보세요 →</a>
