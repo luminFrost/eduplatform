@@ -21,6 +21,7 @@ import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
+import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -147,6 +148,110 @@ class ProgressServiceTest {
         when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
 
         assertThat(progressService.getCourseProgress(1L)).isEmpty();
+    }
+
+    @Test
+    void recommendFocusAreas_레벨_내_전체_레슨_대비_커버리지가_가장_낮은_영역을_추천한다() throws Exception {
+        MemberResponse member = new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+        when(memberService.getMember(1L)).thenReturn(member);
+
+        Course officialCourse = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+                .thenReturn(List.of(officialCourse));
+
+        Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson vocabLesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("어휘2")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson writingLesson1 = withId(Lesson.builder().courseId(100L).orderNo(3).title("쓰기1")
+                .content("내용").lessonType(LessonType.WRITING).build(), 20L);
+        Lesson writingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(4).title("쓰기2")
+                .content("내용").lessonType(LessonType.WRITING).build(), 21L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+                .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2));
+
+        // VOCAB 2개 다 완료, WRITING은 2개 중 1개만 완료
+        LearningProgress vocabDone1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        vocabDone1.complete();
+        LearningProgress vocabDone2 = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        vocabDone2.complete();
+        LearningProgress writingDone = LearningProgress.builder().memberId(1L).lessonId(20L).build();
+        writingDone.complete();
+
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(vocabDone1, vocabDone2, writingDone));
+        when(lessonRepository.findAllById(List.of(10L, 11L, 20L)))
+                .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1));
+
+        // VOCAB 커버리지 100%(2/2), WRITING 커버리지 50%(1/2) → WRITING만 추천
+        assertThat(progressService.recommendFocusAreas(1L)).containsExactly(LessonType.WRITING);
+    }
+
+    @Test
+    void recommendFocusAreas_커버리지가_동률이면_모두_추천한다() throws Exception {
+        MemberResponse member = new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+        when(memberService.getMember(1L)).thenReturn(member);
+
+        Course officialCourse = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+                .thenReturn(List.of(officialCourse));
+
+        Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson vocabLesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("어휘2")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson writingLesson1 = withId(Lesson.builder().courseId(100L).orderNo(3).title("쓰기1")
+                .content("내용").lessonType(LessonType.WRITING).build(), 20L);
+        Lesson writingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(4).title("쓰기2")
+                .content("내용").lessonType(LessonType.WRITING).build(), 21L);
+        Lesson readingLesson1 = withId(Lesson.builder().courseId(100L).orderNo(5).title("읽기1")
+                .content("내용").lessonType(LessonType.READING).build(), 30L);
+        Lesson readingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(6).title("읽기2")
+                .content("내용").lessonType(LessonType.READING).build(), 31L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+                .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2, readingLesson1, readingLesson2));
+
+        // VOCAB/WRITING/READING 모두 2개 중 1개만 완료 → 커버리지 50%로 동률
+        LearningProgress vocabDone = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        vocabDone.complete();
+        LearningProgress writingDone = LearningProgress.builder().memberId(1L).lessonId(20L).build();
+        writingDone.complete();
+        LearningProgress readingDone = LearningProgress.builder().memberId(1L).lessonId(30L).build();
+        readingDone.complete();
+
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(vocabDone, writingDone, readingDone));
+        when(lessonRepository.findAllById(List.of(10L, 20L, 30L)))
+                .thenReturn(List.of(vocabLesson1, writingLesson1, readingLesson1));
+
+        assertThat(progressService.recommendFocusAreas(1L))
+                .containsExactlyInAnyOrder(LessonType.VOCAB, LessonType.WRITING, LessonType.READING);
+    }
+
+    @Test
+    void recommendFocusAreas_완료한_레슨이_적으면_예외를_던진다() {
+        when(memberService.getMember(1L)).thenReturn(new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+        LearningProgress onlyOne = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        onlyOne.complete();
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(onlyOne));
+
+        assertThatThrownBy(() -> progressService.recommendFocusAreas(1L))
+                .isInstanceOf(InsufficientHistoryException.class);
+    }
+
+    @Test
+    void recommendFocusAreas_존재하지_않는_회원이면_예외를_던진다() {
+        when(memberService.getMember(999L)).thenThrow(new MemberNotFoundException(999L));
+
+        assertThatThrownBy(() -> progressService.recommendFocusAreas(999L))
+                .isInstanceOf(MemberNotFoundException.class);
     }
 
     private static <T> T withId(T entity, Long id) throws Exception {

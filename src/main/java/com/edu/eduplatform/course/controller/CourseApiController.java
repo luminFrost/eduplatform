@@ -2,6 +2,7 @@ package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
+import com.edu.eduplatform.course.dto.HistoryBasedCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
@@ -13,6 +14,7 @@ import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
+import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +64,18 @@ public class CourseApiController {
         PersonalCourseCreationResult result = courseService.createPersonalCourse(request);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(result.course());
+    }
+
+    @PostMapping("/personal/history-based")
+    public ResponseEntity<CourseResponse> createPersonalFromHistory(@Valid @RequestBody HistoryBasedCourseCreateRequest request) {
+        PersonalCourseCreationResult result = courseService.createPersonalCourseFromHistory(request.memberId());
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.course());
+    }
+
+    @ExceptionHandler(InsufficientHistoryException.class)
+    public ResponseEntity<String> handleInsufficientHistory(InsufficientHistoryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
     @ExceptionHandler(CourseNotFoundException.class)

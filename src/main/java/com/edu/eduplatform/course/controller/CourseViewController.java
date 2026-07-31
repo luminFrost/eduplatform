@@ -12,6 +12,7 @@ import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
+import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -108,6 +109,24 @@ public class CourseViewController {
         } catch (MemberNotFoundException e) {
             return "redirect:/members/new";
         } catch (InvalidFocusAreasException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("lessonTypes", LessonType.values());
+            return "course/personal-new";
+        }
+    }
+
+    @PostMapping("/personal/history-based")
+    public String createPersonalCourseFromHistory(@CurrentMemberId Long memberId, Model model) {
+        if (memberId == null) {
+            return "redirect:/members/new";
+        }
+
+        try {
+            PersonalCourseCreationResult result = courseService.createPersonalCourseFromHistory(memberId);
+            return "redirect:/courses/" + result.course().id();
+        } catch (MemberNotFoundException e) {
+            return "redirect:/members/new";
+        } catch (InsufficientHistoryException e) {
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("lessonTypes", LessonType.values());
             return "course/personal-new";

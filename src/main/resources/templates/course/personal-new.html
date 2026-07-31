@@ -31,6 +31,14 @@
         <button type="submit">만들기</button>
     </form>
 
+    <hr/>
+
+    <h2>또는, 학습 이력으로 자동 추천받기</h2>
+    <p>레슨을 3개 이상 완료하면 완료율이 가장 낮은 영역을 분석해 자동으로 코스를 만들어드려요.</p>
+    <form th:action="@{/courses/personal/history-based}" method="post">
+        <button type="submit">학습 이력 기반으로 만들기</button>
+    </form>
+
     <p><a th:href="@{/my}">마이페이지로</a></p>
     </main>
     <div th:replace="~{fragments/layout :: footer}"></div>
