@@ -4,6 +4,7 @@
     <meta charset="UTF-8"/>
     <title th:text="${lesson.title} + ' - eduplatform'"></title>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <script th:src="@{/js/lesson-audio.js}" defer></script>
 </head>
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
@@ -31,6 +32,11 @@
                 <div class="phrase-body">
                     <div class="en" th:text="${line.text}"></div>
                     <div class="kr" th:text="${line.subtext}"></div>
+                    <button type="button" class="listen-button"
+                            th:if="${lesson.lessonType.name() == 'LISTENING' or lesson.lessonType.name() == 'SPEAKING'}"
+                            th:attr="data-speak-text=${line.text}"
+                            th:text="${lesson.lessonType.name() == 'SPEAKING'} ? '🎤 듣고 따라 말해보기' : '🔊 듣기'">
+                    </button>
                 </div>
             </div>
             <div th:case="'NOTE'" class="lesson-note"

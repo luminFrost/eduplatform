@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
-import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
 import com.edu.eduplatform.course.repository.CourseRepository;
@@ -81,8 +80,7 @@ class CourseServiceTest {
                 .criteriaSource(CourseCriteriaSource.SELF_SELECTED).build(), 200L);
         when(courseRepository.save(any(Course.class))).thenReturn(savedPersonalCourse);
 
-        PersonalCourseCreationResult result = courseService.createPersonalCourse(
-                new PersonalCourseCreateRequest(1L, Set.of(LessonType.VOCAB)));
+        PersonalCourseCreationResult result = courseService.createPersonalCourse(1L, Set.of(LessonType.VOCAB));
 
         assertThat(result.created()).isTrue();
         assertThat(result.course().ownerId()).isEqualTo(1L);
@@ -99,12 +97,10 @@ class CourseServiceTest {
 
     @Test
     void createPersonalCourse_영역을_선택하지_않으면_예외를_던진다() {
-        assertThatThrownBy(() -> courseService.createPersonalCourse(
-                new PersonalCourseCreateRequest(1L, Collections.emptySet())))
+        assertThatThrownBy(() -> courseService.createPersonalCourse(1L, Collections.emptySet()))
                 .isInstanceOf(InvalidFocusAreasException.class);
 
-        assertThatThrownBy(() -> courseService.createPersonalCourse(
-                new PersonalCourseCreateRequest(1L, null)))
+        assertThatThrownBy(() -> courseService.createPersonalCourse(1L, null))
                 .isInstanceOf(InvalidFocusAreasException.class);
     }
 
@@ -121,8 +117,7 @@ class CourseServiceTest {
                 .criteriaSource(CourseCriteriaSource.SELF_SELECTED).build(), 200L);
         when(courseRepository.findByOwnerIdOrderByIdDesc(1L)).thenReturn(List.of(existingPersonalCourse));
 
-        PersonalCourseCreationResult result = courseService.createPersonalCourse(
-                new PersonalCourseCreateRequest(1L, Set.of(LessonType.VOCAB)));
+        PersonalCourseCreationResult result = courseService.createPersonalCourse(1L, Set.of(LessonType.VOCAB));
 
         assertThat(result.created()).isFalse();
         assertThat(result.course().id()).isEqualTo(200L);

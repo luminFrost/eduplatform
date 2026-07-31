@@ -210,8 +210,59 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - 테스트: `LearningProgressFlowTest`(가입 폼에 password 추가, CSRF `.with(csrf())`, 네거티브 케이스의 기대 리다이렉트를 `/members/new` → `/login`으로 변경 — CSRF 필터가 인가 로직보다 먼저 걸리므로 "인증 없음"을 검증하려면 CSRF 토큰은 유효하게 줘야 함), `MemberApiControllerTest`/`MemberServiceTest`/`MemberRepositoryTest`/`ProgressApiControllerTest`에 password 필드 반영.
   - curl 세션 플로우로 가입(자동 로그인)→마이페이지→로그아웃→마이페이지(로그인 리다이렉트 확인)→재로그인→마이페이지, 잘못된 비밀번호 로그인 실패, 중복 이메일/짧은 비밀번호 검증, H2 콘솔·API 계속 공개 전부 실서버에서 확인.
 
+- REST API의 memberId 신뢰 문제 보완 (dev 병합됨)
+  - `/api/**`를 별도의 `SecurityFilterChain`(HTTP Basic, `SessionCreationPolicy.STATELESS`, CSRF 없음)으로 분리하고, 회원 데이터를 바꾸는 두 엔드포인트(`POST /api/progress/complete`, `POST /api/courses/personal`/`/history-based`)에 인증을 요구하도록 변경. `ProgressCompleteRequest`/`PersonalCourseCreateRequest`에서 `memberId` 필드를 아예 제거하고(`HistoryBasedCourseCreateRequest`는 필드가 없어져 클래스째 삭제), 세 API 모두 `@CurrentMemberId`(=인증된 사용자)로 회원을 식별 — 요청 본문에 다른 memberId를 넣어도 무시됨을 curl로 확인.
+  - **버그 1**: `formLogin()`과 `httpBasic()`을 같은 필터체인에 함께 두면 인증 안 된 요청 전체(브라우저 라우트 포함)에 필터체인당 하나뿐인 기본 `AuthenticationEntryPoint`가 적용되어 `GET /my` 같은 브라우저 요청까지 401을 반환해버림 — `LearningProgressFlowTest`가 바로 잡아냄. `/api/**` 전용 체인과 그 외 전용 체인, 두 개의 `SecurityFilterChain`으로 분리해 해결(`@Order(1)`/`@Order(2)`, `securityMatcher("/api/**")`).
+  - **버그 2**: 필터체인을 둘로 나눈 뒤에도 인증 실패 시 401과 `/login` 리다이렉트가 한 응답에 섞여 나오는 현상 발견 — `BasicAuthenticationEntryPoint`의 `response.sendError(401)`이 Tomcat의 `/error` 내부 포워드를 태우는데, `/error`가 catch-all 체인의 `anyRequest().authenticated()`에 걸려 그 체인의 로그인 리다이렉트가 다시 얹혀버리는 것이었음. `/error`를 permitAll로 열어 해결.
+  - `spring-boot-starter-security-test`의 `SecurityMockMvcRequestPostProcessors.httpBasic(...)`으로 테스트 갱신. `ProgressApiControllerTest`는 `PasswordEncoder`로 인코딩한 비밀번호를 가진 회원을 만들어 인증 케이스를, 인증 없이 401이 나오는 케이스를 함께 검증하도록 재작성. `CourseServiceTest`는 `CourseService.createPersonalCourse(Long memberId, Set<LessonType> focusAreas)`로 시그니처가 바뀐 것만 반영(DTO의 memberId 필드 제거에 따른 연쇄 변경).
+  - curl로 실서버에서 미인증 401, 잘못된 비밀번호 401, 인증 성공 204/201, 요청 본문에 다른 memberId를 끼워 넣어도 무시되고 인증된 사용자 기준으로 처리됨, 브라우저 라우트(`/my`)는 여전히 `/login`으로 정상 리다이렉트, H2 콘솔 계속 열림을 전부 확인.
+
+- 듣기·말하기(LISTENING/SPEAKING) 콘텐츠 착수 (dev 병합됨)
+  - **기존 VOCAB/READING/WRITING도 실제로는 채점 없는 "플래시카드 검토 + 수동 완료 체크"라는 걸 확인**하고
+    (PRODUCT.md는 WRITING에 "작문 후 제출"이라 적어놨지만 실제 화면엔 입력창도 제출 로직도 없음), 이번
+    작업도 같은 수준으로 단순화하기로 사용자와 합의: LISTENING 오디오는 서버에 mp3를 두지 않고 브라우저
+    내장 `speechSynthesis`(Web Speech API)로 재생, SPEAKING은 마이크 캡처(`SpeechRecognition`) 없이
+    TTS로 들려주고 "따라 말해보기"만 유도.
+  - `LessonService.parseContent()`의 `INTRO:`/`"영어 — 한국어"` 줄 컨벤션은 손대지 않고 그대로 재사용 —
+    새 `LineType`이나 파싱 규칙 추가 없음. `LessonDetailResponse`에 없던 `lessonType` 필드만 추가해서
+    템플릿이 "이 레슨이 듣기/말하기일 때만 재생 버튼을 보여줄지" 판단하게 함.
+  - 이 프로젝트 첫 클라이언트 JS: `static/js/lesson-audio.js` — 이벤트 위임(`document.addEventListener('click', ...)`)으로
+    `[data-speak-text]` 버튼 클릭을 잡아 `SpeechSynthesisUtterance`를 큐잉. `lesson/detail.html`의 PHRASE
+    카드에 `lesson.lessonType`이 LISTENING/SPEAKING일 때만 조건부로 버튼 렌더링(SPEAKING은 "🎤 듣고 따라
+    말해보기", LISTENING은 "🔊 듣기" 문구로 구분).
+  - **버그**: 새 `/js/**` 정적 리소스가 `SecurityConfig`의 permitAll 목록에 없어서 비로그인 사용자가
+    레슨 페이지(공개 페이지)에 들어가도 스크립트 자체가 `/login`으로 리다이렉트되어 조용히 실패하던 문제 —
+    claude-in-chrome으로 버튼 클릭 후 `speechSynthesis.speak()`가 실제로 호출되는지 확인하다가 발견.
+    `/css/**`/`/images/**` 옆에 `/js/**`도 permitAll로 추가해 해결. (교훈: 새 정적 리소스 디렉터리를
+    추가할 때마다 Security 설정에도 매번 추가해야 함 — 잊기 쉬움.)
+  - 콘텐츠는 1차로 ADULT/BEGINNER에 LISTENING 코스 1개("듣기 연습: 일상 속 짧은 안내 듣기")·SPEAKING
+    코스 1개("말하기 연습: 자주 쓰는 표현 따라 말하기")만 각 7레슨씩 추가해 기능을 끝까지 검증 —
+    다른 대상·레벨 조합은 아직 "준비 중" 그대로. `SampleDataInitializer` 클래스 주석도 갱신.
+  - 테스트: `LessonServiceTest`의 `getDetail_*` 두 케이스에 `lessonType` 단언 추가.
+  - claude-in-chrome으로 실브라우저 검증: 코스 목록/상세에서 "준비 중" 대신 실제 레슨 노출, 재생 버튼
+    클릭 시 `speechSynthesis`가 실제로 발화 시작(`onstart` 이벤트)하는지 몽키패치로 확인, VOCAB
+    레슨엔 버튼이 안 뜨는지(조건부 렌더링) 확인.
+
+- 듣기·말하기 콘텐츠를 전체 대상·레벨 조합으로 확장 (dev 병합됨)
+  - 지난 작업에서 ADULT/BEGINNER 1쌍만 검증해두고 "다른 조합은 후속 과제"로 남겨뒀던 것을 마저 채움 —
+    이제 8개 대상·레벨 조합(CHILD/ADULT × 4레벨) 전부에 LISTENING·SPEAKING 코스가 1개씩 있다.
+    공식 코스 24개 → 38개, 레슨 168개 → 266개.
+  - 기술 패턴(재생 버튼, `speechSynthesis`, 조건부 렌더링)은 이미 검증돼 있어 이번엔 순수 콘텐츠
+    작성이라 판단 — 3개 배경 에이전트에 조합을 나눠 맡기고(CHILD 3개 조합 / CHILD 1개+ADULT 1개 조합 /
+    ADULT 2개 조합), 각각 **파일을 직접 수정하지 않고 완성된 Java 코드만 텍스트로 반환**하게 해서
+    동시 편집 충돌 없이 직접 `SampleDataInitializer.java`에 순서대로 붙여넣는 방식으로 처리.
+  - 레벨별 톤 보정: CHILD는 `INTRO:` 마스코트 인사 + 이모지 아이콘 유지, ADULT는 인사말·아이콘 없이
+    바로 "en — kr" 문장만. BEGINNER는 단어 수준의 짧은 명령문(예: "Stand up."), ADVANCED는 뉴스 앵커·
+    면접 답변 수준의 복문(예: "Critics argue that the policy fails to address the root cause.").
+  - **실수 하나 발견·수정**: 에이전트 3개 결과를 파일에 붙여넣던 중 ADULT/INTERMEDIATE+ADVANCED를
+    맡은 에이전트가 반환한 4개 코스 중 뒤쪽 2개(ADULT/ADVANCED 몫)를 붙여넣는 걸 빠뜨림 — 코스/레슨
+    개수를 계산해보고(38개/266개여야 하는데 실제론 코스 수가 안 맞음) API로 대상·레벨×타입 조합별
+    개수를 전수 확인하다가 `ADULT/ADVANCED: LISTENING=0 SPEAKING=0`을 발견해 잡아냄. 챗봇이 직접
+    데이터를 조립할 때도 결과를 다시 세어서 확인하는 게 중요하다는 교훈.
+  - claude-in-chrome으로 CHILD/BEGINNER, ADULT/ADVANCED 각각 신규 코스 진입 → 카드 렌더링 → 재생
+    버튼 클릭 시 `speechSynthesis.speak()` 정상 호출까지 재확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. **REST API(`/api/progress/complete`, `/api/courses/personal` 등)가 요청 본문의 `memberId`를 그대로 신뢰하는 문제** — 실사용 화면은 전부 세션 기반 `@CurrentMemberId`라 이미 안전하지만, API 단독 클라이언트(모바일 앱 등)가 생기면 손봐야 함. Phase 6에서 의도적으로 범위 밖에 둠.
-4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

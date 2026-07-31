@@ -1,6 +1,7 @@
 package com.edu.eduplatform.progress.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,12 +20,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class ProgressApiControllerTest {
+
+    private static final String RAW_PASSWORD = "password1234";
 
     @Autowired
     private MockMvc mockMvc;
@@ -44,11 +48,15 @@ class ProgressApiControllerTest {
     @Autowired
     private MemberRepository memberRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Test
     void 레슨완료_요청하면_204를_반환하고_진행_기록이_완료로_저장된다() throws Exception {
         Member member = memberRepository.save(Member.builder()
                 .email("progress-api-test@example.com").nickname("진도API테스터")
-                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("password1234").build());
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
         Course course = courseRepository.save(Course.builder()
                 .title("진도테스트코스").description("설명").emoji("📘")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
@@ -56,9 +64,10 @@ class ProgressApiControllerTest {
                 .courseId(course.getId()).orderNo(1).title("1과")
                 .content("내용").lessonType(LessonType.VOCAB).build());
 
-        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(member.getId(), lesson.getId()));
+        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(lesson.getId()));
 
         mockMvc.perform(post("/api/progress/complete")
+                        .with(httpBasic(member.getEmail(), RAW_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNoContent());
@@ -70,46 +79,47 @@ class ProgressApiControllerTest {
     }
 
     @Test
-    void memberId가_없으면_400을_반환한다() throws Exception {
-        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(null, 1L));
+    void 인증하지_않으면_401을_반환한다() throws Exception {
+        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(1L));
 
         mockMvc.perform(post("/api/progress/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 레슨_id가_없으면_400을_반환한다() throws Exception {
+        Member member = memberRepository.save(Member.builder()
+                .email("progress-api-test3@example.com").nickname("진도API테스터3")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+
+        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(null));
+
+        mockMvc.perform(post("/api/progress/complete")
+                        .with(httpBasic(member.getEmail(), RAW_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void 존재하지_않는_회원이면_404를_반환한다() throws Exception {
-        Course course = courseRepository.save(Course.builder()
-                .title("진도테스트코스2").description("설명").emoji("📘")
-                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
-        Lesson lesson = lessonRepository.save(Lesson.builder()
-                .courseId(course.getId()).orderNo(1).title("1과")
-                .content("내용").lessonType(LessonType.VOCAB).build());
-
-        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(999_999L, lesson.getId()));
-
-        mockMvc.perform(post("/api/progress/complete")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
     void 존재하지_않는_레슨이면_404를_반환한다() throws Exception {
         Member member = memberRepository.save(Member.builder()
                 .email("progress-api-test2@example.com").nickname("진도API테스터2")
-                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("password1234").build());
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
 
-        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(member.getId(), 999_999L));
+        String requestBody = objectMapper.writeValueAsString(new CompleteRequest(999_999L));
 
         mockMvc.perform(post("/api/progress/complete")
+                        .with(httpBasic(member.getEmail(), RAW_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNotFound());
     }
 
-    private record CompleteRequest(Long memberId, Long lessonId) {
+    private record CompleteRequest(Long lessonId) {
     }
 }

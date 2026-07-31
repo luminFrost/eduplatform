@@ -1,5 +1,6 @@
 package com.edu.eduplatform.lesson.dto;
 
+import com.edu.eduplatform.lesson.domain.LessonType;
 import java.util.List;
 
 public record LessonDetailResponse(
@@ -7,6 +8,7 @@ public record LessonDetailResponse(
         Long courseId,
         String courseTitle,
         String title,
+        LessonType lessonType,
         int orderNo,
         List<ContentLine> contentLines,
         int totalLessonsInCourse,

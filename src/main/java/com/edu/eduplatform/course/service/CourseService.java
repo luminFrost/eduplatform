@@ -4,7 +4,6 @@ import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
-import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
@@ -72,14 +71,14 @@ public class CourseService {
      * (레슨을 여러 코스가 공유하지 않는다 — PRODUCT.md 3-2).
      */
     @Transactional
-    public PersonalCourseCreationResult createPersonalCourse(PersonalCourseCreateRequest request) {
-        if (request.focusAreas() == null || request.focusAreas().isEmpty()) {
+    public PersonalCourseCreationResult createPersonalCourse(Long memberId, Set<LessonType> focusAreas) {
+        if (focusAreas == null || focusAreas.isEmpty()) {
             throw new InvalidFocusAreasException();
         }
 
-        MemberResponse member = memberService.getMember(request.memberId());
-        return buildPersonalCourse(member, request.focusAreas(), CourseCriteriaSource.SELF_SELECTED,
-                "선택한 영역(" + describeFocusAreas(request.focusAreas()) + ")에 맞춰 자동으로 구성된 나만의 코스입니다.");
+        MemberResponse member = memberService.getMember(memberId);
+        return buildPersonalCourse(member, focusAreas, CourseCriteriaSource.SELF_SELECTED,
+                "선택한 영역(" + describeFocusAreas(focusAreas) + ")에 맞춰 자동으로 구성된 나만의 코스입니다.");
     }
 
     /**

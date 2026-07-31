@@ -18,8 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 대상(CHILD/ADULT) x 레벨(4단계) 조합마다 여러 코스를 채워 목록/필터 화면을 실제 데이터로 확인할 수 있게 한다.
  * 초등(CHILD) 코스는 레슨마다 "INTRO:" 줄로 여우 선생님 마스코트 인사말을 넣어 시각적으로 심심하지 않게 한다
  * (실제 삽화 도입 전까지 이모지로 대체 — CLAUDE.md 작업 상태 참고).
- * 레슨마다 LessonType(어휘/읽기/쓰기)을 태그해 코스 상세 화면의 영역별 탭에서 필터링할 수 있게 한다.
- * 듣기·말하기는 MVP 이후 오디오/음성인식 도입 시 채워질 예정이라 아직 태그된 레슨이 없다.
+ * 레슨마다 LessonType(어휘/읽기/쓰기/듣기/말하기)을 태그해 코스 상세 화면의 영역별 탭에서 필터링할 수 있게 한다.
+ * 듣기·말하기는 ADULT/BEGINNER에 각 1개 코스만 우선 채웠다(브라우저 TTS로 재생 — lesson/detail.html 참고).
+ * 다른 대상·레벨 조합은 아직 "준비 중" 빈 상태 그대로다.
  * 코스마다 7개 안팎의 레슨을 채워 "레슨이 너무 적다"는 피드백을 반영했다.
  */
 @Component
@@ -214,6 +215,82 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🖐️ One, two, three! — 하나, 둘, 셋!
                             ✋ I have five fingers. — 나는 손가락이 다섯 개예요.""")
             )),
+            new CourseSeed("듣기 연습: 교실에서 듣는 첫 명령어", "교실에서 선생님이 자주 하는 짧은 지시를 듣고 따라 하는 코스입니다.", "👂",
+                    MemberType.CHILD, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("일어서고 앉기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 교실에서 듣는 말을 배워요!
+                            🧍 Stand up. — 일어나세요.
+                            🪑 Sit down. — 앉으세요.
+                            🙆 Stand still. — 가만히 서 있으세요."""),
+                    new LessonSeed("칠판을 보고 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님이 하는 말을 잘 들어봐요!
+                            👀 Look at the board. — 칠판을 보세요.
+                            👂 Listen carefully. — 잘 들으세요.
+                            🙋 Look at me. — 저를 보세요."""),
+                    new LessonSeed("손 드는 말 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 손 드는 표현을 들어봐요!
+                            ✋ Raise your hand. — 손을 드세요.
+                            🤚 Put your hand down. — 손을 내리세요.
+                            ⏳ Wait your turn. — 차례를 기다리세요."""),
+                    new LessonSeed("줄 서는 말 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 줄 서는 말을 들어봐요!
+                            🚶 Line up, please. — 줄을 서 주세요.
+                            🚶‍♀️ Walk in a line. — 줄 맞춰 걸으세요.
+                            🐾 Follow me. — 저를 따라오세요."""),
+                    new LessonSeed("손 씻는 말 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 손 씻는 표현을 들어봐요!
+                            🧼 Wash your hands. — 손을 씻으세요.
+                            🫧 Use soap. — 비누를 쓰세요.
+                            🤲 Dry your hands. — 손을 말리세요."""),
+                    new LessonSeed("책 펴는 말 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 책 펴는 말을 들어봐요!
+                            📖 Open your book. — 책을 펴세요.
+                            📃 Turn the page. — 페이지를 넘기세요.
+                            📕 Close your book. — 책을 덮으세요."""),
+                    new LessonSeed("조용히 하는 말 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 조용히 하는 말을 들어봐요!
+                            🤫 Be quiet, please. — 조용히 해주세요.
+                            👂 Listen to the teacher. — 선생님 말씀을 들으세요.
+                            👏 Good job! — 잘했어요!""")
+            )),
+            new CourseSeed("말하기 연습: 첫 인사말 따라 하기", "인사, 감사, 사과처럼 자주 쓰는 짧은 표현을 소리 내어 말해보는 코스입니다.", "🗣️",
+                    MemberType.CHILD, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("만나고 헤어질 때", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 만나고 헤어질 때 하는 말을 해봐요!
+                            👋 Hi! — 안녕!
+                            👋 Bye! — 잘 가!
+                            🙌 See you! — 또 보자!"""),
+                    new LessonSeed("고마움 표현하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 고마움을 말해봐요!
+                            🙏 Thank you! — 고마워요!
+                            😊 You're welcome. — 천만에요.
+                            💛 Thanks a lot! — 정말 고마워요!"""),
+                    new LessonSeed("미안함 표현하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 미안함을 말해봐요!
+                            😢 I'm sorry. — 미안해요.
+                            🙇 Excuse me. — 실례합니다.
+                            👍 That's okay. — 괜찮아요."""),
+                    new LessonSeed("예/아니오 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 예/아니오를 말해봐요!
+                            ✅ Yes, please. — 네, 주세요.
+                            ❌ No, thank you. — 아니요, 괜찮아요.
+                            🤷 I don't know. — 잘 모르겠어요."""),
+                    new LessonSeed("처음 만났을 때", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 처음 만났을 때 하는 말을 해봐요!
+                            🤝 Nice to meet you. — 만나서 반가워요.
+                            🙋 My name is Ben. — 제 이름은 Ben이에요.
+                            😊 Hello! — 안녕하세요!"""),
+                    new LessonSeed("부탁하는 말", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 부탁하는 말을 해봐요!
+                            🙏 Please help me. — 도와주세요.
+                            🚪 Can I go? — 가도 될까요?
+                            ⏳ Wait, please. — 기다려 주세요."""),
+                    new LessonSeed("기분 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 기분을 말해봐요!
+                            😄 I'm happy! — 저는 행복해요!
+                            🙂 I'm okay. — 저는 괜찮아요.
+                            🌞 Good morning! — 좋은 아침이에요!""")
+            )),
 
             // ---------- CHILD / ELEMENTARY ----------
             new CourseSeed("짧은 이야기로 배우는 영어", "짧은 이야기를 읽고 줄거리를 이해하는 읽기 코스입니다.", "📖",
@@ -330,6 +407,82 @@ public class SampleDataInitializer implements CommandLineRunner {
                             ✅ I finished my homework. — 숙제 다 했어요.
                             😅 I forgot my homework. — 숙제를 깜빡했어요.""")
             )),
+            new CourseSeed("듣기 연습: 학교에서 듣는 하루 이야기", "학교 안내와 하루 일과 속 짧은 안내문을 듣고 이해하는 코스입니다.", "🔔",
+                    MemberType.CHILD, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("등교 시간 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 등교 시간 안내를 들어봐요!
+                            🏫 School starts at nine. — 학교는 9시에 시작해요.
+                            ⏰ Please come on time. — 제시간에 오세요.
+                            🚫 Don't be late. — 늦지 마세요."""),
+                    new LessonSeed("수업 시작 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 수업 시작 안내를 들어봐요!
+                            📚 Class starts now. — 수업이 지금 시작해요.
+                            📖 Take out your books. — 책을 꺼내세요.
+                            🪑 Sit at your desk. — 자리에 앉으세요."""),
+                    new LessonSeed("쉬는 시간 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 쉬는 시간 안내를 들어봐요!
+                            🔔 It's time for recess. — 쉬는 시간이에요.
+                            🏃 You can play outside. — 밖에서 놀아도 돼요.
+                            ⏱️ Come back in ten minutes. — 10분 후에 돌아오세요."""),
+                    new LessonSeed("급식 시간 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 급식 시간 안내를 들어봐요!
+                            🍱 Lunch is ready. — 점심이 준비됐어요.
+                            🧼 Please wash your hands first. — 먼저 손을 씻으세요.
+                            🚶 Line up for lunch. — 급식 줄을 서세요."""),
+                    new LessonSeed("청소 시간 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 청소 시간 안내를 들어봐요!
+                            🧹 It's cleaning time. — 청소 시간이에요.
+                            🗑️ Please clean your desk. — 책상을 정리하세요.
+                            🪑 Put your chair up. — 의자를 올려주세요."""),
+                    new LessonSeed("하교 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 하교 안내를 들어봐요!
+                            🎒 School is over. — 학교가 끝났어요.
+                            📦 Pack your bag. — 가방을 챙기세요.
+                            🏠 Go home safely. — 안전하게 집에 가세요."""),
+                    new LessonSeed("비 오는 날 안내", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 비 오는 날 안내를 들어봐요!
+                            🌧️ It's raining outside. — 밖에 비가 와요.
+                            ☂️ Bring your umbrella. — 우산을 챙기세요.
+                            🏫 Stay inside today. — 오늘은 안에 있으세요.""")
+            )),
+            new CourseSeed("말하기 연습: 나를 소개하는 말", "이름, 나이, 좋아하는 것을 넣어 나를 소개하는 문장을 말해보는 코스입니다.", "🙋",
+                    MemberType.CHILD, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("이름 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이름을 소개해봐요!
+                            🙋 Hello, my name is Mia. — 안녕하세요, 제 이름은 Mia예요.
+                            🤝 Nice to meet you. — 만나서 반가워요.
+                            ❓ What's your name? — 이름이 뭐예요?"""),
+                    new LessonSeed("나이 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 나이를 소개해봐요!
+                            🎂 I am eight years old. — 저는 여덟 살이에요.
+                            🏫 I am in the second grade. — 저는 2학년이에요.
+                            ❓ How old are you? — 몇 살이에요?"""),
+                    new LessonSeed("가족 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 가족을 소개해봐요!
+                            👦 I have one brother. — 저는 남동생이 한 명 있어요.
+                            👨‍👩‍👧 I live with my mom and dad. — 저는 엄마, 아빠와 함께 살아요.
+                            🏠 My family is small. — 우리 가족은 작아요."""),
+                    new LessonSeed("좋아하는 색깔 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 좋아하는 색깔을 소개해봐요!
+                            💜 My favorite color is purple. — 제가 좋아하는 색은 보라색이에요.
+                            🌈 I like bright colors. — 저는 밝은 색을 좋아해요.
+                            ❓ What color do you like? — 어떤 색을 좋아해요?"""),
+                    new LessonSeed("좋아하는 동물 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 좋아하는 동물을 소개해봐요!
+                            🐶 I love dogs. — 저는 강아지를 정말 좋아해요.
+                            🐕 I have a puppy at home. — 저는 집에 강아지가 있어요.
+                            😊 Dogs make me happy. — 강아지는 저를 행복하게 해요."""),
+                    new LessonSeed("잘하는 것 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 내가 잘하는 것을 소개해봐요!
+                            🎨 I am good at drawing. — 저는 그림을 잘 그려요.
+                            ✏️ I practice every day. — 저는 매일 연습해요.
+                            🖼️ I want to be an artist. — 저는 화가가 되고 싶어요."""),
+                    new LessonSeed("사는 곳 소개하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 사는 곳을 소개해봐요!
+                            🏙️ I live in Seoul. — 저는 서울에 살아요.
+                            🏫 My house is near the school. — 우리 집은 학교 근처에 있어요.
+                            💕 I like my neighborhood. — 저는 우리 동네를 좋아해요.""")
+            )),
 
             // ---------- CHILD / INTERMEDIATE ----------
             new CourseSeed("짧은 대화문 읽고 이해하기", "두 사람의 짧은 대화를 읽고 내용을 파악하는 코스입니다.", "💬",
@@ -443,6 +596,82 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🌳 I can see tall trees and a small pond there. — 그곳에서 큰 나무들과 작은 연못을 볼 수 있어요.
                             🧺 I often have a picnic there with my family. — 저는 종종 가족과 그곳에서 소풍을 해요.""")
             )),
+            new CourseSeed("듣기 연습: 짧은 이야기 듣고 따라가기", "짧은 이야기 속 대화를 듣고 흐름을 따라가는 듣기 코스입니다.", "🎬",
+                    MemberType.CHILD, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("공원에서 생긴 일", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 공원 이야기를 들어봐요!
+                            🗨️ A: Let's go to the park. — 공원에 가자.
+                            🗨️ B: Sure, I'll bring my ball. — 좋아, 내가 공을 가져갈게.
+                            🗨️ A: Great, see you there! — 좋아, 거기서 보자!"""),
+                    new LessonSeed("잃어버린 우산", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 우산 이야기를 들어봐요!
+                            🗨️ A: Have you seen my umbrella? — 내 우산 봤어?
+                            🗨️ B: It's next to the door. — 문 옆에 있어.
+                            🗨️ A: Oh, thank you! — 아, 고마워!"""),
+                    new LessonSeed("생일 선물 고르기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 선물 고르는 이야기를 들어봐요!
+                            🗨️ A: What should we buy for Amy? — Amy한테 뭘 사줄까?
+                            🗨️ B: How about a book? — 책은 어때?
+                            🗨️ A: That's a great idea. — 좋은 생각이야."""),
+                    new LessonSeed("숙제 도와주기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 숙제 이야기를 들어봐요!
+                            🗨️ A: Can you help me with my homework? — 숙제 좀 도와줄래?
+                            🗨️ B: Sure, what's the problem? — 그래, 뭐가 문제야?
+                            🗨️ A: I don't understand this question. — 이 문제를 이해 못 하겠어."""),
+                    new LessonSeed("동물원 나들이", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 동물원 이야기를 들어봐요!
+                            🗨️ A: The zoo opens at ten. — 동물원은 10시에 열어.
+                            🗨️ B: Then let's leave at nine thirty. — 그럼 9시 반에 출발하자.
+                            🗨️ A: Okay, I can't wait! — 좋아, 너무 기대돼!"""),
+                    new LessonSeed("길 잃은 강아지", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 강아지 이야기를 들어봐요!
+                            🗨️ A: This puppy looks lost. — 이 강아지 길을 잃은 것 같아.
+                            🗨️ B: Let's find its owner. — 주인을 찾아보자.
+                            🗨️ A: I hope we can help. — 우리가 도울 수 있으면 좋겠다."""),
+                    new LessonSeed("다음 이야기 예고하기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 다음 이야기를 상상해봐요!
+                            🗨️ A: What happens next in the story? — 이야기 다음엔 무슨 일이 일어날까?
+                            🗨️ B: I think the hero will win. — 주인공이 이길 것 같아.
+                            🗨️ A: Let's find out together. — 같이 알아보자.""")
+            )),
+            new CourseSeed("말하기 연습: 내 생각 말해보기", "좋아하는 것과 내 생각을 문장으로 말해보는 말하기 코스입니다.", "💭",
+                    MemberType.CHILD, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("좋아하는 것 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 좋아하는 것을 말해봐요!
+                            🍕 I like pizza. — 저는 피자를 좋아해요.
+                            😋 I really like it. — 저는 그것을 정말 좋아해요.
+                            ❓ What do you like? — 뭘 좋아해요?"""),
+                    new LessonSeed("생각 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 생각을 말해봐요!
+                            💡 I think it's a good idea. — 저는 좋은 생각이라고 생각해요.
+                            🙌 I think we should try it. — 우리가 해봐야 한다고 생각해요.
+                            ❓ What do you think? — 어떻게 생각해요?"""),
+                    new LessonSeed("최고를 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 최고로 좋아하는 것을 말해봐요!
+                            ⚽ My favorite is soccer. — 제가 제일 좋아하는 건 축구예요.
+                            🏆 It's the best sport. — 그건 최고의 운동이에요.
+                            📅 I play it every weekend. — 저는 매주 주말에 그것을 해요."""),
+                    new LessonSeed("동의/반대 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 동의와 반대를 말해봐요!
+                            🙆 I agree with you. — 저는 당신 의견에 동의해요.
+                            🙅 I don't agree. — 저는 동의하지 않아요.
+                            🗣️ Let's talk about it. — 그것에 대해 이야기해보자."""),
+                    new LessonSeed("이유 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이유를 들어 말해봐요!
+                            📗 I like this book because it's exciting. — 저는 이 책이 흥미진진해서 좋아해요.
+                            ✨ It has a great story. — 이야기가 정말 좋아요.
+                            👍 I recommend it to you. — 당신에게 추천해요."""),
+                    new LessonSeed("선택 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 선택을 말해봐요!
+                            🏠 I would rather stay home. — 저는 차라리 집에 있을래요.
+                            📖 I prefer reading to watching TV. — 저는 TV 보는 것보다 책 읽는 걸 더 좋아해요.
+                            ✅ That's my choice. — 그게 제 선택이에요."""),
+                    new LessonSeed("미래 계획 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 미래 계획을 말해봐요!
+                            🔬 I want to be a scientist. — 저는 과학자가 되고 싶어요.
+                            📚 I will study hard. — 저는 열심히 공부할 거예요.
+                            💪 I believe I can do it. — 저는 할 수 있다고 믿어요.""")
+            )),
 
             // ---------- CHILD / ADVANCED ----------
             new CourseSeed("짧은 영어 동화 읽기", "쉬운 영어 동화를 읽고 교훈을 이해하는 심화 읽기 코스입니다.", "🧚",
@@ -544,6 +773,82 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🚌 A new student from another town joined my class. — 다른 마을에서 온 새로운 학생이 우리 반에 들어왔어요.
                             🤝 We became best friends after sharing our favorite stories. — 우리는 좋아하는 이야기를 나누며 가장 친한 친구가 되었어요.""")
             )),
+            new CourseSeed("듣기 연습: 동화 속 이야기 듣기", "짧은 동화 이야기를 듣고 내용을 이해하는 심화 듣기 코스입니다.", "🦉",
+                    MemberType.CHILD, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("요정 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 요정 이야기를 들어봐요!
+                            🧚 A tiny fairy lived inside a flower. — 작은 요정이 꽃 속에 살았어요.
+                            ✨ She granted one wish to a kind boy. — 그녀는 착한 소년에게 소원 하나를 들어줬어요.
+                            🌼 He wished for his sick dog to get better. — 소년은 아픈 강아지가 낫기를 소원했어요."""),
+                    new LessonSeed("곰과 꿀단지 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 곰돌이 이야기를 들어봐요!
+                            🐻 A hungry bear found a jar of honey. — 배고픈 곰이 꿀단지를 발견했어요.
+                            🍯 He ate every drop until the jar was empty. — 곰은 단지가 빌 때까지 한 방울도 남기지 않고 먹었어요.
+                            😴 Then he took a long nap under a tree. — 그러고 나서 나무 아래에서 낮잠을 오래 잤어요."""),
+                    new LessonSeed("작은 별 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 작은 별 이야기를 들어봐요!
+                            ⭐ A little star fell from the night sky. — 작은 별 하나가 밤하늘에서 떨어졌어요.
+                            🌌 It landed softly in a quiet garden. — 별은 조용한 정원에 살며시 내려앉았어요.
+                            🌠 The star wished to fly back home someday. — 별은 언젠가 다시 집으로 날아가길 바랐어요."""),
+                    new LessonSeed("용감한 기사 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 용감한 기사 이야기를 들어봐요!
+                            🛡️ A brave knight set out to save the village. — 용감한 기사가 마을을 구하러 떠났어요.
+                            🐉 A giant dragon guarded the old castle gate. — 거대한 용이 오래된 성문을 지키고 있었어요.
+                            🤝 In the end, the knight and the dragon became friends. — 결국 기사와 용은 친구가 되었어요."""),
+                    new LessonSeed("인어공주 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 인어공주 이야기를 들어봐요!
+                            🧜 A little mermaid lived under the deep blue sea. — 작은 인어공주가 깊고 푸른 바다 속에 살았어요.
+                            🌊 She loved to sing to the passing ships. — 그녀는 지나가는 배들에게 노래하는 것을 좋아했어요.
+                            🏖️ One day, she wanted to see the sandy beach. — 어느 날, 그녀는 모래 해변을 보고 싶었어요."""),
+                    new LessonSeed("숲속 마법사 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 숲속 마법사 이야기를 들어봐요!
+                            🧙 An old wizard lived deep in the forest. — 늙은 마법사가 숲속 깊은 곳에 살았어요.
+                            🔮 He could talk to every animal in the woods. — 그는 숲속의 모든 동물과 이야기할 수 있었어요.
+                            🌟 He used his magic to help lost travelers. — 그는 마법을 써서 길 잃은 여행자들을 도왔어요."""),
+                    new LessonSeed("겨울잠 자는 동물 이야기 듣기", LessonType.LISTENING, """
+                            INTRO: 🦊 여우 선생님과 함께 겨울잠 이야기를 들어봐요!
+                            🐿️ A little squirrel gathered nuts all autumn. — 작은 다람쥐가 가을 내내 도토리를 모았어요.
+                            ❄️ When winter came, she slept in her warm den. — 겨울이 오자 다람쥐는 따뜻한 굴 속에서 잠을 잤어요.
+                            🌱 She woke up happily when spring arrived. — 봄이 오자 다람쥐는 기쁘게 깨어났어요.""")
+            )),
+            new CourseSeed("말하기 연습: 이야기 들려주기", "짧은 이야기를 소리 내어 들려주는 말하기 연습 코스입니다.", "🎭",
+                    MemberType.CHILD, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("이야기 시작하는 말 하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기를 시작하는 말을 해봐요!
+                            📖 Once upon a time, there was a little girl. — 옛날 옛적에, 한 소녀가 있었어요.
+                            🌲 She lived near a big, green forest. — 그녀는 크고 푸른 숲 근처에 살았어요.
+                            🐰 One day, she met a talking rabbit. — 어느 날, 그녀는 말하는 토끼를 만났어요."""),
+                    new LessonSeed("이야기를 이어가는 말 하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기를 이어가 봐요!
+                            ➡️ And then, they walked into the deep woods. — 그리고 나서, 그들은 깊은 숲속으로 걸어갔어요.
+                            🍄 They found a strange, glowing mushroom. — 그들은 이상하게 빛나는 버섯을 발견했어요.
+                            😮 Suddenly, the mushroom began to talk! — 갑자기, 버섯이 말을 하기 시작했어요!"""),
+                    new LessonSeed("이야기 속 인물 설명하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기 속 인물을 설명해봐요!
+                            👑 The princess was brave and very kind. — 공주는 용감하고 아주 친절했어요.
+                            🐺 The wolf looked scary, but he was gentle. — 늑대는 무서워 보였지만 사실은 순했어요.
+                            🧒 The boy always helped his little sister. — 소년은 항상 여동생을 도와줬어요."""),
+                    new LessonSeed("이야기 속 문제 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기 속 문제를 말해봐요!
+                            😢 But then, a big problem happened. — 하지만 그때, 큰 문제가 생겼어요.
+                            🔑 The key to the castle was suddenly lost. — 성의 열쇠가 갑자기 사라졌어요.
+                            ⏰ They had to find it before sunset. — 그들은 해가 지기 전에 그것을 찾아야 했어요."""),
+                    new LessonSeed("이야기 속 해결 과정 말하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기 속 해결 과정을 말해봐요!
+                            🔍 So, they searched every room in the castle. — 그래서, 그들은 성의 모든 방을 뒤졌어요.
+                            🐭 A tiny mouse showed them a secret path. — 작은 생쥐가 그들에게 비밀 통로를 보여줬어요.
+                            💡 Finally, they found the key under a rug. — 마침내, 그들은 카펫 아래에서 열쇠를 찾았어요."""),
+                    new LessonSeed("이야기 마무리하는 말 하기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 이야기를 마무리하는 말을 해봐요!
+                            🎊 In the end, the whole village celebrated. — 결국, 마을 전체가 축제를 벌였어요.
+                            ❤️ Everyone thanked the brave little girl. — 모두가 용감한 소녀에게 고마워했어요.
+                            🌈 And they all lived happily ever after. — 그리고 그들은 모두 행복하게 오래오래 살았답니다."""),
+                    new LessonSeed("내가 가장 좋아하는 이야기 들려주기", LessonType.SPEAKING, """
+                            INTRO: 🦊 여우 선생님과 함께 내가 좋아하는 이야기를 들려줘봐요!
+                            ❤️ My favorite story is about a brave lion. — 제가 가장 좋아하는 이야기는 용감한 사자에 관한 거예요.
+                            🦁 He protected his friends from danger every day. — 그는 매일 친구들을 위험으로부터 지켜줬어요.
+                            😊 I love this story because it makes me smile. — 저는 이 이야기가 저를 웃게 해서 좋아요.""")
+            )),
 
             // ---------- ADULT / BEGINNER ----------
             new CourseSeed("왕초보 성인 영어 회화", "인사, 자기소개부터 실생활 표현까지 — 말하기 중심의 입문 코스입니다.", "🗣️",
@@ -638,6 +943,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             I relax on the sofa in the evening. — 저는 저녁에 소파에서 쉬어요.
                             I read a book before bed. — 자기 전에 책을 읽어요.
                             I take a warm shower at night. — 밤에 따뜻한 샤워를 해요.""")
+            )),
+            new CourseSeed("듣기 연습: 일상 속 짧은 안내 듣기", "공지, 안내방송, 전화 메시지 등 일상에서 자주 듣는 짧은 문장을 들어보는 코스입니다.", "🎧",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("공항 안내 방송 듣기", LessonType.LISTENING, """
+                            Attention passengers, please. — 승객 여러분, 주목해 주세요.
+                            Flight two-oh-five is now boarding. — 205편 항공기가 지금 탑승 중입니다.
+                            Please have your boarding pass ready. — 탑승권을 준비해 주세요."""),
+                    new LessonSeed("지하철 안내 방송 듣기", LessonType.LISTENING, """
+                            This is Gangnam station. — 이번 역은 강남역입니다.
+                            The doors are closing. — 문이 닫힙니다.
+                            Please mind the gap. — 발밑을 조심하세요."""),
+                    new LessonSeed("일기예보 듣기", LessonType.LISTENING, """
+                            Today will be sunny and warm. — 오늘은 맑고 따뜻하겠습니다.
+                            There is a chance of rain tomorrow. — 내일은 비가 올 가능성이 있습니다.
+                            The high will be twenty five degrees. — 최고 기온은 25도입니다."""),
+                    new LessonSeed("전화 자동 응답 듣기", LessonType.LISTENING, """
+                            Thank you for calling. — 전화 주셔서 감사합니다.
+                            Please leave a message after the tone. — 신호음 후에 메시지를 남겨 주세요.
+                            Our office hours are nine to six. — 저희 영업시간은 9시부터 6시까지입니다."""),
+                    new LessonSeed("매장 안내 방송 듣기", LessonType.LISTENING, """
+                            Attention shoppers. — 쇼핑객 여러분께 안내드립니다.
+                            The store will close in ten minutes. — 매장은 10분 후에 마감합니다.
+                            Thank you for visiting today. — 오늘 방문해 주셔서 감사합니다."""),
+                    new LessonSeed("회의 안내 듣기", LessonType.LISTENING, """
+                            The meeting will start at ten. — 회의는 10시에 시작합니다.
+                            Please turn off your phones. — 휴대폰을 꺼주세요.
+                            We will finish by eleven. — 11시까지 마치겠습니다."""),
+                    new LessonSeed("긴급 안내 방송 듣기", LessonType.LISTENING, """
+                            This is an emergency announcement. — 긴급 안내 방송입니다.
+                            Please remain calm. — 침착하게 행동해 주세요.
+                            Follow the nearest exit sign. — 가장 가까운 비상구 표시를 따라가세요.""")
+            )),
+            new CourseSeed("말하기 연습: 자주 쓰는 표현 따라 말하기", "짧고 실용적인 문장을 듣고 소리 내어 따라 말해보는 코스입니다.", "🎤",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("인사 표현 따라 말하기", LessonType.SPEAKING, """
+                            Good morning! — 좋은 아침이에요!
+                            How's it going? — 어떻게 지내세요?
+                            See you later. — 나중에 봐요."""),
+                    new LessonSeed("감사와 사과 표현 따라 말하기", LessonType.SPEAKING, """
+                            Thank you so much. — 정말 감사합니다.
+                            I'm sorry about that. — 그 점 죄송합니다.
+                            No problem at all. — 전혀 문제없어요."""),
+                    new LessonSeed("부탁하는 표현 따라 말하기", LessonType.SPEAKING, """
+                            Could you help me? — 저 좀 도와주시겠어요?
+                            Can I ask you something? — 뭐 좀 여쭤봐도 될까요?
+                            Would you mind waiting a moment? — 잠깐만 기다려 주시겠어요?"""),
+                    new LessonSeed("의견 말하는 표현 따라 말하기", LessonType.SPEAKING, """
+                            I think that's a good idea. — 좋은 생각인 것 같아요.
+                            I'm not sure about that. — 그건 잘 모르겠어요.
+                            That makes sense. — 그거 말이 되네요."""),
+                    new LessonSeed("전화 통화 표현 따라 말하기", LessonType.SPEAKING, """
+                            Hello, this is Jane speaking. — 여보세요, 저는 Jane입니다.
+                            Can I speak to Mr. Kim? — 김 선생님과 통화할 수 있을까요?
+                            I'll call you back later. — 나중에 다시 전화할게요."""),
+                    new LessonSeed("약속 잡는 표현 따라 말하기", LessonType.SPEAKING, """
+                            Are you free this weekend? — 이번 주말에 시간 있으세요?
+                            Let's meet at noon. — 정오에 만나요.
+                            That works for me. — 저는 그때 괜찮아요."""),
+                    new LessonSeed("축하와 격려 표현 따라 말하기", LessonType.SPEAKING, """
+                            Congratulations! — 축하해요!
+                            You did a great job. — 정말 잘했어요.
+                            Good luck with everything. — 모든 일에 행운을 빌어요.""")
             )),
 
             // ---------- ADULT / ELEMENTARY ----------
@@ -734,6 +1101,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             Can you speak up a little? — 조금 더 크게 말씀해 주시겠어요?
                             The line is breaking up. — 전화가 자꾸 끊겨요.""")
             )),
+            new CourseSeed("듣기 연습: 사무실에서 듣는 안내", "사무실 안내방송, 음성 메시지 등 직장에서 자주 듣는 표현을 듣는 코스입니다.", "📢",
+                    MemberType.ADULT, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("사무실 안내방송 듣기", LessonType.LISTENING, """
+                            Good morning, everyone. — 여러분, 좋은 아침입니다.
+                            The office will open at nine today. — 오늘 사무실은 9시에 문을 엽니다.
+                            Please check your email for updates. — 업데이트 사항은 이메일을 확인해주세요."""),
+                    new LessonSeed("엘리베이터 안내 듣기", LessonType.LISTENING, """
+                            The elevator is under maintenance today. — 오늘 엘리베이터는 점검 중입니다.
+                            Please use the stairs on the left. — 왼쪽에 있는 계단을 이용해주세요.
+                            We apologize for the inconvenience. — 불편을 드려 죄송합니다."""),
+                    new LessonSeed("회사 음성 메시지 듣기", LessonType.LISTENING, """
+                            You have reached the marketing team. — 마케팅팀에 연결되셨습니다.
+                            We are currently out of the office. — 저희는 현재 자리를 비운 상태입니다.
+                            Please leave your name and number. — 성함과 연락처를 남겨주세요."""),
+                    new LessonSeed("건물 화재 안내 듣기", LessonType.LISTENING, """
+                            This is a building safety announcement. — 건물 안전 안내 방송입니다.
+                            Please remain calm and walk slowly. — 침착하게 천천히 걸어주세요.
+                            Use the nearest emergency exit. — 가장 가까운 비상구를 이용해주세요."""),
+                    new LessonSeed("사내 행사 안내 듣기", LessonType.LISTENING, """
+                            There will be a team lunch on Friday. — 금요일에 팀 점심 식사가 있습니다.
+                            Please sign up at the front desk. — 안내 데스크에서 신청해주세요.
+                            Lunch starts at noon in the lobby. — 점심은 로비에서 정오에 시작합니다."""),
+                    new LessonSeed("회의실 예약 안내 듣기", LessonType.LISTENING, """
+                            The meeting room is booked until two. — 회의실은 2시까지 예약되어 있습니다.
+                            Please check the schedule on the door. — 문에 있는 일정표를 확인해주세요.
+                            You can book another room online. — 다른 회의실은 온라인으로 예약할 수 있어요."""),
+                    new LessonSeed("퇴근 시간 안내 듣기", LessonType.LISTENING, """
+                            The office closes at six today. — 오늘 사무실은 6시에 문을 닫습니다.
+                            Please save your work before leaving. — 퇴근 전에 작업 내용을 저장해주세요.
+                            Have a safe trip home, everyone. — 모두 안전하게 귀가하세요.""")
+            )),
+            new CourseSeed("말하기 연습: 직장 동료와 대화하기", "동료와 인사하고 도움을 요청하는 등 직장에서 자주 쓰는 말하기 표현을 연습하는 코스입니다.", "👋",
+                    MemberType.ADULT, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("동료에게 인사하기", LessonType.SPEAKING, """
+                            Good morning! How was your weekend? — 좋은 아침이에요! 주말 어떻게 보내셨어요?
+                            It was great, thanks for asking. — 좋았어요, 물어봐 줘서 고마워요.
+                            Have a good day at work. — 오늘 하루도 힘내세요."""),
+                    new LessonSeed("새 동료에게 자기소개하기", LessonType.SPEAKING, """
+                            Hi, I'm new here. — 안녕하세요, 저는 여기 새로 왔어요.
+                            Nice to meet you, I'm Sarah. — 만나서 반가워요, 저는 Sarah예요.
+                            Let me know if you need anything. — 필요한 거 있으면 말씀해주세요."""),
+                    new LessonSeed("도움 요청하기", LessonType.SPEAKING, """
+                            Excuse me, can you help me for a second? — 실례합니다, 잠깐 도와주실 수 있나요?
+                            Sure, what do you need? — 네, 뭐가 필요하세요?
+                            I'm not sure how this works. — 이게 어떻게 하는 건지 잘 모르겠어요."""),
+                    new LessonSeed("업무 요청하기", LessonType.SPEAKING, """
+                            Could you send me that file today? — 오늘 그 파일 보내주실 수 있나요?
+                            Sure, I'll send it this afternoon. — 네, 오후에 보내드릴게요.
+                            Thanks, I really appreciate it. — 감사합니다, 정말 큰 도움이 돼요."""),
+                    new LessonSeed("점심 약속 잡기", LessonType.SPEAKING, """
+                            Do you want to grab lunch together? — 같이 점심 먹으러 갈래요?
+                            Sure, where should we go? — 좋아요, 어디로 갈까요?
+                            Let's try the new place next door. — 옆 건물에 새로 생긴 곳 가봐요."""),
+                    new LessonSeed("일정 조율하기", LessonType.SPEAKING, """
+                            Are you free for a quick chat later? — 나중에 잠깐 얘기할 시간 있으세요?
+                            I'm free after three. — 3시 이후에는 시간 있어요.
+                            Great, let's talk then. — 좋아요, 그때 얘기해요."""),
+                    new LessonSeed("퇴근하며 인사하기", LessonType.SPEAKING, """
+                            I'm heading out now. — 저 이제 퇴근할게요.
+                            See you tomorrow! — 내일 봬요!
+                            Have a good evening. — 좋은 저녁 보내세요.""")
+            )),
 
             // ---------- ADULT / INTERMEDIATE ----------
             new CourseSeed("비즈니스 영어 이메일 작성", "업무 상황별 이메일을 작성해보는 실용 쓰기 코스입니다.", "💼",
@@ -828,6 +1257,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             I appreciate your valuable feedback. — 소중한 피드백에 감사드립니다.
                             Thank you, and I'll be happy to answer more questions afterward. — 감사합니다, 이후에도 질문에 기꺼이 답변드리겠습니다.""")
             )),
+            new CourseSeed("듣기 연습: 회의와 발표 영어 듣기", "회의 진행자와 발표자의 발화를 들으며 업무 영어 청취력을 기르는 코스입니다.", "🗣️",
+                    MemberType.ADULT, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("회의 시작 안내 듣기", LessonType.LISTENING, """
+                            Let's get started, everyone is here now. — 시작하겠습니다, 모두 오셨네요.
+                            Today's meeting will cover three main topics. — 오늘 회의에서는 세 가지 주요 안건을 다룰 예정입니다.
+                            Feel free to jump in with questions at any time. — 언제든지 편하게 질문해 주세요."""),
+                    new LessonSeed("안건 소개 듣기", LessonType.LISTENING, """
+                            The first item on the agenda is the quarterly budget review. — 첫 번째 안건은 분기 예산 검토입니다.
+                            We'll spend about twenty minutes on this topic. — 이 주제에는 약 20분 정도를 할애할 예정입니다.
+                            After that, we'll move on to the marketing update. — 그다음에는 마케팅 업데이트로 넘어가겠습니다."""),
+                    new LessonSeed("발표자 소개 듣기", LessonType.LISTENING, """
+                            Let me hand it over to our next speaker. — 다음 발표자에게 순서를 넘기겠습니다.
+                            She has been leading this project since it started. — 그녀는 이 프로젝트가 시작된 이후로 계속 이끌어 왔습니다.
+                            Please give her your full attention. — 집중해서 들어주시기 바랍니다."""),
+                    new LessonSeed("데이터 설명 듣기", LessonType.LISTENING, """
+                            As you can see on this slide, revenue grew by fifteen percent. — 이 슬라이드에서 보시다시피 매출이 15퍼센트 증가했습니다.
+                            This trend has continued for the past three quarters. — 이 추세는 지난 세 분기 동안 계속되었습니다.
+                            We expect similar growth going into next year. — 내년에도 비슷한 성장세를 기대하고 있습니다."""),
+                    new LessonSeed("의견 조율 듣기", LessonType.LISTENING, """
+                            Some team members raised concerns about the timeline. — 몇몇 팀원들이 일정에 대해 우려를 제기했습니다.
+                            We need to find a solution that works for everyone. — 모두에게 맞는 해결책을 찾아야 합니다.
+                            Let's take a moment to hear different perspectives. — 잠시 다양한 의견을 들어보는 시간을 갖겠습니다."""),
+                    new LessonSeed("질의응답 시간 듣기", LessonType.LISTENING, """
+                            We have about ten minutes left for questions. — 질문 시간이 약 10분 남았습니다.
+                            That's an interesting point, let me address it directly. — 흥미로운 지적이네요, 바로 답변드리겠습니다.
+                            If there are no further questions, we'll wrap up here. — 추가 질문이 없으시면 여기서 마무리하겠습니다."""),
+                    new LessonSeed("회의 마무리 안내 듣기", LessonType.LISTENING, """
+                            Let's go over the action items before we finish. — 마무리하기 전에 실행 항목을 정리하겠습니다.
+                            I'll send out the meeting notes by the end of the day. — 오늘 중으로 회의록을 보내드리겠습니다.
+                            Thanks everyone for your time and input today. — 오늘 시간 내주시고 의견 주셔서 감사합니다.""")
+            )),
+            new CourseSeed("말하기 연습: 협상 표현 따라 말하기", "협상과 의견 조율 상황에서 쓰는 표현을 듣고 따라 말해보는 코스입니다.", "🧭",
+                    MemberType.ADULT, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("의견 제시하며 말하기", LessonType.SPEAKING, """
+                            I'd like to share my perspective on this. — 이 부분에 대한 제 의견을 말씀드리고 싶습니다.
+                            From what I've seen, this approach tends to work well. — 제가 본 바로는 이 방식이 대체로 효과가 좋습니다.
+                            That said, I'm open to other suggestions. — 그렇긴 하지만 다른 제안에도 열려 있습니다."""),
+                    new LessonSeed("타협점 제안하며 말하기", LessonType.SPEAKING, """
+                            Could we possibly meet in the middle on this? — 이 부분에서 서로 절충점을 찾을 수 있을까요?
+                            I'm willing to adjust the timeline if needed. — 필요하다면 일정을 조정할 의향이 있습니다.
+                            Let's find an option that benefits both sides. — 양쪽 모두에게 도움이 되는 방안을 찾아봅시다."""),
+                    new LessonSeed("조건 협상하며 말하기", LessonType.SPEAKING, """
+                            Would it be possible to lower the price slightly? — 가격을 조금 낮춰주실 수 있을까요?
+                            In exchange, we could commit to a longer contract. — 그 대신 더 긴 계약을 약속드릴 수 있습니다.
+                            Let's see if we can reach terms that work for both of us. — 서로에게 맞는 조건을 찾아볼 수 있을지 확인해 봅시다."""),
+                    new LessonSeed("정중하게 반대하며 말하기", LessonType.SPEAKING, """
+                            I understand where you're coming from, but I see it differently. — 그 말씀은 이해하지만 저는 다르게 생각합니다.
+                            I don't think that option is feasible right now. — 지금으로서는 그 방안이 현실적이지 않은 것 같습니다.
+                            Could we explore a different direction instead? — 대신 다른 방향을 검토해 볼 수 있을까요?"""),
+                    new LessonSeed("추가 정보 요청하며 말하기", LessonType.SPEAKING, """
+                            Could you give me a bit more detail on that point? — 그 부분에 대해 조금 더 자세히 설명해 주시겠어요?
+                            I want to make sure I fully understand your offer. — 제안하신 내용을 제대로 이해하고 싶습니다.
+                            What exactly does this include? — 여기에 정확히 무엇이 포함되나요?"""),
+                    new LessonSeed("우려 사항 말하기", LessonType.SPEAKING, """
+                            I have a few concerns I'd like to raise. — 몇 가지 우려되는 점을 말씀드리고 싶습니다.
+                            This timeline seems a little tight for our team. — 이 일정은 저희 팀에게 다소 빠듯해 보입니다.
+                            Can we discuss ways to manage that risk? — 그 위험을 관리할 방법을 논의해 볼 수 있을까요?"""),
+                    new LessonSeed("합의 확인하며 말하기", LessonType.SPEAKING, """
+                            So, just to confirm, we're agreeing to these terms. — 그러니까 확인차, 이 조건에 합의하는 것이 맞습니다.
+                            I think we've covered everything we needed to. — 필요한 부분은 다 다룬 것 같습니다.
+                            I'm glad we could work this out together. — 함께 해결할 수 있어서 기쁩니다.""")
+            )),
 
             // ---------- ADULT / ADVANCED ----------
             new CourseSeed("시사 이슈로 배우는 영어 토론", "시사 주제로 의견을 주고받는 토론 표현을 배우는 코스입니다.", "🗞️",
@@ -918,6 +1409,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             Thank you for taking the time to meet with me today. — 오늘 시간을 내어 만나 주셔서 감사합니다.
                             I'm very enthusiastic about the possibility of joining your team. — 귀하의 팀에 합류할 가능성에 대해 매우 기대하고 있습니다.
                             I look forward to hearing from you soon. — 곧 좋은 소식 들을 수 있기를 기대하겠습니다.""")
+            )),
+            new CourseSeed("듣기 연습: 뉴스와 토론 영어 듣기", "뉴스 앵커와 토론 패널의 발화를 들으며 시사 영어 청취력을 기르는 코스입니다.", "📺",
+                    MemberType.ADULT, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("뉴스 헤드라인 듣기", LessonType.LISTENING, """
+                            Good evening, here are tonight's top stories. — 안녕하세요, 오늘 저녁 주요 뉴스입니다.
+                            Lawmakers are set to vote on the new bill tomorrow. — 국회의원들은 내일 새 법안에 대해 표결할 예정입니다.
+                            We'll have more details later in the broadcast. — 자세한 내용은 방송 후반부에 전해드리겠습니다."""),
+                    new LessonSeed("현장 리포트 듣기", LessonType.LISTENING, """
+                            I'm reporting live from outside the courthouse. — 저는 지금 법원 앞에서 생중계로 전해드리고 있습니다.
+                            Officials say the decision could take several weeks. — 관계자들은 결정이 나기까지 몇 주가 걸릴 수 있다고 밝혔습니다.
+                            We'll continue to follow this story as it develops. — 이 사안이 진행되는 대로 계속 취재하겠습니다."""),
+                    new LessonSeed("전문가 인터뷰 듣기", LessonType.LISTENING, """
+                            Thank you for joining us this evening. — 오늘 저녁 함께해 주셔서 감사합니다.
+                            In your view, what's driving this trend? — 이 추세를 이끄는 원인이 무엇이라고 보시나요?
+                            That's a complex issue with no easy answer. — 쉽게 답할 수 없는 복잡한 사안입니다."""),
+                    new LessonSeed("토론 패널 발언 듣기", LessonType.LISTENING, """
+                            I have to push back on that assumption. — 그 전제에는 반박하고 싶습니다.
+                            The evidence simply doesn't support that conclusion. — 증거가 그 결론을 뒷받침하지 않습니다.
+                            Let's bring in our other panelist for a different take. — 다른 관점을 위해 다른 패널리스트의 의견을 들어보겠습니다."""),
+                    new LessonSeed("통계 인용 듣기", LessonType.LISTENING, """
+                            According to a recent survey, public opinion is shifting. — 최근 설문조사에 따르면 여론이 변화하고 있습니다.
+                            Nearly sixty percent of respondents support the proposal. — 응답자의 거의 60퍼센트가 이 제안을 지지했습니다.
+                            These numbers have risen sharply over the past year. — 이 수치는 지난 한 해 동안 급격히 상승했습니다."""),
+                    new LessonSeed("상반된 입장 듣기", LessonType.LISTENING, """
+                            Critics argue that the policy fails to address the root cause. — 비판론자들은 이 정책이 근본 원인을 해결하지 못한다고 주장합니다.
+                            Supporters, however, point to early signs of progress. — 반면 지지자들은 초기 진전의 조짐을 근거로 듭니다.
+                            Both sides agree that further debate is necessary. — 양측 모두 추가 논의가 필요하다는 데는 동의합니다."""),
+                    new LessonSeed("뉴스 마무리 멘트 듣기", LessonType.LISTENING, """
+                            That's all the time we have for tonight. — 오늘 준비한 소식은 여기까지입니다.
+                            Stay tuned for more updates throughout the week. — 이번 주 내내 추가 소식을 계속 전해드리겠습니다.
+                            Thank you for watching, and we'll see you tomorrow. — 시청해 주셔서 감사합니다, 내일 다시 뵙겠습니다.""")
+            )),
+            new CourseSeed("말하기 연습: 인터뷰 답변 따라 말하기", "면접에서 자주 쓰는 답변 표현을 듣고 따라 말해보는 코스입니다.", "🎙️",
+                    MemberType.ADULT, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("자기소개 답변 말하기", LessonType.SPEAKING, """
+                            Thank you for having me, I'm excited to be here. — 이 자리에 초대해 주셔서 감사합니다, 함께하게 되어 기쁩니다.
+                            I've spent the past five years working in marketing. — 지난 5년간 마케팅 분야에서 일해왔습니다.
+                            I'm particularly passionate about data-driven strategy. — 저는 특히 데이터 기반 전략에 열정을 가지고 있습니다."""),
+                    new LessonSeed("강점 설명하며 말하기", LessonType.SPEAKING, """
+                            One of my greatest strengths is adapting quickly to change. — 제 가장 큰 강점 중 하나는 변화에 빠르게 적응하는 것입니다.
+                            I tend to stay calm under pressure. — 저는 압박감 속에서도 침착함을 유지하는 편입니다.
+                            My colleagues often describe me as reliable and detail-oriented. — 동료들은 저를 믿음직하고 꼼꼼한 사람이라고 평가합니다."""),
+                    new LessonSeed("경험 사례 들며 말하기", LessonType.SPEAKING, """
+                            Let me give you a specific example from my last role. — 이전 직무에서 있었던 구체적인 사례를 말씀드리겠습니다.
+                            I was responsible for leading a team of six people. — 저는 6명으로 구성된 팀을 이끄는 역할을 맡았습니다.
+                            That experience taught me the value of clear communication. — 그 경험을 통해 명확한 소통의 중요성을 배웠습니다."""),
+                    new LessonSeed("어려움 극복 사례 말하기", LessonType.SPEAKING, """
+                            I once faced a project that was falling behind schedule. — 예전에 일정이 지연되고 있던 프로젝트를 맡은 적이 있습니다.
+                            I had to make some difficult decisions under tight deadlines. — 촉박한 마감 속에서 어려운 결정을 내려야 했습니다.
+                            In the end, we delivered the project on time. — 결국 저희는 프로젝트를 제시간에 완료했습니다."""),
+                    new LessonSeed("지원 동기 말하기", LessonType.SPEAKING, """
+                            I've admired this company's work for a long time. — 저는 오래전부터 이 회사의 성과를 눈여겨봐 왔습니다.
+                            This role aligns closely with my long-term career goals. — 이 직무는 제 장기적인 커리어 목표와 잘 맞습니다.
+                            I believe I can contribute meaningfully to your team. — 저는 귀사 팀에 의미 있는 기여를 할 수 있다고 생각합니다."""),
+                    new LessonSeed("약점 답변 말하기", LessonType.SPEAKING, """
+                            One area I've been working to improve is delegation. — 제가 개선하려고 노력해 온 부분 중 하나는 업무 위임입니다.
+                            I used to take on too much myself. — 예전에는 너무 많은 일을 혼자 떠맡곤 했습니다.
+                            I've since learned to trust my team more. — 그 이후로 팀을 더 신뢰하는 법을 배웠습니다."""),
+                    new LessonSeed("역질문 마무리 말하기", LessonType.SPEAKING, """
+                            Could you tell me more about the team I'd be working with? — 제가 함께 일하게 될 팀에 대해 더 알려주실 수 있나요?
+                            What does success look like in this role after a year? — 이 직무에서 1년 후 성공은 어떤 모습이라고 보시나요?
+                            Thank you again for this opportunity. — 이 기회를 주셔서 다시 한번 감사드립니다.""")
             ))
     );
 }

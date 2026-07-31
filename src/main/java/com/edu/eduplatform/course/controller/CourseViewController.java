@@ -1,7 +1,6 @@
 package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
-import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
@@ -96,7 +95,7 @@ public class CourseViewController {
             Model model
     ) {
         try {
-            PersonalCourseCreationResult result = courseService.createPersonalCourse(new PersonalCourseCreateRequest(memberId, focusAreas));
+            PersonalCourseCreationResult result = courseService.createPersonalCourse(memberId, focusAreas);
             return "redirect:/courses/" + result.course().id();
         } catch (MemberNotFoundException e) {
             return "redirect:/members/new";

@@ -56,6 +56,7 @@ public class LessonService {
                 course.getId(),
                 course.getTitle(),
                 lesson.getTitle(),
+                lesson.getLessonType(),
                 lesson.getOrderNo(),
                 parseContent(lesson.getContent()),
                 siblings.size(),
