@@ -41,6 +41,18 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 | description | String | 설명 |
 | targetType | Enum | 대상(CHILD/ADULT) |
 | level | Enum | 난이도 |
+| ownerId | Long (nullable) | 개인 코스 소유 회원. **null이면 공식 코스**, 값이 있으면 그 회원의 개인 코스 |
+| focusAreas | Set\<SkillArea\> (nullable) | 개인 코스가 비중을 두는 영역(복수 가능). 공식 코스는 비움 |
+| criteriaSource | Enum (nullable) | 개인 코스 기준 판단 방식: `SELF_SELECTED` / `HISTORY_BASED` / `DIAGNOSTIC_TEST`. 공식 코스는 null |
+
+> **공식 코스 vs 개인 코스**: 이 플랫폼은 불특정 다수 대상 오픈 서비스가 아니라 개개인의 약점 영역에 맞춘 학습을 지향한다.
+> 공식 코스(레벨 기준)와 개인 코스(약점 영역 기준)는 동일한 Course/Lesson 구조를 그대로 쓰며, 화면·진도 추적 로직도 공유한다.
+> 레슨은 여러 코스가 공유하지 않는다 — 개인 코스의 레슨은 새로 만들거나 기존 레슨을 복사해서 구성한다 (다대다 공유 구조 없음).
+>
+> `criteriaSource`(비중 기준 판단 방식) 구현 우선순위: ① `SELF_SELECTED`(자가 선택, 우선 구현) → ② `HISTORY_BASED`(학습 이력 기반) → ③ `DIAGNOSTIC_TEST`(진단 테스트, 최후순위). 셋 다 결과는 동일하게 "이 코스는 어떤 영역에 비중을 두는지"로 저장되므로, 방식이 추가돼도 Course 구조는 그대로 두고 판단 로직만 얹으면 된다.
+
+### SkillArea (영역, 개인 코스 focusAreas / 레슨 활동 유형에 공용)
+`VOCAB`(어휘) / `READING`(읽기) / `WRITING`(쓰기) / `LISTENING`(듣기) / `SPEAKING`(말하기) — PRODUCT.md 3-1의 활동 유형과 동일한 5종을 재사용한다.
 
 ### Lesson (레슨 — 코스 하위 학습 단위)
 | 필드 | 타입 | 설명 |
@@ -90,6 +102,7 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 | GET | `/api/courses/{id}/lessons` | 코스의 레슨 목록 |
 | POST | `/api/progress/complete` | 레슨 완료 처리 |
 | GET | `/api/members/{id}/progress` | 회원 진도 조회 |
+| POST | `/api/courses/personal` | 개인 코스 생성 (기준: 자가선택/이력/진단테스트) — **Phase 5** |
 
 요청/응답은 DTO로 분리하고, 엔티티를 직접 노출하지 않는다.
 공통 응답 포맷(예: `ApiResponse<T>`)을 `common`에 두는 것을 권장.
@@ -113,6 +126,8 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 - 레슨 타입별 학습 화면 분기.
 
 ### Phase 5 — 개인화
+- 개인 코스 도입 (`Course.ownerId`, `focusAreas`, `criteriaSource`) — 공식 코스와 별개로 회원별 맞춤 코스 생성.
+  - 비중 기준 판단 구현 순서: ① 자가 선택 → ② 학습 이력 기반 → ③ 진단 테스트(최후순위, 별도 문항 콘텐츠 필요).
 - 대상(초등/성인)·레벨별 코스 추천·필터.
 - 학습 대시보드.
 

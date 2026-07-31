@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${lesson.title} + ' - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <p class="breadcrumb">
+        <a th:href="@{/courses/{id}(id=${lesson.courseId})}" th:text="${lesson.courseTitle}"></a>
+        &rsaquo; <span th:text="${lesson.orderNo} + '과 ' + ${lesson.title}"></span>
+    </p>
+
+    <h1 th:text="${lesson.orderNo} + '과. ' + ${lesson.title}"></h1>
+    <p th:text="${lesson.totalLessonsInCourse} + '개 레슨 중 ' + ${lesson.orderNo} + '번째'"></p>
+
+    <div class="lesson-content">
+        <th:block th:each="line, lineStat : ${lesson.contentLines}" th:switch="${line.type.name()}">
+            <div th:case="'INTRO'" class="lesson-intro">
+                <img class="intro-icon" th:if="${line.iconImage != null}" th:src="@{${line.iconImage}}" alt=""/>
+                <span th:text="${line.text}"></span>
+            </div>
+            <div th:case="'PHRASE'" class="lesson-phrase"
+                 th:classappend="${line.iconImage != null ? ('has-image accent-' + (lineStat.index % 4)) : ''}">
+                <div class="phrase-image" th:if="${line.iconImage != null}">
+                    <img th:src="@{${line.iconImage}}" alt=""/>
+                </div>
+                <div class="phrase-body">
+                    <div class="en" th:text="${line.text}"></div>
+                    <div class="kr" th:text="${line.subtext}"></div>
+                </div>
+            </div>
+            <div th:case="'NOTE'" class="lesson-note"
+                 th:classappend="${line.iconImage != null ? ('has-image accent-' + (lineStat.index % 4)) : ''}">
+                <div class="phrase-image" th:if="${line.iconImage != null}">
+                    <img th:src="@{${line.iconImage}}" alt=""/>
+                </div>
+                <div class="note-body" th:text="${line.text}"></div>
+            </div>
+        </th:block>
+    </div>
+
+    <div class="lesson-nav">
+        <a th:if="${lesson.prevLessonId != null}"
+           class="prev"
+           th:href="@{/lessons/{id}(id=${lesson.prevLessonId})}"
+           th:text="'← ' + ${lesson.prevLessonTitle}"></a>
+        <span th:unless="${lesson.prevLessonId != null}" class="btn-disabled">← 이전 레슨 없음</span>
+
+        <form th:if="${currentMemberId != null and !completed}" th:action="@{/lessons/{id}/complete(id=${lesson.id})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit">학습 완료</button>
+        </form>
+        <button th:if="${currentMemberId != null and completed}" type="button" disabled>완료함 ✓</button>
+        <a th:if="${currentMemberId == null}" href="/login" class="btn-disabled" title="로그인 후 이용할 수 있어요">학습 완료 (로그인 필요)</a>
+
+        <a th:if="${lesson.nextLessonId != null}"
+           class="next"
+           th:href="@{/lessons/{id}(id=${lesson.nextLessonId})}"
+           th:text="${lesson.nextLessonTitle} + ' →'"></a>
+        <span th:unless="${lesson.nextLessonId != null}" class="btn-disabled">다음 레슨 없음 →</span>
+    </div>
+
+    <p>
+        <a th:href="@{/courses/{id}(id=${lesson.courseId})}">코스로 돌아가기</a>
+        &middot;
+        <a th:href="@{/my}">마이페이지</a>
+    </p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

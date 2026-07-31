@@ -36,11 +36,16 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private EnglishLevel level;
 
+    /** BCrypt로 해시된 값만 저장한다 (평문 아님). */
+    @Column(nullable = false)
+    private String password;
+
     @Builder
-    public Member(String email, String nickname, MemberType memberType, EnglishLevel level) {
+    public Member(String email, String nickname, MemberType memberType, EnglishLevel level, String password) {
         this.email = email;
         this.nickname = nickname;
         this.memberType = memberType;
         this.level = level;
+        this.password = password;
     }
 }

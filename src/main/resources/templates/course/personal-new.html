@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>개인 코스 만들기 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1>개인 코스 만들기</h1>
+    <p>비중을 두고 싶은 영역을 골라주세요. 회원님의 대상·레벨에 맞는 공식 코스 레슨들을 모아 나만의 코스로 만들어드려요.</p>
+
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+
+    <form th:action="@{/courses/personal}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div th:each="t : ${lessonTypes}">
+            <label>
+                <input type="checkbox" name="focusAreas" th:value="${t}"
+                       th:disabled="${t.name() == 'LISTENING' or t.name() == 'SPEAKING'}"/>
+                <span th:switch="${t.name()}">
+                    <span th:case="'VOCAB'">어휘</span>
+                    <span th:case="'READING'">읽기</span>
+                    <span th:case="'WRITING'">쓰기</span>
+                    <span th:case="'LISTENING'">듣기 (준비 중)</span>
+                    <span th:case="'SPEAKING'">말하기 (준비 중)</span>
+                </span>
+            </label>
+        </div>
+        <button type="submit">만들기</button>
+    </form>
+
+    <hr/>
+
+    <h2>또는, 학습 이력으로 자동 추천받기</h2>
+    <p>레슨을 3개 이상 완료하면 완료율이 가장 낮은 영역을 분석해 자동으로 코스를 만들어드려요.</p>
+    <form th:action="@{/courses/personal/history-based}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button type="submit">학습 이력 기반으로 만들기</button>
+    </form>
+
+    <p><a th:href="@{/my}">마이페이지로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

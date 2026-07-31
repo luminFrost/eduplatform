@@ -3,9 +3,54 @@
 <head>
     <meta charset="UTF-8"/>
     <title>eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
-    <h1>eduplatform</h1>
-    <p>초등학생과 성인을 위한 영어 학습 플랫폼 (입문부터 단계별 학습)</p>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page page-wide">
+        <section class="hero">
+            <h1>초등학생부터 성인까지, 단계별 영어 학습</h1>
+            <p>어휘·읽기·쓰기부터 시작해 듣기·말하기까지 — 입문부터 고급까지 이어지는 나만의 학습 로드맵을 만들어보세요.</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" th:href="@{/members/new}">회원가입하고 시작하기</a>
+                <a class="btn btn-secondary" th:href="@{/courses}">코스 둘러보기</a>
+            </div>
+            <div class="level-strip">
+                <span class="level-pill">입문</span>
+                <span class="level-pill">초급</span>
+                <span class="level-pill">중급</span>
+                <span class="level-pill">고급</span>
+            </div>
+        </section>
+
+        <section class="feature-grid">
+            <div class="feature-card">
+                <span class="feature-emoji">🔤</span>
+                <h3>어휘</h3>
+                <p>그림과 예문으로 단어를 익혀요.</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-emoji">📖</span>
+                <h3>읽기</h3>
+                <p>짧은 문장과 이야기로 읽기 자신감을 키워요.</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-emoji">✍️</span>
+                <h3>쓰기</h3>
+                <p>일기와 이메일 등 실전 글쓰기를 연습해요.</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-emoji">🎯</span>
+                <h3>맞춤 코스</h3>
+                <p>내 레벨과 관심 영역에 맞춘 코스를 만들어요.</p>
+            </div>
+        </section>
+
+        <p style="text-align:center">
+            <a th:href="@{/my}">이미 계정이 있으신가요? 마이페이지로 →</a>
+        </p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
 </html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${course.title} + ' - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <div class="course-header">
+        <span class="course-emoji large" th:text="${course.emoji}"></span>
+        <span class="personal-course-badge" th:if="${course.personal}" th:switch="${course.criteriaSource.name()}">
+            <span th:case="'SELF_SELECTED'">개인 코스 · 자가 선택</span>
+            <span th:case="'HISTORY_BASED'">개인 코스 · 학습 이력 기반</span>
+            <span th:case="'DIAGNOSTIC_TEST'">개인 코스 · 진단 테스트</span>
+        </span>
+        <span class="badge" th:text="${course.targetType}"></span>
+        <span class="badge" th:text="${course.level}"></span>
+        <h1 th:text="${course.title}"></h1>
+        <p th:text="${course.description}"></p>
+    </div>
+
+    <div class="skill-tabs">
+        <a th:href="@{/courses/{id}(id=${course.id})}"
+           th:class="${selectedType == null} ? 'skill-tab active' : 'skill-tab'">전체</a>
+        <th:block th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+            <a th:case="'VOCAB'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">어휘 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'READING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">읽기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'WRITING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">쓰기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'LISTENING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">듣기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+            <a th:case="'SPEAKING'" th:href="@{/courses/{id}(id=${course.id},type=${t})}"
+               th:class="${selectedType == t.name()} ? 'skill-tab active' : 'skill-tab'">말하기 (<span th:text="${lessonCounts[t.name()] ?: 0}"></span>)</a>
+        </th:block>
+    </div>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(lessons) and selectedType == null}">아직 등록된 레슨이 없습니다.</p>
+    <p class="empty-state" th:if="${#lists.isEmpty(lessons) and selectedType != null}">이 영역은 아직 준비 중이에요.</p>
+
+    <ul class="lesson-list" th:unless="${#lists.isEmpty(lessons)}">
+        <li th:each="lesson : ${lessons}" th:classappend="'type-' + ${#strings.toLowerCase(lesson.lessonType.name())}">
+            <a class="lesson-row" th:href="@{/lessons/{id}(id=${lesson.id})}">
+                <span class="lesson-icon">
+                    <img th:if="${lesson.iconImage != null}" th:src="@{${lesson.iconImage}}" alt=""/>
+                    <span th:unless="${lesson.iconImage != null}" th:text="${lesson.orderNo}"></span>
+                </span>
+                <span class="lesson-text">
+                    <span class="lesson-eyebrow" th:text="${lesson.orderNo} + '과'"></span>
+                    <span class="lesson-title" th:text="${lesson.title}"></span>
+                </span>
+                <span class="lesson-type-tag" th:switch="${lesson.lessonType.name()}">
+                    <span th:case="'VOCAB'">어휘</span>
+                    <span th:case="'READING'">읽기</span>
+                    <span th:case="'WRITING'">쓰기</span>
+                    <span th:case="'LISTENING'">듣기</span>
+                    <span th:case="'SPEAKING'">말하기</span>
+                </span>
+                <span class="lesson-chevron">›</span>
+            </a>
+        </li>
+    </ul>
+
+    <p><a th:href="@{/courses}">코스 목록으로</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

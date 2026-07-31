@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>마이페이지 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1 th:text="${member.nickname} + '님의 학습 현황'"></h1>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(courseProgress)}">
+        아직 학습을 시작한 코스가 없어요.
+        <a th:href="@{/courses}">코스를 둘러보고 레슨을 완료해보세요 →</a>
+    </p>
+
+    <div class="progress-list" th:unless="${#lists.isEmpty(courseProgress)}">
+        <a class="progress-card" th:each="p, pStat : ${courseProgress}"
+           th:href="@{/courses/{id}(id=${p.courseId})}"
+           th:classappend="'accent-' + (${pStat.index} % 4)">
+            <span class="course-card-icon" th:text="${p.emoji}"></span>
+            <div class="progress-card-body">
+                <span class="progress-card-title" th:text="${p.courseTitle}"></span>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" th:style="'width: ' + ${p.percentage()} + '%'"></div>
+                </div>
+                <span class="progress-label" th:text="${p.completedLessons} + ' / ' + ${p.totalLessons} + '개 완료 (' + ${p.percentage()} + '%)'"></span>
+            </div>
+            <span class="lesson-chevron">›</span>
+        </a>
+    </div>
+
+    <h2>내 개인 코스</h2>
+    <p class="empty-state" th:if="${#lists.isEmpty(personalCourses)}">
+        아직 만든 개인 코스가 없어요.
+        <a th:href="@{/courses/personal/new}">비중을 둘 영역을 골라 나만의 코스를 만들어보세요 →</a>
+    </p>
+    <div class="card-grid" th:unless="${#lists.isEmpty(personalCourses)}">
+        <a class="card course-card" th:each="c, cStat : ${personalCourses}"
+           th:href="@{/courses/{id}(id=${c.id})}"
+           th:classappend="'accent-' + (${cStat.index} % 4)">
+            <span class="course-card-icon" th:text="${c.emoji}"></span>
+            <div class="course-card-badges">
+                <span class="badge" th:text="${c.targetType}"></span>
+                <span class="badge" th:text="${c.level}"></span>
+            </div>
+            <h3 th:text="${c.title}"></h3>
+            <p th:text="${c.description}"></p>
+            <span class="card-cta">레슨 보기 <span class="lesson-chevron">›</span></span>
+        </a>
+    </div>
+    <p th:unless="${#lists.isEmpty(personalCourses)}">
+        <a th:href="@{/courses/personal/new}">+ 개인 코스 하나 더 만들기</a>
+    </p>
+
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
