@@ -20,6 +20,8 @@ public class MyPageController {
     @GetMapping("/my")
     public String dashboard(@CurrentMemberId Long memberId, Model model) {
         model.addAttribute("member", memberService.getMember(memberId));
+        model.addAttribute("summary", progressService.getDashboardSummary(memberId));
+        model.addAttribute("skillAreaProgress", progressService.getSkillAreaProgress(memberId));
         model.addAttribute("courseProgress", progressService.getCourseProgress(memberId));
         model.addAttribute("personalCourses", courseService.listPersonalCourses(memberId));
         return "my/dashboard";

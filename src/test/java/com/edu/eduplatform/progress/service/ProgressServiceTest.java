@@ -21,6 +21,8 @@ import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
+import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.lang.reflect.Field;
@@ -252,6 +254,110 @@ class ProgressServiceTest {
 
         assertThatThrownBy(() -> progressService.recommendFocusAreas(999L))
                 .isInstanceOf(MemberNotFoundException.class);
+    }
+
+    @Test
+    void getSkillAreaProgress_영역별_완료_대비_전체_레슨_수를_반환한다() throws Exception {
+        MemberResponse member = new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+        when(memberService.getMember(1L)).thenReturn(member);
+
+        Course officialCourse = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+                .thenReturn(List.of(officialCourse));
+
+        Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson vocabLesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("어휘2")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson writingLesson1 = withId(Lesson.builder().courseId(100L).orderNo(3).title("쓰기1")
+                .content("내용").lessonType(LessonType.WRITING).build(), 20L);
+        Lesson writingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(4).title("쓰기2")
+                .content("내용").lessonType(LessonType.WRITING).build(), 21L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+                .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2));
+
+        // VOCAB 2개 다 완료, WRITING은 2개 중 1개만 완료
+        LearningProgress vocabDone1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        vocabDone1.complete();
+        LearningProgress vocabDone2 = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        vocabDone2.complete();
+        LearningProgress writingDone = LearningProgress.builder().memberId(1L).lessonId(20L).build();
+        writingDone.complete();
+
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(vocabDone1, vocabDone2, writingDone));
+        when(lessonRepository.findAllById(List.of(10L, 11L, 20L)))
+                .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1));
+
+        List<SkillAreaProgressResponse> result = progressService.getSkillAreaProgress(1L);
+
+        assertThat(result).hasSize(2);
+        // LessonType.values() 순서(VOCAB → WRITING)로 반환된다.
+        assertThat(result.get(0).lessonType()).isEqualTo(LessonType.VOCAB);
+        assertThat(result.get(0).completedLessons()).isEqualTo(2);
+        assertThat(result.get(0).totalLessons()).isEqualTo(2);
+        assertThat(result.get(0).percentage()).isEqualTo(100);
+        assertThat(result.get(1).lessonType()).isEqualTo(LessonType.WRITING);
+        assertThat(result.get(1).completedLessons()).isEqualTo(1);
+        assertThat(result.get(1).totalLessons()).isEqualTo(2);
+        assertThat(result.get(1).percentage()).isEqualTo(50);
+    }
+
+    @Test
+    void getDashboardSummary_코스_진도를_합산해_전체_통계를_계산한다() throws Exception {
+        Course courseA = withId(Course.builder()
+                .title("코스A").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course courseB = withId(Course.builder()
+                .title("코스B").description("설명").emoji("📗")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+
+        Lesson lessonA1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("A1")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lessonA2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("A2")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson lessonB1 = withId(Lesson.builder().courseId(200L).orderNo(1).title("B1")
+                .content("내용").lessonType(LessonType.READING).build(), 20L);
+        Lesson lessonB2 = withId(Lesson.builder().courseId(200L).orderNo(2).title("B2")
+                .content("내용").lessonType(LessonType.READING).build(), 21L);
+
+        // 코스A: 2개 중 1개 완료, 코스B: 2개 중 2개 완료 → 총 3/4 = 75%
+        LearningProgress progressA1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        progressA1.complete();
+        LearningProgress progressA2 = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        LearningProgress progressB1 = LearningProgress.builder().memberId(1L).lessonId(20L).build();
+        progressB1.complete();
+        LearningProgress progressB2 = LearningProgress.builder().memberId(1L).lessonId(21L).build();
+        progressB2.complete();
+
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(progressA1, progressA2, progressB1, progressB2));
+        when(lessonRepository.findAllById(List.of(10L, 11L, 20L, 21L)))
+                .thenReturn(List.of(lessonA1, lessonA2, lessonB1, lessonB2));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lessonA1, lessonA2));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(200L)).thenReturn(List.of(lessonB1, lessonB2));
+        // touchedCourseIds는 HashMap 기반 스트림에서 나와 순서가 보장되지 않으므로 순서 무관 매처를 쓴다.
+        when(courseRepository.findAllById(any())).thenReturn(List.of(courseA, courseB));
+
+        DashboardSummaryResponse summary = progressService.getDashboardSummary(1L);
+
+        assertThat(summary.completedLessons()).isEqualTo(3);
+        assertThat(summary.coursesInProgress()).isEqualTo(2);
+        assertThat(summary.overallPercentage()).isEqualTo(75);
+    }
+
+    @Test
+    void getDashboardSummary_기록이_없으면_전부_0이다() {
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        DashboardSummaryResponse summary = progressService.getDashboardSummary(1L);
+
+        assertThat(summary.completedLessons()).isEqualTo(0);
+        assertThat(summary.coursesInProgress()).isEqualTo(0);
+        assertThat(summary.overallPercentage()).isEqualTo(0);
     }
 
     private static <T> T withId(T entity, Long id) throws Exception {

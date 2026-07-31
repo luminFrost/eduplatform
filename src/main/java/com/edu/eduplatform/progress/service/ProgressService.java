@@ -10,9 +10,13 @@ import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
+import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -113,13 +117,63 @@ public class ProgressService {
     public Set<LessonType> recommendFocusAreas(Long memberId) {
         MemberResponse member = memberService.getMember(memberId);
 
-        List<LearningProgress> memberProgress = learningProgressRepository.findByMemberId(memberId);
-        long completedCount = memberProgress.stream().filter(LearningProgress::isCompleted).count();
+        long completedCount = learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .count();
         if (completedCount < MIN_HISTORY_LESSONS) {
             throw new InsufficientHistoryException();
         }
 
-        List<Long> completedLessonIds = memberProgress.stream()
+        Map<LessonType, SkillAreaCounts> counts = computeSkillAreaCounts(memberId, member);
+        if (counts.isEmpty()) {
+            throw new InsufficientHistoryException();
+        }
+
+        double lowestCoverage = counts.values().stream()
+                .mapToDouble(SkillAreaCounts::coverage)
+                .min()
+                .orElseThrow();
+
+        Set<LessonType> focusAreas = EnumSet.noneOf(LessonType.class);
+        counts.forEach((type, c) -> {
+            if (c.coverage() == lowestCoverage) {
+                focusAreas.add(type);
+            }
+        });
+
+        return focusAreas;
+    }
+
+    /**
+     * 영역별(어휘/읽기/쓰기/듣기/말하기) 완료 레슨 수 대비 회원 레벨에 존재하는 전체 레슨 수를 반환한다.
+     * 마이페이지 대시보드의 "영역별 학습 현황" 막대그래프에 쓰인다.
+     */
+    public List<SkillAreaProgressResponse> getSkillAreaProgress(Long memberId) {
+        MemberResponse member = memberService.getMember(memberId);
+        Map<LessonType, SkillAreaCounts> counts = computeSkillAreaCounts(memberId, member);
+
+        return Arrays.stream(LessonType.values())
+                .filter(counts::containsKey)
+                .map(type -> {
+                    SkillAreaCounts c = counts.get(type);
+                    return new SkillAreaProgressResponse(type, (int) c.completed(), (int) c.available());
+                })
+                .toList();
+    }
+
+    /** 마이페이지 대시보드 상단 요약 통계(완료 레슨 수/학습 중인 코스 수/전체 진도율). */
+    public DashboardSummaryResponse getDashboardSummary(Long memberId) {
+        List<CourseProgressResponse> courseProgress = getCourseProgress(memberId);
+        int totalCompleted = courseProgress.stream().mapToInt(CourseProgressResponse::completedLessons).sum();
+        int totalLessons = courseProgress.stream().mapToInt(CourseProgressResponse::totalLessons).sum();
+        int overallPercentage = totalLessons == 0 ? 0 : (int) Math.round(totalCompleted * 100.0 / totalLessons);
+
+        return new DashboardSummaryResponse(totalCompleted, courseProgress.size(), overallPercentage);
+    }
+
+    /** 영역별 완료/가능 레슨 수. {@link #recommendFocusAreas}와 {@link #getSkillAreaProgress}가 공유한다. */
+    private Map<LessonType, SkillAreaCounts> computeSkillAreaCounts(Long memberId, MemberResponse member) {
+        List<Long> completedLessonIds = learningProgressRepository.findByMemberId(memberId).stream()
                 .filter(LearningProgress::isCompleted)
                 .map(LearningProgress::getLessonId)
                 .toList();
@@ -130,23 +184,15 @@ public class ProgressService {
                 .flatMap(course -> lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId()).stream())
                 .collect(Collectors.groupingBy(Lesson::getLessonType, Collectors.counting()));
 
-        if (availableCountByType.isEmpty()) {
-            throw new InsufficientHistoryException();
+        Map<LessonType, SkillAreaCounts> result = new EnumMap<>(LessonType.class);
+        availableCountByType.forEach((type, available) ->
+                result.put(type, new SkillAreaCounts(completedCountByType.getOrDefault(type, 0L), available)));
+        return result;
+    }
+
+    private record SkillAreaCounts(long completed, long available) {
+        double coverage() {
+            return available == 0 ? 0.0 : completed / (double) available;
         }
-
-        double lowestCoverage = availableCountByType.entrySet().stream()
-                .mapToDouble(entry -> completedCountByType.getOrDefault(entry.getKey(), 0L) / (double) entry.getValue())
-                .min()
-                .orElseThrow();
-
-        Set<LessonType> focusAreas = EnumSet.noneOf(LessonType.class);
-        availableCountByType.forEach((type, availableCount) -> {
-            double coverage = completedCountByType.getOrDefault(type, 0L) / (double) availableCount;
-            if (coverage == lowestCoverage) {
-                focusAreas.add(type);
-            }
-        });
-
-        return focusAreas;
     }
 }
