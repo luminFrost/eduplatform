@@ -41,6 +41,7 @@ public class MemberViewController {
             model.addAttribute("validationErrors", bindingResult.getAllErrors().stream()
                     .map(DefaultMessageSourceResolvable::getDefaultMessage)
                     .toList());
+            model.addAttribute("form", request);
             addFormOptions(model);
             return "member/signup-form";
         }
@@ -51,6 +52,7 @@ public class MemberViewController {
             return "redirect:/members/" + response.id();
         } catch (DuplicateEmailException e) {
             model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("form", request);
             addFormOptions(model);
             return "member/signup-form";
         }

@@ -183,10 +183,17 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     - `lesson/detail.html` 카드 구조를 세로형 플래시카드로 전환 — 이미지가 있는 PHRASE/NOTE 카드는 위쪽에 큰 아이콘(88px) + 컬러 배경 밴드, 아래에 굵은 문장 + 번역, 카드 테두리는 4색(파랑/초록/노랑/분홍) 순환(`accent-0~3`). 그리드도 전체폭 1열 스택에서 여러 장이 나란히 보이는 카드 그리드로 변경. 이모지가 없는 성인 코스 문장(대부분)은 기존처럼 이미지 없는 가로형 텍스트 카드로 그대로 표시 — 확인함.
     - OpenMoji 라이선스 표기를 위해 `fragments/layout.html`에 `footer` 프래그먼트 추가, 8개 템플릿 전부에 삽입.
     - 테스트: `LessonServiceTest`에 `IconCatalog` 목(mock) 추가.
+- 마이페이지 진도 카드 디자인 통일 + accent 컬러 버그 수정 (dev 병합됨)
+  - "학습 현황" 진도 카드(`progress-card`)를 다른 카드 컴포넌트와 같은 디자인으로 통일 — 컬러 아이콘 타일, 굵은 제목, 카드 전체 클릭, 화살표.
+  - 흩어져 있던 `accent-0~3` 컬러 규칙이 일부 컴포넌트(`.progress-card`)의 자체 `border` 선언보다 스타일시트 앞쪽에 있어 작성 순서에 밀려 색이 적용 안 되던 버그 발견·수정 — 규칙을 파일 맨 끝 한 곳으로 통합해 항상 이기도록 정리.
+- 개인 코스 생성 방어 로직 보강 (dev 병합됨)
+  - `CourseService.createPersonalCourse()`가 컨트롤러의 `@Valid` 검증에만 기대지 않고 `focusAreas`가 비었으면 `InvalidFocusAreasException`을 직접 던지도록 서비스 레벨 방어 추가.
+  - 같은 `focusAreas`로 이미 만든 개인 코스가 있으면(중복 제출 등) 새로 만들지 않고 기존 코스를 그대로 반환 — API는 이 경우 201 대신 200 반환(`PersonalCourseCreationResult(course, created)`로 구분).
+- 회원가입 폼 검증 실패 시 입력값 유지 (dev 병합 대기 중)
+  - `MemberViewController.signUp()`이 검증 실패/이메일 중복 두 실패 분기 모두에서 제출된 `MemberCreateRequest`를 `model.addAttribute("form", request)`로 다시 넘기고, `signup-form.html`이 `th:value="${form?.email}"` 등으로 이메일·닉네임·회원유형·레벨을 그대로 복원한다. curl로 두 실패 케이스 다 재현해 확인함.
 
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. (선택) 회원가입 폼 검증 실패 시 입력값 유지 — 현재는 재입력 필요
-3. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
-4. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
-5. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`, `ProgressService.getCourseProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+2. 개인 코스 기준 판단 고도화 — 학습 이력 기반(HISTORY_BASED) → 진단 테스트(DIAGNOSTIC_TEST) 순
+3. Phase 6 진짜 인증(Spring Security) 도입 시 `CurrentMemberSession`/`CurrentMemberIdArgumentResolver` 내부만 교체
+4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`, `ProgressService.getCourseProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
