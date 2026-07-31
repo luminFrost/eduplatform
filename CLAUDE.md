@@ -210,8 +210,15 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - 테스트: `LearningProgressFlowTest`(가입 폼에 password 추가, CSRF `.with(csrf())`, 네거티브 케이스의 기대 리다이렉트를 `/members/new` → `/login`으로 변경 — CSRF 필터가 인가 로직보다 먼저 걸리므로 "인증 없음"을 검증하려면 CSRF 토큰은 유효하게 줘야 함), `MemberApiControllerTest`/`MemberServiceTest`/`MemberRepositoryTest`/`ProgressApiControllerTest`에 password 필드 반영.
   - curl 세션 플로우로 가입(자동 로그인)→마이페이지→로그아웃→마이페이지(로그인 리다이렉트 확인)→재로그인→마이페이지, 잘못된 비밀번호 로그인 실패, 중복 이메일/짧은 비밀번호 검증, H2 콘솔·API 계속 공개 전부 실서버에서 확인.
 
+- REST API의 memberId 신뢰 문제 보완 (dev 병합됨)
+  - `/api/**`를 별도의 `SecurityFilterChain`(HTTP Basic, `SessionCreationPolicy.STATELESS`, CSRF 없음)으로 분리하고, 회원 데이터를 바꾸는 두 엔드포인트(`POST /api/progress/complete`, `POST /api/courses/personal`/`/history-based`)에 인증을 요구하도록 변경. `ProgressCompleteRequest`/`PersonalCourseCreateRequest`에서 `memberId` 필드를 아예 제거하고(`HistoryBasedCourseCreateRequest`는 필드가 없어져 클래스째 삭제), 세 API 모두 `@CurrentMemberId`(=인증된 사용자)로 회원을 식별 — 요청 본문에 다른 memberId를 넣어도 무시됨을 curl로 확인.
+  - **버그 1**: `formLogin()`과 `httpBasic()`을 같은 필터체인에 함께 두면 인증 안 된 요청 전체(브라우저 라우트 포함)에 필터체인당 하나뿐인 기본 `AuthenticationEntryPoint`가 적용되어 `GET /my` 같은 브라우저 요청까지 401을 반환해버림 — `LearningProgressFlowTest`가 바로 잡아냄. `/api/**` 전용 체인과 그 외 전용 체인, 두 개의 `SecurityFilterChain`으로 분리해 해결(`@Order(1)`/`@Order(2)`, `securityMatcher("/api/**")`).
+  - **버그 2**: 필터체인을 둘로 나눈 뒤에도 인증 실패 시 401과 `/login` 리다이렉트가 한 응답에 섞여 나오는 현상 발견 — `BasicAuthenticationEntryPoint`의 `response.sendError(401)`이 Tomcat의 `/error` 내부 포워드를 태우는데, `/error`가 catch-all 체인의 `anyRequest().authenticated()`에 걸려 그 체인의 로그인 리다이렉트가 다시 얹혀버리는 것이었음. `/error`를 permitAll로 열어 해결.
+  - `spring-boot-starter-security-test`의 `SecurityMockMvcRequestPostProcessors.httpBasic(...)`으로 테스트 갱신. `ProgressApiControllerTest`는 `PasswordEncoder`로 인코딩한 비밀번호를 가진 회원을 만들어 인증 케이스를, 인증 없이 401이 나오는 케이스를 함께 검증하도록 재작성. `CourseServiceTest`는 `CourseService.createPersonalCourse(Long memberId, Set<LessonType> focusAreas)`로 시그니처가 바뀐 것만 반영(DTO의 memberId 필드 제거에 따른 연쇄 변경).
+  - curl로 실서버에서 미인증 401, 잘못된 비밀번호 401, 인증 성공 204/201, 요청 본문에 다른 memberId를 끼워 넣어도 무시되고 인증된 사용자 기준으로 처리됨, 브라우저 라우트(`/my`)는 여전히 `/login`으로 정상 리다이렉트, H2 콘솔 계속 열림을 전부 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. **REST API(`/api/progress/complete`, `/api/courses/personal` 등)가 요청 본문의 `memberId`를 그대로 신뢰하는 문제** — 실사용 화면은 전부 세션 기반 `@CurrentMemberId`라 이미 안전하지만, API 단독 클라이언트(모바일 앱 등)가 생기면 손봐야 함. Phase 6에서 의도적으로 범위 밖에 둠.
+3. 듣기·말하기 콘텐츠 — PRODUCT.md 3-1의 종합형 학습 핵심 차별점인데 아직 레슨이 0개라 전 코스에서 "준비 중"으로만 보임. 오디오/음성인식 인프라 설계 필요, 규모 큼.
 4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

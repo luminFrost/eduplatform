@@ -1,5 +1,6 @@
 package com.edu.eduplatform.progress.controller;
 
+import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.progress.dto.ProgressCompleteRequest;
@@ -24,8 +25,8 @@ public class ProgressApiController {
 
     @PostMapping("/complete")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void complete(@Valid @RequestBody ProgressCompleteRequest request) {
-        progressService.complete(request.memberId(), request.lessonId());
+    public void complete(@CurrentMemberId Long memberId, @Valid @RequestBody ProgressCompleteRequest request) {
+        progressService.complete(memberId, request.lessonId());
     }
 
     @ExceptionHandler(MemberNotFoundException.class)

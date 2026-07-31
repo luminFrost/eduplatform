@@ -1,8 +1,8 @@
 package com.edu.eduplatform.course.controller;
 
+import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
-import com.edu.eduplatform.course.dto.HistoryBasedCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
@@ -60,15 +60,17 @@ public class CourseApiController {
     }
 
     @PostMapping("/personal")
-    public ResponseEntity<CourseResponse> createPersonal(@Valid @RequestBody PersonalCourseCreateRequest request) {
-        PersonalCourseCreationResult result = courseService.createPersonalCourse(request);
+    public ResponseEntity<CourseResponse> createPersonal(
+            @CurrentMemberId Long memberId, @Valid @RequestBody PersonalCourseCreateRequest request
+    ) {
+        PersonalCourseCreationResult result = courseService.createPersonalCourse(memberId, request.focusAreas());
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(result.course());
     }
 
     @PostMapping("/personal/history-based")
-    public ResponseEntity<CourseResponse> createPersonalFromHistory(@Valid @RequestBody HistoryBasedCourseCreateRequest request) {
-        PersonalCourseCreationResult result = courseService.createPersonalCourseFromHistory(request.memberId());
+    public ResponseEntity<CourseResponse> createPersonalFromHistory(@CurrentMemberId Long memberId) {
+        PersonalCourseCreationResult result = courseService.createPersonalCourseFromHistory(memberId);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(result.course());
     }
