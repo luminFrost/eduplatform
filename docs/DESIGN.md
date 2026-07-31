@@ -61,8 +61,8 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 | courseId | Long | 소속 코스 |
 | title | String | 레슨명 |
 | orderNo | int | 코스 내 순서 |
-| content | Text | 본문/스크립트 |
-| (추후) lessonType | Enum | VOCAB/READING/LISTENING/QUIZ |
+| content | Text | 본문/스크립트. `INTRO:`/`"영어 — 한국어"` 줄 컨벤션으로 파싱(`LessonService.parseContent`) |
+| lessonType | Enum | 위 SkillArea 5종(VOCAB/READING/WRITING/LISTENING/SPEAKING) |
 
 ### LearningProgress (학습 진행)
 | 필드 | 타입 | 설명 |

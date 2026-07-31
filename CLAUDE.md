@@ -217,8 +217,34 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - `spring-boot-starter-security-test`의 `SecurityMockMvcRequestPostProcessors.httpBasic(...)`으로 테스트 갱신. `ProgressApiControllerTest`는 `PasswordEncoder`로 인코딩한 비밀번호를 가진 회원을 만들어 인증 케이스를, 인증 없이 401이 나오는 케이스를 함께 검증하도록 재작성. `CourseServiceTest`는 `CourseService.createPersonalCourse(Long memberId, Set<LessonType> focusAreas)`로 시그니처가 바뀐 것만 반영(DTO의 memberId 필드 제거에 따른 연쇄 변경).
   - curl로 실서버에서 미인증 401, 잘못된 비밀번호 401, 인증 성공 204/201, 요청 본문에 다른 memberId를 끼워 넣어도 무시되고 인증된 사용자 기준으로 처리됨, 브라우저 라우트(`/my`)는 여전히 `/login`으로 정상 리다이렉트, H2 콘솔 계속 열림을 전부 확인.
 
+- 듣기·말하기(LISTENING/SPEAKING) 콘텐츠 착수 (dev 병합됨)
+  - **기존 VOCAB/READING/WRITING도 실제로는 채점 없는 "플래시카드 검토 + 수동 완료 체크"라는 걸 확인**하고
+    (PRODUCT.md는 WRITING에 "작문 후 제출"이라 적어놨지만 실제 화면엔 입력창도 제출 로직도 없음), 이번
+    작업도 같은 수준으로 단순화하기로 사용자와 합의: LISTENING 오디오는 서버에 mp3를 두지 않고 브라우저
+    내장 `speechSynthesis`(Web Speech API)로 재생, SPEAKING은 마이크 캡처(`SpeechRecognition`) 없이
+    TTS로 들려주고 "따라 말해보기"만 유도.
+  - `LessonService.parseContent()`의 `INTRO:`/`"영어 — 한국어"` 줄 컨벤션은 손대지 않고 그대로 재사용 —
+    새 `LineType`이나 파싱 규칙 추가 없음. `LessonDetailResponse`에 없던 `lessonType` 필드만 추가해서
+    템플릿이 "이 레슨이 듣기/말하기일 때만 재생 버튼을 보여줄지" 판단하게 함.
+  - 이 프로젝트 첫 클라이언트 JS: `static/js/lesson-audio.js` — 이벤트 위임(`document.addEventListener('click', ...)`)으로
+    `[data-speak-text]` 버튼 클릭을 잡아 `SpeechSynthesisUtterance`를 큐잉. `lesson/detail.html`의 PHRASE
+    카드에 `lesson.lessonType`이 LISTENING/SPEAKING일 때만 조건부로 버튼 렌더링(SPEAKING은 "🎤 듣고 따라
+    말해보기", LISTENING은 "🔊 듣기" 문구로 구분).
+  - **버그**: 새 `/js/**` 정적 리소스가 `SecurityConfig`의 permitAll 목록에 없어서 비로그인 사용자가
+    레슨 페이지(공개 페이지)에 들어가도 스크립트 자체가 `/login`으로 리다이렉트되어 조용히 실패하던 문제 —
+    claude-in-chrome으로 버튼 클릭 후 `speechSynthesis.speak()`가 실제로 호출되는지 확인하다가 발견.
+    `/css/**`/`/images/**` 옆에 `/js/**`도 permitAll로 추가해 해결. (교훈: 새 정적 리소스 디렉터리를
+    추가할 때마다 Security 설정에도 매번 추가해야 함 — 잊기 쉬움.)
+  - 콘텐츠는 1차로 ADULT/BEGINNER에 LISTENING 코스 1개("듣기 연습: 일상 속 짧은 안내 듣기")·SPEAKING
+    코스 1개("말하기 연습: 자주 쓰는 표현 따라 말하기")만 각 7레슨씩 추가해 기능을 끝까지 검증 —
+    다른 대상·레벨 조합은 아직 "준비 중" 그대로. `SampleDataInitializer` 클래스 주석도 갱신.
+  - 테스트: `LessonServiceTest`의 `getDetail_*` 두 케이스에 `lessonType` 단언 추가.
+  - claude-in-chrome으로 실브라우저 검증: 코스 목록/상세에서 "준비 중" 대신 실제 레슨 노출, 재생 버튼
+    클릭 시 `speechSynthesis`가 실제로 발화 시작(`onstart` 이벤트)하는지 몽키패치로 확인, VOCAB
+    레슨엔 버튼이 안 뜨는지(조건부 렌더링) 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. 듣기·말하기 콘텐츠 — PRODUCT.md 3-1의 종합형 학습 핵심 차별점인데 아직 레슨이 0개라 전 코스에서 "준비 중"으로만 보임. 오디오/음성인식 인프라 설계 필요, 규모 큼.
+3. 듣기·말하기 콘텐츠를 다른 대상·레벨 조합으로 확장 — 지금은 ADULT/BEGINNER 1개씩만 있음
 4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

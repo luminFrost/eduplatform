@@ -18,8 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 대상(CHILD/ADULT) x 레벨(4단계) 조합마다 여러 코스를 채워 목록/필터 화면을 실제 데이터로 확인할 수 있게 한다.
  * 초등(CHILD) 코스는 레슨마다 "INTRO:" 줄로 여우 선생님 마스코트 인사말을 넣어 시각적으로 심심하지 않게 한다
  * (실제 삽화 도입 전까지 이모지로 대체 — CLAUDE.md 작업 상태 참고).
- * 레슨마다 LessonType(어휘/읽기/쓰기)을 태그해 코스 상세 화면의 영역별 탭에서 필터링할 수 있게 한다.
- * 듣기·말하기는 MVP 이후 오디오/음성인식 도입 시 채워질 예정이라 아직 태그된 레슨이 없다.
+ * 레슨마다 LessonType(어휘/읽기/쓰기/듣기/말하기)을 태그해 코스 상세 화면의 영역별 탭에서 필터링할 수 있게 한다.
+ * 듣기·말하기는 ADULT/BEGINNER에 각 1개 코스만 우선 채웠다(브라우저 TTS로 재생 — lesson/detail.html 참고).
+ * 다른 대상·레벨 조합은 아직 "준비 중" 빈 상태 그대로다.
  * 코스마다 7개 안팎의 레슨을 채워 "레슨이 너무 적다"는 피드백을 반영했다.
  */
 @Component
@@ -638,6 +639,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             I relax on the sofa in the evening. — 저는 저녁에 소파에서 쉬어요.
                             I read a book before bed. — 자기 전에 책을 읽어요.
                             I take a warm shower at night. — 밤에 따뜻한 샤워를 해요.""")
+            )),
+            new CourseSeed("듣기 연습: 일상 속 짧은 안내 듣기", "공지, 안내방송, 전화 메시지 등 일상에서 자주 듣는 짧은 문장을 들어보는 코스입니다.", "🎧",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("공항 안내 방송 듣기", LessonType.LISTENING, """
+                            Attention passengers, please. — 승객 여러분, 주목해 주세요.
+                            Flight two-oh-five is now boarding. — 205편 항공기가 지금 탑승 중입니다.
+                            Please have your boarding pass ready. — 탑승권을 준비해 주세요."""),
+                    new LessonSeed("지하철 안내 방송 듣기", LessonType.LISTENING, """
+                            This is Gangnam station. — 이번 역은 강남역입니다.
+                            The doors are closing. — 문이 닫힙니다.
+                            Please mind the gap. — 발밑을 조심하세요."""),
+                    new LessonSeed("일기예보 듣기", LessonType.LISTENING, """
+                            Today will be sunny and warm. — 오늘은 맑고 따뜻하겠습니다.
+                            There is a chance of rain tomorrow. — 내일은 비가 올 가능성이 있습니다.
+                            The high will be twenty five degrees. — 최고 기온은 25도입니다."""),
+                    new LessonSeed("전화 자동 응답 듣기", LessonType.LISTENING, """
+                            Thank you for calling. — 전화 주셔서 감사합니다.
+                            Please leave a message after the tone. — 신호음 후에 메시지를 남겨 주세요.
+                            Our office hours are nine to six. — 저희 영업시간은 9시부터 6시까지입니다."""),
+                    new LessonSeed("매장 안내 방송 듣기", LessonType.LISTENING, """
+                            Attention shoppers. — 쇼핑객 여러분께 안내드립니다.
+                            The store will close in ten minutes. — 매장은 10분 후에 마감합니다.
+                            Thank you for visiting today. — 오늘 방문해 주셔서 감사합니다."""),
+                    new LessonSeed("회의 안내 듣기", LessonType.LISTENING, """
+                            The meeting will start at ten. — 회의는 10시에 시작합니다.
+                            Please turn off your phones. — 휴대폰을 꺼주세요.
+                            We will finish by eleven. — 11시까지 마치겠습니다."""),
+                    new LessonSeed("긴급 안내 방송 듣기", LessonType.LISTENING, """
+                            This is an emergency announcement. — 긴급 안내 방송입니다.
+                            Please remain calm. — 침착하게 행동해 주세요.
+                            Follow the nearest exit sign. — 가장 가까운 비상구 표시를 따라가세요.""")
+            )),
+            new CourseSeed("말하기 연습: 자주 쓰는 표현 따라 말하기", "짧고 실용적인 문장을 듣고 소리 내어 따라 말해보는 코스입니다.", "🎤",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("인사 표현 따라 말하기", LessonType.SPEAKING, """
+                            Good morning! — 좋은 아침이에요!
+                            How's it going? — 어떻게 지내세요?
+                            See you later. — 나중에 봐요."""),
+                    new LessonSeed("감사와 사과 표현 따라 말하기", LessonType.SPEAKING, """
+                            Thank you so much. — 정말 감사합니다.
+                            I'm sorry about that. — 그 점 죄송합니다.
+                            No problem at all. — 전혀 문제없어요."""),
+                    new LessonSeed("부탁하는 표현 따라 말하기", LessonType.SPEAKING, """
+                            Could you help me? — 저 좀 도와주시겠어요?
+                            Can I ask you something? — 뭐 좀 여쭤봐도 될까요?
+                            Would you mind waiting a moment? — 잠깐만 기다려 주시겠어요?"""),
+                    new LessonSeed("의견 말하는 표현 따라 말하기", LessonType.SPEAKING, """
+                            I think that's a good idea. — 좋은 생각인 것 같아요.
+                            I'm not sure about that. — 그건 잘 모르겠어요.
+                            That makes sense. — 그거 말이 되네요."""),
+                    new LessonSeed("전화 통화 표현 따라 말하기", LessonType.SPEAKING, """
+                            Hello, this is Jane speaking. — 여보세요, 저는 Jane입니다.
+                            Can I speak to Mr. Kim? — 김 선생님과 통화할 수 있을까요?
+                            I'll call you back later. — 나중에 다시 전화할게요."""),
+                    new LessonSeed("약속 잡는 표현 따라 말하기", LessonType.SPEAKING, """
+                            Are you free this weekend? — 이번 주말에 시간 있으세요?
+                            Let's meet at noon. — 정오에 만나요.
+                            That works for me. — 저는 그때 괜찮아요."""),
+                    new LessonSeed("축하와 격려 표현 따라 말하기", LessonType.SPEAKING, """
+                            Congratulations! — 축하해요!
+                            You did a great job. — 정말 잘했어요.
+                            Good luck with everything. — 모든 일에 행운을 빌어요.""")
             )),
 
             // ---------- ADULT / ELEMENTARY ----------

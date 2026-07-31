@@ -68,7 +68,7 @@ public class SecurityConfig {
                         // 이 체인이 catch-all(anyRequest().authenticated())이라 /error까지 로그인 리다이렉트로
                         // 덮어써버리는 문제가 있었다 — /error는 항상 permitAll로 열어둔다.
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/", "/login", "/css/**", "/images/**").permitAll()
+                        .requestMatchers("/", "/login", "/css/**", "/images/**", "/js/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/members/new").permitAll()
                         .requestMatchers(HttpMethod.POST, "/members").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()

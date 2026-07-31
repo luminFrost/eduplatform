@@ -54,6 +54,7 @@ class LessonServiceTest {
         assertThat(detail.totalLessonsInCourse()).isEqualTo(3);
         assertThat(detail.prevLessonId()).isEqualTo(10L);
         assertThat(detail.nextLessonId()).isEqualTo(12L);
+        assertThat(detail.lessonType()).isEqualTo(LessonType.VOCAB);
     }
 
     @Test
@@ -73,6 +74,7 @@ class LessonServiceTest {
 
         assertThat(detail.prevLessonId()).isNull();
         assertThat(detail.nextLessonId()).isEqualTo(11L);
+        assertThat(detail.lessonType()).isEqualTo(LessonType.VOCAB);
     }
 
     private static Course withId(Course course, Long id) throws Exception {
