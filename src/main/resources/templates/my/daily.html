@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>오늘의 단어 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1>오늘의 단어</h1>
+    <p>오늘 하루는 같은 단어·문제가 나와요. 자정이 지나면 새로워져요.</p>
+
+    <h2>오늘의 단어장</h2>
+    <ul th:if="${not #lists.isEmpty(words)}">
+        <li th:each="w : ${words}">
+            <span th:text="${w.english}"></span> — <span th:text="${w.korean}"></span>
+        </li>
+    </ul>
+    <p th:if="${#lists.isEmpty(words)}">아직 이 레벨의 공식 코스가 준비되지 않았어요.</p>
+
+    <h2>오늘의 단어 퀴즈</h2>
+    <div th:if="${quiz != null}">
+        <p th:if="${quizResult == 'correct'}">정답이에요! 🎉</p>
+        <p class="error-message" th:if="${quizResult == 'wrong'}">아쉬워요, 다시 도전해보세요.</p>
+        <form th:action="@{/my/daily/quiz}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="quiz-question">
+                <p class="quiz-prompt" th:text="${quiz.sentenceWithBlank}"></p>
+                <p class="kr" th:text="${quiz.translation}"></p>
+                <div class="quiz-options">
+                    <label th:each="opt : ${quiz.options}">
+                        <input type="radio" name="answer" th:value="${opt}" required/>
+                        <span th:text="${opt}"></span>
+                    </label>
+                </div>
+            </div>
+            <button type="submit">정답 확인</button>
+        </form>
+    </div>
+    <p th:if="${quiz == null}">오늘은 퀴즈 재료가 부족해요.</p>
+
+    <p><a th:href="@{/my}">마이페이지로 돌아가기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

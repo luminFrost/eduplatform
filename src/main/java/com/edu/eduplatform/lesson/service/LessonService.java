@@ -11,13 +11,16 @@ import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LineType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
+import com.edu.eduplatform.member.domain.MemberType;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,17 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class LessonService {
-
-    /** 퀴즈 빈칸으로 고르지 않을 문법 기능어(핵심 의미를 담지 않아 이해도 확인에 부적합). */
-    private static final Set<String> STOPWORDS = Set.of(
-            "a", "an", "the", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
-            "is", "am", "are", "was", "were", "be", "been", "being",
-            "do", "does", "did", "have", "has", "had",
-            "to", "of", "in", "on", "at", "for", "and", "but", "or", "so", "as", "with", "not",
-            "my", "your", "his", "its", "our", "their", "this", "that", "these", "those",
-            "will", "would", "can", "could", "may", "might", "shall", "should", "must",
-            "please", "let's", "just", "very", "really"
-    );
 
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
@@ -120,7 +112,7 @@ public class LessonService {
                 if (line.type() != LineType.PHRASE) {
                     continue;
                 }
-                extractKeyWord(line.text())
+                QuizWordPicker.extractKeyWord(line.text())
                         .filter(word -> !word.equalsIgnoreCase(answer))
                         .ifPresent(distractorPool::add);
             }
@@ -129,14 +121,12 @@ public class LessonService {
             return null;
         }
 
-        List<String> distractors = new ArrayList<>(distractorPool);
-        Collections.shuffle(distractors);
         List<String> options = new ArrayList<>();
         options.add(answer);
-        options.addAll(distractors.subList(0, Math.min(3, distractors.size())));
+        options.addAll(QuizWordPicker.pickDistractors(distractorPool, answer, 3, new Random()));
         Collections.shuffle(options);
 
-        return new LessonQuiz(blankOut(sentence.text(), answer), sentence.subtext(), options);
+        return new LessonQuiz(QuizWordPicker.blankOut(sentence.text(), answer), sentence.subtext(), options);
     }
 
     /**
@@ -151,33 +141,39 @@ public class LessonService {
             return Optional.empty();
         }
         ContentLine chosen = phraseLines.get(Math.floorMod(lesson.getId(), phraseLines.size()));
-        return extractKeyWord(chosen.text()).map(word -> new ChosenQuizWord(chosen, word));
-    }
-
-    /** 불용어를 제외하고 가장 긴 단어를 고른다(동률이면 문장에서 먼저 나오는 단어). */
-    private Optional<String> extractKeyWord(String sentence) {
-        String best = null;
-        for (String token : sentence.split("\\s+")) {
-            String cleaned = token.replaceAll("[^A-Za-z']", "");
-            if (cleaned.isEmpty() || STOPWORDS.contains(cleaned.toLowerCase())) {
-                continue;
-            }
-            if (best == null || cleaned.length() > best.length()) {
-                best = cleaned;
-            }
-        }
-        return Optional.ofNullable(best);
-    }
-
-    /** 문장에서 단어(대소문자 무시, 단어 경계 기준) 첫 등장을 "___"로 치환한다. */
-    private String blankOut(String sentence, String word) {
-        return sentence.replaceFirst("(?i)\\b" + Pattern.quote(word) + "\\b", "___");
+        return QuizWordPicker.extractKeyWord(chosen.text()).map(word -> new ChosenQuizWord(chosen, word));
     }
 
     private record ChosenQuizWord(ContentLine sentence, String word) {
     }
 
-    private List<ContentLine> parseContent(String content) {
+    /**
+     * 대상(CHILD/ADULT)의 공식 코스 전체에서 아이콘이 붙은 PHRASE 문장의 핵심 단어·아이콘 쌍을 모은다.
+     * 그림 퀴즈(픽처 퀴즈)의 재료 풀로 쓰인다 — 새 콘텐츠 없이 기존 레슨 카드 아이콘을 재사용.
+     * 같은 단어가 여러 번 나오면 처음 나온 것만 남긴다(대소문자 무시 중복 제거).
+     */
+    public List<IconPair> collectIconPairs(MemberType targetType) {
+        Map<String, IconPair> pairsByWord = new LinkedHashMap<>();
+        for (Course course : courseRepository.search(targetType, null, null)) {
+            for (Lesson lesson : lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId())) {
+                for (ContentLine line : parseContent(lesson.getContent())) {
+                    if (line.type() != LineType.PHRASE || line.iconImage() == null) {
+                        continue;
+                    }
+                    QuizWordPicker.extractKeyWord(line.text())
+                            .ifPresent(word -> pairsByWord.putIfAbsent(
+                                    word.toLowerCase(), new IconPair(word, line.iconImage())));
+                }
+            }
+        }
+        return List.copyOf(pairsByWord.values());
+    }
+
+    public record IconPair(String word, String iconImage) {
+    }
+
+    /** 레슨 콘텐츠 문자열을 INTRO/PHRASE/NOTE 줄로 파싱한다 — 다른 서비스(그림/매일 단어 퀴즈)도 재사용. */
+    public List<ContentLine> parseContent(String content) {
         return content.lines()
                 .map(String::strip)
                 .filter(line -> !line.isBlank())
