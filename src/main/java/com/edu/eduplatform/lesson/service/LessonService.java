@@ -6,11 +6,18 @@ import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.ContentLine;
+import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LessonQuiz;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LineType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +27,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class LessonService {
+
+    /** 퀴즈 빈칸으로 고르지 않을 문법 기능어(핵심 의미를 담지 않아 이해도 확인에 부적합). */
+    private static final Set<String> STOPWORDS = Set.of(
+            "a", "an", "the", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
+            "is", "am", "are", "was", "were", "be", "been", "being",
+            "do", "does", "did", "have", "has", "had",
+            "to", "of", "in", "on", "at", "for", "and", "but", "or", "so", "as", "with", "not",
+            "my", "your", "his", "its", "our", "their", "this", "that", "these", "those",
+            "will", "would", "can", "could", "may", "might", "shall", "should", "must",
+            "please", "let's", "just", "very", "really"
+    );
 
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
@@ -50,6 +68,7 @@ public class LessonService {
                 .orElseThrow();
         Lesson prev = index > 0 ? siblings.get(index - 1) : null;
         Lesson next = index < siblings.size() - 1 ? siblings.get(index + 1) : null;
+        List<ContentLine> contentLines = parseContent(lesson.getContent());
 
         return new LessonDetailResponse(
                 lesson.getId(),
@@ -58,13 +77,104 @@ public class LessonService {
                 lesson.getTitle(),
                 lesson.getLessonType(),
                 lesson.getOrderNo(),
-                parseContent(lesson.getContent()),
+                contentLines,
                 siblings.size(),
                 prev != null ? prev.getId() : null,
                 prev != null ? prev.getTitle() : null,
                 next != null ? next.getId() : null,
-                next != null ? next.getTitle() : null
+                next != null ? next.getTitle() : null,
+                buildQuiz(lesson, contentLines, siblings)
         );
+    }
+
+    /**
+     * 레슨을 완료 처리하기 전 정답을 확인할 때 쓰는, 퀴즈 정답 단어만 도출하는 경량 버전.
+     * {@link #buildQuiz}와 같은 문장·단어 선택 로직({@link #chooseQuizWord})을 공유해 항상 같은 정답을 낸다.
+     */
+    public Optional<String> deriveQuizAnswer(Long lessonId) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new LessonNotFoundException(lessonId));
+        return chooseQuizWord(lesson, parseContent(lesson.getContent())).map(ChosenQuizWord::word);
+    }
+
+    /**
+     * 레슨의 PHRASE 문장 하나에서 핵심 단어를 빈칸으로 만들어 이해도 확인 퀴즈를 즉석에서 만든다.
+     * 새 콘텐츠를 저장하지 않는다(stateless) — 정답도 매번 같은 알고리즘으로 다시 계산해서 검증한다.
+     * 오답 보기는 같은 코스의 다른 레슨들의 PHRASE 문장에서 모은다. PHRASE 문장이 없거나 오답 후보가
+     * 하나도 없으면 퀴즈 없이 null을 반환한다 — 기존 "레슨 없으면 정직하게 빈 상태" 컨벤션과 같다.
+     */
+    private LessonQuiz buildQuiz(Lesson lesson, List<ContentLine> contentLines, List<Lesson> siblings) {
+        Optional<ChosenQuizWord> picked = chooseQuizWord(lesson, contentLines);
+        if (picked.isEmpty()) {
+            return null;
+        }
+        ContentLine sentence = picked.get().sentence();
+        String answer = picked.get().word();
+
+        Set<String> distractorPool = new LinkedHashSet<>();
+        for (Lesson sibling : siblings) {
+            if (sibling.getId().equals(lesson.getId())) {
+                continue;
+            }
+            for (ContentLine line : parseContent(sibling.getContent())) {
+                if (line.type() != LineType.PHRASE) {
+                    continue;
+                }
+                extractKeyWord(line.text())
+                        .filter(word -> !word.equalsIgnoreCase(answer))
+                        .ifPresent(distractorPool::add);
+            }
+        }
+        if (distractorPool.isEmpty()) {
+            return null;
+        }
+
+        List<String> distractors = new ArrayList<>(distractorPool);
+        Collections.shuffle(distractors);
+        List<String> options = new ArrayList<>();
+        options.add(answer);
+        options.addAll(distractors.subList(0, Math.min(3, distractors.size())));
+        Collections.shuffle(options);
+
+        return new LessonQuiz(blankOut(sentence.text(), answer), sentence.subtext(), options);
+    }
+
+    /**
+     * 레슨 id로 결정론적으로 PHRASE 문장 하나를 고르고(같은 레슨이면 항상 같은 문장), 그 문장에서 핵심 단어를
+     * 뽑는다. PHRASE 문장이 없거나 핵심 단어를 못 찾으면(불용어뿐인 문장 등) 빈 값을 반환한다.
+     */
+    private Optional<ChosenQuizWord> chooseQuizWord(Lesson lesson, List<ContentLine> contentLines) {
+        List<ContentLine> phraseLines = contentLines.stream()
+                .filter(line -> line.type() == LineType.PHRASE)
+                .toList();
+        if (phraseLines.isEmpty()) {
+            return Optional.empty();
+        }
+        ContentLine chosen = phraseLines.get(Math.floorMod(lesson.getId(), phraseLines.size()));
+        return extractKeyWord(chosen.text()).map(word -> new ChosenQuizWord(chosen, word));
+    }
+
+    /** 불용어를 제외하고 가장 긴 단어를 고른다(동률이면 문장에서 먼저 나오는 단어). */
+    private Optional<String> extractKeyWord(String sentence) {
+        String best = null;
+        for (String token : sentence.split("\\s+")) {
+            String cleaned = token.replaceAll("[^A-Za-z']", "");
+            if (cleaned.isEmpty() || STOPWORDS.contains(cleaned.toLowerCase())) {
+                continue;
+            }
+            if (best == null || cleaned.length() > best.length()) {
+                best = cleaned;
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    /** 문장에서 단어(대소문자 무시, 단어 경계 기준) 첫 등장을 "___"로 치환한다. */
+    private String blankOut(String sentence, String word) {
+        return sentence.replaceFirst("(?i)\\b" + Pattern.quote(word) + "\\b", "___");
+    }
+
+    private record ChosenQuizWord(ContentLine sentence, String word) {
     }
 
     private List<ContentLine> parseContent(String content) {

@@ -58,6 +58,17 @@
 
         <form th:if="${currentMemberId != null and !completed}" th:action="@{/lessons/{id}/complete(id=${lesson.id})}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="quiz-question" th:if="${lesson.quiz != null}">
+                <p class="quiz-prompt" th:text="${lesson.quiz.sentenceWithBlank}"></p>
+                <p class="kr" th:text="${lesson.quiz.translation}"></p>
+                <p class="error-message" th:if="${quizError}" th:text="${quizError}"></p>
+                <div class="quiz-options">
+                    <label th:each="opt : ${lesson.quiz.options}">
+                        <input type="radio" name="quizAnswer" th:value="${opt}" required/>
+                        <span th:text="${opt}"></span>
+                    </label>
+                </div>
+            </div>
             <button type="submit">학습 완료</button>
         </form>
         <button th:if="${currentMemberId != null and completed}" type="button" disabled>완료함 ✓</button>

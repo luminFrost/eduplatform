@@ -317,7 +317,36 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     → WRITING 레슨 7개 정상 생성). `./gradlew build`/`test` 전체 통과(데이터 시딩만 바뀐 변경이라 기존
     테스트에 영향 없음, 예상대로).
 
+- 레슨 내 이해도 확인 퀴즈 (dev 병합됨)
+  - PRODUCT.md 3-1은 WRITING을 "작문 후 제출"이라 정의하지만 실제론 VOCAB/READING/WRITING 전부 채점 없는
+    플래시카드 검토 + 수동 "학습 완료" 버튼뿐이었음(듣기·말하기 콘텐츠 착수 때 이미 발견해뒀던 갭).
+    `ProgressService`의 기존 Javadoc도 "정답률·오답 데이터 없음, 퀴즈 미도입"이라고 스스로 이 갭을 적어뒀었음.
+  - **새 콘텐츠·엔티티·테이블 없이** 레슨에 이미 있는 "English — 한글" PHRASE 문장에서 핵심 단어 하나를
+    빈칸으로 만들어 매 요청마다 그 자리에서 퀴즈를 만들어냄(stateless) — 진단 테스트가 원시 답안을 저장
+    안 하고 그때그때 채점하는 것과 같은 원칙. 343개 레슨 전부에 수작업 문항을 채우는 건 진단 테스트
+    (80문항)보다 몇 배 큰 일이라 배보다 배꼽이 큼.
+  - `LessonService`에 순수 함수로 추가: 핵심 단어는 불용어(관사/대명사/be동사 등) 제외 최장 단어(동률이면
+    먼저 나온 단어), 오답 보기는 같은 코스 다른 레슨들의 PHRASE 문장에서 모음. 정답 도출 로직
+    (`deriveQuizAnswer`)과 오답 포함 전체 퀴즈 생성(`buildQuiz`)이 같은 문장·단어 선택 헬퍼
+    (`chooseQuizWord`)를 공유해 GET에서 보여준 문제와 POST에서 검증하는 정답이 항상 일치.
+  - PHRASE 줄이 없거나(CHILD 콘텐츠 일부, "A는 Apple(사과)의 A예요" 같은 NOTE 형식) 오답 후보가 하나도
+    없으면(같은 코스에 다른 PHRASE 문장이 없음) 퀴즈 없이 조용히 생략 — 기존 완료 버튼만 그대로 보임,
+    하위 호환 100% 유지.
+  - `LessonViewController.complete()`가 `quizAnswer` 파라미터를 받아 `deriveQuizAnswer()`와 대소문자
+    무시 비교 — 틀리면(또는 퀴즈가 있는데 답이 없으면) 같은 페이지를 에러 메시지와 함께 다시 그리고
+    완료 처리를 하지 않음. `/api/progress/complete`(REST API)는 이번 범위에서 제외 — 렌더링된 퀴즈를
+    보고 답하는 게 전제인 기능이라 웹 화면에만 게이트를 검.
+  - 화면: `lesson/detail.html`의 "학습 완료" 폼 안에 빈칸 문장 + 라디오 보기 4개 추가 — 진단 테스트 때
+    만든 `.quiz-question`/`.quiz-options`/`.error-message` CSS를 그대로 재사용해 새 CSS 없음.
+  - 테스트: `LessonServiceTest`에 4개 추가(핵심 단어 추출, PHRASE 없으면 빈 값, 오답 보기가 다른 레슨의
+    PHRASE에서 모이는지, 오답 후보 없으면 퀴즈 생략), `LearningProgressFlowTest`에 1개 추가(틀린 답 →
+    미완료+에러, 맞는 답 → 완료). 기존 PHRASE 없는 콘텐츠("내용")로 쓰인 회귀 테스트들도 그대로 통과
+    확인(하위 호환 검증).
+  - curl로 실서버 검증: ADULT 레슨(`/lessons/141`, "The map ___ a hidden island.")에서 오답 제출 시
+    200 + "정답이 아니에요" 노출 + 미완료 확인, 정답(`showed`) 제출 시 302 리다이렉트 + "완료함 ✓" 전환
+    확인. PHRASE 없는 레슨(`/lessons/1`)은 퀴즈 없이 기존처럼 렌더링되는 것도 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. 운영 DB 전환/배포 준비 — 지금까지 전부 H2 인메모리 + 로컬 개발
-3. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

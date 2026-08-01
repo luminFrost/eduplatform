@@ -77,6 +77,79 @@ class LessonServiceTest {
         assertThat(detail.lessonType()).isEqualTo(LessonType.VOCAB);
     }
 
+    @Test
+    void deriveQuizAnswer_PHRASE_문장에서_불용어를_제외한_가장_긴_단어를_뽑는다() throws Exception {
+        Lesson lesson = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과")
+                .content("I would like a coffee, please. — 저는 커피를 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(lesson));
+
+        Optional<String> answer = lessonService.deriveQuizAnswer(10L);
+
+        assertThat(answer).contains("coffee");
+    }
+
+    @Test
+    void deriveQuizAnswer_PHRASE_줄이_없으면_빈_값을_반환한다() throws Exception {
+        Lesson lesson = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과")
+                .content("A는 Apple(사과)의 A예요.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(lesson));
+
+        Optional<String> answer = lessonService.deriveQuizAnswer(10L);
+
+        assertThat(answer).isEmpty();
+    }
+
+    @Test
+    void getDetail_오답_보기를_같은_코스_다른_레슨들의_PHRASE_문장에서_모은다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 1L);
+        Lesson target = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과")
+                .content("I would like a coffee, please. — 저는 커피를 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson sibling1 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과")
+                .content("I really enjoy summer vacation. — 나는 여름 방학을 정말 좋아해요.")
+                .lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson sibling2 = withLessonId(Lesson.builder().courseId(1L).orderNo(3).title("3과")
+                .content("The weather is beautiful today. — 오늘 날씨가 아름다워요.")
+                .lessonType(LessonType.VOCAB).build(), 12L);
+        List<Lesson> siblings = List.of(target, sibling1, sibling2);
+
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(target));
+        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        LessonDetailResponse detail = lessonService.getDetail(10L);
+
+        assertThat(detail.quiz()).isNotNull();
+        assertThat(detail.quiz().sentenceWithBlank()).contains("___").doesNotContain("coffee");
+        assertThat(detail.quiz().translation()).isEqualTo("저는 커피를 부탁드립니다.");
+        assertThat(detail.quiz().options())
+                .contains("coffee", "vacation", "beautiful")
+                .hasSize(3);
+    }
+
+    @Test
+    void getDetail_오답_후보가_없으면_퀴즈를_생략한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 1L);
+        Lesson target = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과")
+                .content("I would like a coffee, please. — 저는 커피를 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        List<Lesson> siblings = List.of(target);
+
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(target));
+        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        LessonDetailResponse detail = lessonService.getDetail(10L);
+
+        assertThat(detail.quiz()).isNull();
+    }
+
     private static Course withId(Course course, Long id) throws Exception {
         setField(course, "id", id);
         return course;

@@ -15,7 +15,8 @@ public record LessonDetailResponse(
         Long prevLessonId,
         String prevLessonTitle,
         Long nextLessonId,
-        String nextLessonTitle
+        String nextLessonTitle,
+        LessonQuiz quiz
 ) {
 
     public enum LineType {
@@ -28,5 +29,9 @@ public record LessonDetailResponse(
     }
 
     public record ContentLine(LineType type, String text, String subtext, String icon, String iconImage) {
+    }
+
+    /** 레슨의 PHRASE 문장에서 핵심 단어를 빈칸으로 만든 이해도 확인 퀴즈. 정답 인덱스는 노출하지 않는다. */
+    public record LessonQuiz(String sentenceWithBlank, String translation, List<String> options) {
     }
 }
