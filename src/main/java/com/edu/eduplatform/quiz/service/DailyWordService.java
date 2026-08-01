@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,8 +99,12 @@ public class DailyWordService {
 
     private List<PhrasePair> collectPhrasePool(MemberResponse member) {
         Map<String, PhrasePair> pairsByEnglish = new LinkedHashMap<>();
-        for (Course course : courseRepository.search(member.memberType(), member.level(), null)) {
-            for (Lesson lesson : lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId())) {
+        List<Course> courses = courseRepository.search(member.memberType(), member.level(), null);
+        Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
+                .findByCourseIdIn(courses.stream().map(Course::getId).toList()).stream()
+                .collect(Collectors.groupingBy(Lesson::getCourseId));
+        for (Course course : courses) {
+            for (Lesson lesson : lessonsByCourseId.getOrDefault(course.getId(), List.of())) {
                 for (ContentLine line : lessonService.parseContent(lesson.getContent())) {
                     if (line.type() != LineType.PHRASE) {
                         continue;

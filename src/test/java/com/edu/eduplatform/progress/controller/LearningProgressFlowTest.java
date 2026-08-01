@@ -173,4 +173,10 @@ class LearningProgressFlowTest {
         mockMvc.perform(post("/lessons/{id}/complete", lesson.getId()).with(csrf()))
                 .andExpect(redirectedUrl("/login"));
     }
+
+    @Test
+    void 세션이_없으면_복습_페이지는_로그인으로_리다이렉트된다() throws Exception {
+        mockMvc.perform(get("/my/review"))
+                .andExpect(redirectedUrl("/login"));
+    }
 }

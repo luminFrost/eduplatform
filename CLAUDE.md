@@ -416,8 +416,41 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     브루트포스로 완료 → 코스 상세에 "🎉 이 코스를 모두 완료했어요!" + 다음 코스(22번, 듣기 코스) 링크
     확인, 그 링크가 실제로 200으로 열리는지 확인. 완료 전엔 배너 없음도 확인.
 
+- 복습 기능 + 그림 퀴즈 콘텐츠 보정 + N+1 쿼리 최적화 (dev 병합됨, 사용자가 남은 항목 세 개를 한 번에 지시)
+  - **복습(간격 반복)**: PRODUCT.md가 MVP 이후 항목으로 명시해뒀던 마지막 미구현 기능. 새 추적 데이터
+    없이 기존 `LearningProgress.completedAt`만 재사용 — 엔티티의 `complete()` 자체가 멱등성 가드 없이
+    무조건 `completedAt = now()`로 덮어쓴다는 걸 확인하고(멱등성은 `ProgressService.complete()`가
+    서비스 레벨에서만 보장), 이걸 그대로 "복습 완료 = completedAt을 지금으로 밀어내기"에 재사용함.
+    `LearningProgressRepository`에 파생 쿼리(`findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc`)
+    추가, `ProgressService.getLessonsDueForReview()`(3일 지난 완료 레슨을 오래된 순 최대 10개)/
+    `markReviewed()` 신규. 화면: `GET/POST /my/review` — 새 `ReviewViewController`(`/my/**`가 이미
+    인증 필수라 시큐리티 설정 변경 불필요), `templates/my/review.html`, 마이페이지에 링크 추가.
+  - **그림 퀴즈 콘텐츠 보정**: `LessonService.collectIconPairs()`가 CHILD 전체 레벨(BEGINNER~ADVANCED)
+    콘텐츠를 다 섞어 재료로 쓰던 걸 BEGINNER·ELEMENTARY로 제한 — 고급 관용구 레슨의 추상적인 단어가
+    그림과 안 맞게 짝지어지던 문제 해결. 실서버에서 재검증: 이전엔 보기에 "instead"/"exciting" 같은
+    단어가 섞여 나왔는데, 수정 후엔 "school"/"family"/"water"/"books" 같은 구체적인 저학년 어휘만 나옴.
+  - **N+1 쿼리 최적화**: `LessonRepository.findByCourseIdIn(Collection<Long>)` 신규(파생 쿼리) —
+    "코스 목록을 순회하며 코스마다 레슨을 따로 조회"하던 5곳(`CourseService.buildPersonalCourse`,
+    `ProgressService.getCourseProgress`/`computeSkillAreaCounts`, `DailyWordService.collectPhrasePool`,
+    `LessonService.collectIconPairs`)을 전부 "코스 id 리스트로 한 번에 조회 후 `groupingBy`로 맵
+    구성" 패턴으로 교체. `QuestionRepository.findByTargetTypeAndLevel`도 파생 쿼리에서
+    `@Query(... left join fetch q.options ...)`로 바꿔 진단 테스트 80문항 조회 시 문항마다 따로
+    나가던 `question_option` select를 없앰 — `@OrderColumn` 순서가 fetch join에서도 보존되는지
+    기존 `QuestionRepositoryTest`로 회귀 확인.
+  - **테스트 작업의 대부분은 새 테스트보다 기존 테스트 스텁 수정** — `CourseServiceTest`/
+    `ProgressServiceTest`/`DailyWordServiceTest`가 전부 `findByCourseIdOrderByOrderNoAsc(단일id)`를
+    스텁하고 있어서 배치 조회로 바꾸자마자 11개 테스트가 한꺼번에 깨짐(예상된 일). 하나씩 돌려보며
+    `findByCourseIdIn(...)` 기준으로 스텁을 고쳐 전부 통과시킴.
+  - 실서버 검증: `build/bootRun.log`의 SQL 로그로 그림 퀴즈 요청 시 레슨 조회가 코스 개수(12개)만큼이
+    아니라 `course_id in (?, ?, ..., ?)` 배치 쿼리 1번으로 줄어든 것 확인. 방금 완료한 레슨은
+    `/my/review`에 안 뜨는지(3일 안 지남) 확인, `POST /my/review/{id}` 호출이 에러 없이 정상
+    리다이렉트되는지 확인 — "3일 지난 완료"라는 조건 자체는 실시간으로 만들 수 없어 그 경계 로직은
+    `ProgressServiceTest`의 Mockito 기반 테스트로 검증(실서버에서 시간을 조작할 순 없음).
+  - 테스트: `LessonServiceTest`에 `collectIconPairs` 신규(BEGINNER/ELEMENTARY만 쓰는지, ADVANCED/
+    INTERMEDIATE는 아예 조회 안 하는지 `verify(never())`로 확인), `ProgressServiceTest`에
+    `getLessonsDueForReview`/`markReviewed` 4개, `LearningProgressFlowTest`에 비로그인
+    `/my/review` 리다이렉트 확인 1개.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`/`isCourseFullyCompleted`, `QuestionService.getDiagnosticTestQuestions`, `DailyWordService.collectPhrasePool`/`PictureQuizService.pickTodayQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
-3. (참고, 새 버그 아님) 그림 퀴즈가 CHILD 전체 레벨(BEGINNER~ADVANCED) 콘텐츠를 다 섞어서 재료로 쓰다 보니, 고급 관용구 레슨의 추상적인 단어가 저학년 그림과 짝지어질 때가 있음(예: 최장단어 추출 휴리스틱이 그림의 핵심 명사 대신 다른 단어를 고르는 경우) — 지금은 허용 가능한 수준으로 판단, 나중에 레벨 필터링이나 더 정교한 단어 선택 로직 고려
-4. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
+2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
