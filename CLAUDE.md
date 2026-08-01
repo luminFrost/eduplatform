@@ -346,7 +346,46 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     200 + "정답이 아니에요" 노출 + 미완료 확인, 정답(`showed`) 제출 시 302 리다이렉트 + "완료함 ✓" 전환
     확인. PHRASE 없는 레슨(`/lessons/1`)은 퀴즈 없이 기존처럼 렌더링되는 것도 확인.
 
+- 그림 퀴즈 + 매일매일 단어장/단어 퀴즈 (dev 병합됨)
+  - 사용자가 "아이가 풀 수 있는 그림퀴즈, 매일매일 랜덤 단어 퀴즈, 매일매일 단어장" 세 가지를 한 번에
+    제안 — 셋 다 새 콘텐츠 저장 없이 만들 수 있다고 판단(그림 퀴즈는 CHILD 레슨의 기존 OpenMoji 아이콘,
+    단어 퀴즈/단어장은 회원 레벨의 기존 "English — 한글" 문장을 재료로 재사용). "매일"은 **오늘 날짜를
+    시드로 쓰는 결정론적 셔플**로 구현 — DB에 "오늘 뭘 냈는지" 저장 없이 같은 날엔 항상 같은 문제,
+    자정 지나면 자동으로 바뀜. 직전에 만든 레슨 이해도 퀴즈(레슨 id를 시드로 쓴 것)와 같은 철학을
+    날짜 시드로 확장한 것.
+  - 공용 기반 2개 신규: `common/util/DailySeed`(오늘 날짜를 `epochDay`로 시드 삼아 결정론적 셔플),
+    `lesson/service/QuizWordPicker`(레슨 퀴즈에서 쓰던 `extractKeyWord`/`blankOut`을 `LessonService`
+    private 메서드에서 뽑아내 공용 static 유틸로 전환 + 오답 뽑기 `pickDistractors` 추가). 순수 이동이라
+    기존 `LessonServiceTest` 4개가 리팩터링 후에도 그대로 통과하는지 먼저 확인하고 다음 기능으로 넘어감.
+  - **그림 퀴즈**(`/quiz/picture`, 로그인 불필요 — 헤더 네비에 링크 추가): CHILD 공식 코스 전체에서
+    아이콘 붙은 PHRASE 문장의 핵심 단어·아이콘 쌍을 모아(`LessonService.collectIconPairs()` 신규,
+    170여 개 재료 확보 확인) 오늘의 5문제를 만듦. 그림 하나 + 보기 4개(정답 1 + 오답 3, 오답은 다른
+    CHILD 레슨의 단어에서). 정답은 절대 클라이언트에 안 보냄(`PictureQuizQuestion` DTO에서 제외 —
+    진단 테스트 `QuestionResponse`와 같은 원칙). 채점은 `POST /quiz/picture` → 같은 날짜 시드로
+    문제를 다시 만들어 비교 → `redirect:/quiz/picture/result?score=N&total=5`(폼을 다시 채울 필요가
+    없는 1회성 채점이라 리다이렉트로 단순화, 레슨 퀴즈의 재렌더링 방식과 다르게 간 이유).
+  - **매일 단어장 + 단어 퀴즈**(`/my/daily`, 로그인 필요 — `/my/**`가 이미 인증 필수라 보안 설정 변경
+    없음, 마이페이지에 링크 추가): 회원의 대상·레벨에 맞는 공식 코스의 PHRASE 문장 풀에서 오늘의 단어
+    5개(단순 목록) + 단어 퀴즈 1개(레슨 퀴즈와 같은 빈칸 방식)를 만듦. 시드는 날짜+대상·레벨 조합
+    (개인별이 아니라 "오늘 이 레벨 회원은 다 같은 문제" — 회원마다 다르게 시딩할 이유가 없어 더 단순한
+    쪽 선택). `POST /my/daily/quiz` → 정오답에 따라 `?quizResult=correct|wrong` 쿼리 파라미터로
+    리다이렉트, 배너로 표시.
+  - 시큐리티: `SecurityConfig`에 `.requestMatchers("/quiz/**").permitAll()` 한 줄만 추가(지난번 `/js/**`
+    빠뜨렸던 실수를 반복하지 않으려고 계획 단계에서부터 체크리스트에 넣어둠).
+  - 스트릭/연속 학습일 추적, 정답 이력 저장, 회원별 개인화된 문제는 의도적으로 범위에서 뺌 — 전부 상태
+    저장이 필요해 지금의 "완전 스테이트리스" 원칙을 벗어남. 나중에 원하면 별도로 설계.
+  - 테스트: `QuizWordPickerTest`(신규, 5개 — 핵심 단어 추출·동률·불용어뿐인 문장·빈칸 치환·오답 뽑기),
+    `PictureQuizServiceTest`(신규, 5개 — 문제 생성·재료 부족·결정론·채점), `DailyWordServiceTest`(신규,
+    4개), `PictureQuizViewControllerTest`/`DailyQuizViewControllerTest`(신규, MockMvc — 비로그인
+    접근 가능/불가 확인).
+  - curl로 실서버 종단 검증: 그림 퀴즈 비로그인 접근 확인, 같은 문제가 반복 호출에도 완전히 동일한지
+    확인(옵션 순서까지), 보기 4개를 각각 제출해보며 올바른 정답 하나만 점수를 올리는지 확인(브루트포스로
+    "instead"가 정답임을 검증). 매일 단어장/퀴즈는 ADULT/BEGINNER로 가입 → 단어장 5개·빈칸 문제 렌더링
+    확인 → 오답 제출 시 "아쉬워요" 배너 → 정답(`report`) 제출 시 "정답이에요 🎉" 배너 확인, 비로그인
+    시 `/my/daily`가 `/login`으로 리다이렉트되는 것도 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
-3. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
+2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`, `DailyWordService.collectPhrasePool`/`PictureQuizService.pickTodayQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. (참고, 새 버그 아님) 그림 퀴즈가 CHILD 전체 레벨(BEGINNER~ADVANCED) 콘텐츠를 다 섞어서 재료로 쓰다 보니, 고급 관용구 레슨의 추상적인 단어가 저학년 그림과 짝지어질 때가 있음(예: 최장단어 추출 휴리스틱이 그림의 핵심 명사 대신 다른 단어를 고르는 경우) — 지금은 허용 가능한 수준으로 판단, 나중에 레벨 필터링이나 더 정교한 단어 선택 로직 고려
+4. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

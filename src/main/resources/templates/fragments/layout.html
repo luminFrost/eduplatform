@@ -5,6 +5,7 @@
         <a class="brand" th:href="@{/}"><span class="brand-emoji">🦊</span> eduplatform</a>
         <nav class="site-nav">
             <a th:href="@{/courses}">코스</a>
+            <a th:href="@{/quiz/picture}">그림 퀴즈</a>
             <a th:href="@{/my}" sec:authorize="isAuthenticated()">마이페이지</a>
             <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" class="nav-logout-form">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

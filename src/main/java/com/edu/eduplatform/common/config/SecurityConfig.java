@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/lessons/*/complete").authenticated()
                         .requestMatchers(HttpMethod.GET, "/courses", "/courses/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/lessons/*").permitAll()
+                        .requestMatchers("/quiz/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

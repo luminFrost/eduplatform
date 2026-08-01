@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>그림 퀴즈 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1>그림 퀴즈</h1>
+    <p>그림을 보고 알맞은 단어를 골라보세요! 오늘 하루는 같은 문제가 나와요.</p>
+
+    <form th:if="${not #lists.isEmpty(questions)}" th:action="@{/quiz/picture}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <div class="quiz-question" th:each="q, qStat : ${questions}">
+            <p class="quiz-prompt" th:text="(${qStat.index} + 1) + '. 이 그림에 맞는 단어는?'"></p>
+            <div class="phrase-image">
+                <img th:src="@{${q.iconImage}}" alt=""/>
+            </div>
+            <div class="quiz-options">
+                <label th:each="opt : ${q.options}">
+                    <input type="radio" th:name="'answer-' + ${qStat.index}" th:value="${opt}" required/>
+                    <span th:text="${opt}"></span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit">채점하기</button>
+    </form>
+
+    <p th:if="${#lists.isEmpty(questions)}">오늘은 그림 퀴즈 재료가 부족해요. 나중에 다시 확인해주세요.</p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
