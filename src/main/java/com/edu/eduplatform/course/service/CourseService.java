@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -159,8 +160,12 @@ public class CourseService {
             return new PersonalCourseCreationResult(CourseResponse.from(existing.get()), false);
         }
 
-        List<Lesson> matchingLessons = courseRepository.search(member.memberType(), member.level(), null).stream()
-                .flatMap(officialCourse -> lessonRepository.findByCourseIdOrderByOrderNoAsc(officialCourse.getId()).stream())
+        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null);
+        Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
+                .findByCourseIdIn(officialCourses.stream().map(Course::getId).toList()).stream()
+                .collect(Collectors.groupingBy(Lesson::getCourseId));
+        List<Lesson> matchingLessons = officialCourses.stream()
+                .flatMap(officialCourse -> lessonsByCourseId.getOrDefault(officialCourse.getId(), List.of()).stream())
                 .filter(lesson -> focusAreas.contains(lesson.getLessonType()))
                 .toList();
 

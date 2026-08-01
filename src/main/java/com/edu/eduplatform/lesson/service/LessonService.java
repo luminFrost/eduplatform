@@ -11,6 +11,7 @@ import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LineType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
+import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -147,15 +149,26 @@ public class LessonService {
     private record ChosenQuizWord(ContentLine sentence, String word) {
     }
 
+    /** 그림 퀴즈 재료 풀에 쓸 레벨. 고급 관용구·대화 레슨의 추상적인 단어가 그림과 안 맞게 짝지어지는 걸
+     * 피하려고 구체적인 어휘가 많은 입문·초급으로 제한한다. */
+    private static final List<EnglishLevel> PICTURE_QUIZ_LEVELS = List.of(EnglishLevel.BEGINNER, EnglishLevel.ELEMENTARY);
+
     /**
-     * 대상(CHILD/ADULT)의 공식 코스 전체에서 아이콘이 붙은 PHRASE 문장의 핵심 단어·아이콘 쌍을 모은다.
+     * 대상(CHILD/ADULT)의 입문·초급 공식 코스에서 아이콘이 붙은 PHRASE 문장의 핵심 단어·아이콘 쌍을 모은다.
      * 그림 퀴즈(픽처 퀴즈)의 재료 풀로 쓰인다 — 새 콘텐츠 없이 기존 레슨 카드 아이콘을 재사용.
      * 같은 단어가 여러 번 나오면 처음 나온 것만 남긴다(대소문자 무시 중복 제거).
      */
     public List<IconPair> collectIconPairs(MemberType targetType) {
+        List<Course> courses = PICTURE_QUIZ_LEVELS.stream()
+                .flatMap(level -> courseRepository.search(targetType, level, null).stream())
+                .toList();
+        Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
+                .findByCourseIdIn(courses.stream().map(Course::getId).toList()).stream()
+                .collect(Collectors.groupingBy(Lesson::getCourseId));
+
         Map<String, IconPair> pairsByWord = new LinkedHashMap<>();
-        for (Course course : courseRepository.search(targetType, null, null)) {
-            for (Lesson lesson : lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId())) {
+        for (Course course : courses) {
+            for (Lesson lesson : lessonsByCourseId.getOrDefault(course.getId(), List.of())) {
                 for (ContentLine line : parseContent(lesson.getContent())) {
                     if (line.type() != LineType.PHRASE || line.iconImage() == null) {
                         continue;

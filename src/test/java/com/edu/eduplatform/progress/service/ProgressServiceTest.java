@@ -3,6 +3,7 @@ package com.edu.eduplatform.progress.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,6 +23,7 @@ import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
@@ -154,6 +156,58 @@ class ProgressServiceTest {
     }
 
     @Test
+    void getLessonsDueForReview_기준일보다_오래된_완료_레슨을_반환한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Lesson lesson = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        LearningProgress dueProgress = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        dueProgress.complete();
+
+        when(learningProgressRepository.findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(
+                eq(1L), any(LocalDateTime.class))).thenReturn(List.of(dueProgress));
+        when(lessonRepository.findAllById(List.of(10L))).thenReturn(List.of(lesson));
+        when(courseRepository.findAllById(List.of(100L))).thenReturn(List.of(course));
+
+        List<ReviewLessonResponse> result = progressService.getLessonsDueForReview(1L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).lessonId()).isEqualTo(10L);
+        assertThat(result.get(0).courseId()).isEqualTo(100L);
+        assertThat(result.get(0).courseTitle()).isEqualTo("코스");
+    }
+
+    @Test
+    void getLessonsDueForReview_복습_대상이_없으면_빈_목록을_반환한다() {
+        when(learningProgressRepository.findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(
+                eq(1L), any(LocalDateTime.class))).thenReturn(List.of());
+
+        assertThat(progressService.getLessonsDueForReview(1L)).isEmpty();
+    }
+
+    @Test
+    void markReviewed_완료_시각을_지금으로_밀어낸다() {
+        LearningProgress progress = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        progress.complete();
+        LocalDateTime originalCompletedAt = progress.getCompletedAt();
+        when(learningProgressRepository.findByMemberIdAndLessonId(1L, 10L)).thenReturn(Optional.of(progress));
+
+        progressService.markReviewed(1L, 10L);
+
+        verify(learningProgressRepository).save(progress);
+        assertThat(progress.getCompletedAt()).isAfterOrEqualTo(originalCompletedAt);
+    }
+
+    @Test
+    void markReviewed_기록이_없으면_예외를_던진다() {
+        when(learningProgressRepository.findByMemberIdAndLessonId(1L, 10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> progressService.markReviewed(1L, 10L))
+                .isInstanceOf(LessonNotFoundException.class);
+    }
+
+    @Test
     void getCourseProgress_코스별로_완료_레슨수와_전체_레슨수를_집계한다() throws Exception {
         Course course = withId(Course.builder()
                 .title("왕초보 회화").description("설명").emoji("🗣️")
@@ -171,7 +225,7 @@ class ProgressServiceTest {
         when(learningProgressRepository.findByMemberId(1L))
                 .thenReturn(List.of(completedProgress, incompleteProgress));
         when(lessonRepository.findAllById(List.of(10L, 11L))).thenReturn(List.of(lesson1, lesson2));
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lesson1, lesson2));
+        when(lessonRepository.findByCourseIdIn(List.of(100L))).thenReturn(List.of(lesson1, lesson2));
         when(courseRepository.findAllById(List.of(100L))).thenReturn(List.of(course));
 
         List<CourseProgressResponse> result = progressService.getCourseProgress(1L);
@@ -211,7 +265,7 @@ class ProgressServiceTest {
                 .content("내용").lessonType(LessonType.WRITING).build(), 20L);
         Lesson writingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(4).title("쓰기2")
                 .content("내용").lessonType(LessonType.WRITING).build(), 21L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2));
 
         // VOCAB 2개 다 완료, WRITING은 2개 중 1개만 완료
@@ -255,7 +309,7 @@ class ProgressServiceTest {
                 .content("내용").lessonType(LessonType.READING).build(), 30L);
         Lesson readingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(6).title("읽기2")
                 .content("내용").lessonType(LessonType.READING).build(), 31L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2, readingLesson1, readingLesson2));
 
         // VOCAB/WRITING/READING 모두 2개 중 1개만 완료 → 커버리지 50%로 동률
@@ -315,7 +369,7 @@ class ProgressServiceTest {
                 .content("내용").lessonType(LessonType.WRITING).build(), 20L);
         Lesson writingLesson2 = withId(Lesson.builder().courseId(100L).orderNo(4).title("쓰기2")
                 .content("내용").lessonType(LessonType.WRITING).build(), 21L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson1, vocabLesson2, writingLesson1, writingLesson2));
 
         // VOCAB 2개 다 완료, WRITING은 2개 중 1개만 완료
@@ -376,9 +430,8 @@ class ProgressServiceTest {
                 .thenReturn(List.of(progressA1, progressA2, progressB1, progressB2));
         when(lessonRepository.findAllById(List.of(10L, 11L, 20L, 21L)))
                 .thenReturn(List.of(lessonA1, lessonA2, lessonB1, lessonB2));
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lessonA1, lessonA2));
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(200L)).thenReturn(List.of(lessonB1, lessonB2));
         // touchedCourseIds는 HashMap 기반 스트림에서 나와 순서가 보장되지 않으므로 순서 무관 매처를 쓴다.
+        when(lessonRepository.findByCourseIdIn(any())).thenReturn(List.of(lessonA1, lessonA2, lessonB1, lessonB2));
         when(courseRepository.findAllById(any())).thenReturn(List.of(courseA, courseB));
 
         DashboardSummaryResponse summary = progressService.getDashboardSummary(1L);

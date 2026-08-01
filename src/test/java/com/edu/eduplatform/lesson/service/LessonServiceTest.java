@@ -1,6 +1,10 @@
 package com.edu.eduplatform.lesson.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.course.domain.Course;
@@ -9,6 +13,7 @@ import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
+import com.edu.eduplatform.lesson.service.LessonService.IconPair;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import java.lang.reflect.Field;
@@ -148,6 +153,34 @@ class LessonServiceTest {
         LessonDetailResponse detail = lessonService.getDetail(10L);
 
         assertThat(detail.quiz()).isNull();
+    }
+
+    @Test
+    void collectIconPairs_BEGINNER와_ELEMENTARY_레벨의_아이콘_붙은_단어만_모은다() throws Exception {
+        Course beginnerCourse = withId(Course.builder()
+                .title("입문 코스").description("설명")
+                .targetType(MemberType.CHILD).level(EnglishLevel.BEGINNER).build(), 1L);
+        Course elementaryCourse = withId(Course.builder()
+                .title("초급 코스").description("설명")
+                .targetType(MemberType.CHILD).level(EnglishLevel.ELEMENTARY).build(), 2L);
+        Lesson beginnerLesson = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과")
+                .content("🍎 An apple is red. — 사과는 빨간색이에요.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson elementaryLesson = withLessonId(Lesson.builder().courseId(2L).orderNo(1).title("1과")
+                .content("🐘 A big elephant walks. — 큰 코끼리가 걸어요.")
+                .lessonType(LessonType.VOCAB).build(), 20L);
+
+        when(courseRepository.search(MemberType.CHILD, EnglishLevel.BEGINNER, null)).thenReturn(List.of(beginnerCourse));
+        when(courseRepository.search(MemberType.CHILD, EnglishLevel.ELEMENTARY, null)).thenReturn(List.of(elementaryCourse));
+        when(lessonRepository.findByCourseIdIn(List.of(1L, 2L))).thenReturn(List.of(beginnerLesson, elementaryLesson));
+        when(iconCatalog.resolveImagePath("🍎")).thenReturn("/images/openmoji/1F34E.svg");
+        when(iconCatalog.resolveImagePath("🐘")).thenReturn("/images/openmoji/1F418.svg");
+
+        List<IconPair> pairs = lessonService.collectIconPairs(MemberType.CHILD);
+
+        assertThat(pairs).extracting(IconPair::word).containsExactlyInAnyOrder("apple", "elephant");
+        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.ADVANCED), any());
+        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.INTERMEDIATE), any());
     }
 
     private static Course withId(Course course, Long id) throws Exception {

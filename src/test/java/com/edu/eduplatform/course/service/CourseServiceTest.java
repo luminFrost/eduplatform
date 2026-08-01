@@ -76,7 +76,7 @@ class CourseServiceTest {
         Lesson writingLesson = withId(Lesson.builder()
                 .courseId(100L).orderNo(2).title("일기 쓰기")
                 .content("내용").lessonType(LessonType.WRITING).build(), 11L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson, writingLesson));
 
         Course savedPersonalCourse = withId(Course.builder()
@@ -151,7 +151,7 @@ class CourseServiceTest {
         Lesson writingLesson = withId(Lesson.builder()
                 .courseId(100L).orderNo(2).title("일기 쓰기")
                 .content("내용").lessonType(LessonType.WRITING).build(), 11L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson, writingLesson));
 
         Course savedPersonalCourse = withId(Course.builder()
@@ -207,7 +207,7 @@ class CourseServiceTest {
         Lesson writingLesson = withId(Lesson.builder()
                 .courseId(100L).orderNo(2).title("일기 쓰기")
                 .content("내용").lessonType(LessonType.WRITING).build(), 11L);
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L))
+        when(lessonRepository.findByCourseIdIn(List.of(100L)))
                 .thenReturn(List.of(vocabLesson, writingLesson));
 
         Course savedPersonalCourse = withId(Course.builder()

@@ -101,7 +101,7 @@ class DailyWordServiceTest {
                 .lessonType(LessonType.VOCAB).build(), 11L);
 
         when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null)).thenReturn(List.of(course));
-        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(List.of(lesson1, lesson2));
+        when(lessonRepository.findByCourseIdIn(List.of(1L))).thenReturn(List.of(lesson1, lesson2));
         when(lessonService.parseContent(lesson1.getContent())).thenReturn(List.of(
                 new ContentLine(LineType.PHRASE, "I would like a coffee, please.", "저는 커피를 부탁드립니다.", null, null)));
         when(lessonService.parseContent(lesson2.getContent())).thenReturn(List.of(

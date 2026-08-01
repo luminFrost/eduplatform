@@ -11,9 +11,11 @@ import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -33,6 +35,11 @@ public class ProgressService {
 
     /** 이보다 적게 완료한 상태에서는 영역별 커버리지 편차가 우연에 가까워 추천 근거로 삼지 않는다. */
     private static final int MIN_HISTORY_LESSONS = 3;
+
+    /** 완료한 지 이만큼 지나면 복습 대상으로 본다. */
+    private static final int REVIEW_DUE_AFTER_DAYS = 3;
+    /** 복습 목록에 한 번에 보여줄 최대 개수. */
+    private static final int REVIEW_LIST_LIMIT = 10;
 
     private final LearningProgressRepository learningProgressRepository;
     private final LessonRepository lessonRepository;
@@ -80,6 +87,54 @@ public class ProgressService {
         learningProgressRepository.save(progress);
     }
 
+    /**
+     * 완료한 지 {@link #REVIEW_DUE_AFTER_DAYS}일이 지난 레슨을 오래된 순으로 최대
+     * {@link #REVIEW_LIST_LIMIT}개까지 반환한다 — 새 추적 데이터 없이 기존 {@code completedAt}만 재사용한다.
+     */
+    public List<ReviewLessonResponse> getLessonsDueForReview(Long memberId) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(REVIEW_DUE_AFTER_DAYS);
+        List<LearningProgress> due = learningProgressRepository
+                .findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(memberId, cutoff)
+                .stream()
+                .limit(REVIEW_LIST_LIMIT)
+                .toList();
+        if (due.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> lessonIds = due.stream().map(LearningProgress::getLessonId).toList();
+        Map<Long, Lesson> lessonsById = lessonRepository.findAllById(lessonIds).stream()
+                .collect(Collectors.toMap(Lesson::getId, lesson -> lesson));
+
+        List<Long> courseIds = lessonsById.values().stream().map(Lesson::getCourseId).distinct().toList();
+        Map<Long, Course> coursesById = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course));
+
+        return due.stream()
+                .map(progress -> {
+                    Lesson lesson = lessonsById.get(progress.getLessonId());
+                    if (lesson == null) {
+                        return null;
+                    }
+                    Course course = coursesById.get(lesson.getCourseId());
+                    return new ReviewLessonResponse(
+                            lesson.getId(), lesson.getTitle(),
+                            course.getId(), course.getTitle(),
+                            progress.getCompletedAt());
+                })
+                .filter(response -> response != null)
+                .toList();
+    }
+
+    /** 복습했다는 표시로 완료 시각을 지금으로 밀어낸다 — 멱등성 가드 없이 매번 갱신하는 게 목적. */
+    @Transactional
+    public void markReviewed(Long memberId, Long lessonId) {
+        LearningProgress progress = learningProgressRepository.findByMemberIdAndLessonId(memberId, lessonId)
+                .orElseThrow(() -> new LessonNotFoundException(lessonId));
+        progress.complete();
+        learningProgressRepository.save(progress);
+    }
+
     public List<CourseProgressResponse> getCourseProgress(Long memberId) {
         List<LearningProgress> memberProgress = learningProgressRepository.findByMemberId(memberId);
         if (memberProgress.isEmpty()) {
@@ -103,11 +158,13 @@ public class ProgressService {
 
         Map<Long, Course> coursesById = courseRepository.findAllById(touchedCourseIds).stream()
                 .collect(Collectors.toMap(Course::getId, course -> course));
+        Map<Long, Long> totalLessonCountByCourse = lessonRepository.findByCourseIdIn(touchedCourseIds).stream()
+                .collect(Collectors.groupingBy(Lesson::getCourseId, Collectors.counting()));
 
         return touchedCourseIds.stream()
                 .map(courseId -> {
                     Course course = coursesById.get(courseId);
-                    int totalLessons = lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).size();
+                    int totalLessons = totalLessonCountByCourse.getOrDefault(courseId, 0L).intValue();
                     int completedLessons = completedCountByCourse.getOrDefault(courseId, 0L).intValue();
 
                     return new CourseProgressResponse(
@@ -195,8 +252,9 @@ public class ProgressService {
         Map<LessonType, Long> completedCountByType = lessonRepository.findAllById(completedLessonIds).stream()
                 .collect(Collectors.groupingBy(Lesson::getLessonType, Collectors.counting()));
 
-        Map<LessonType, Long> availableCountByType = courseRepository.search(member.memberType(), member.level(), null).stream()
-                .flatMap(course -> lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId()).stream())
+        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null);
+        Map<LessonType, Long> availableCountByType = lessonRepository
+                .findByCourseIdIn(officialCourses.stream().map(Course::getId).toList()).stream()
                 .collect(Collectors.groupingBy(Lesson::getLessonType, Collectors.counting()));
 
         Map<LessonType, SkillAreaCounts> result = new EnumMap<>(LessonType.class);
