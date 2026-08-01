@@ -1,6 +1,7 @@
 package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
+import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
@@ -12,6 +13,7 @@ import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
+import com.edu.eduplatform.progress.service.ProgressService;
 import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +37,7 @@ public class CourseViewController {
 
     private final CourseService courseService;
     private final LessonService lessonService;
+    private final ProgressService progressService;
 
     @GetMapping
     public String list(
@@ -60,10 +63,12 @@ public class CourseViewController {
     public String detail(
             @PathVariable Long id,
             @RequestParam(required = false) String type,
+            @CurrentMemberId Long memberId,
             Model model
     ) {
         try {
-            model.addAttribute("course", courseService.getCourse(id));
+            CourseResponse course = courseService.getCourse(id);
+            model.addAttribute("course", course);
 
             List<LessonSummaryResponse> allLessons = lessonService.listByCourse(id);
             LessonType selectedType = parseEnum(LessonType.class, type);
@@ -78,6 +83,14 @@ public class CourseViewController {
             model.addAttribute("lessonTypes", LessonType.values());
             model.addAttribute("lessonCounts", lessonCounts);
             model.addAttribute("selectedType", type);
+
+            if (memberId != null && !course.isPersonal()) {
+                boolean courseCompleted = progressService.isCourseFullyCompleted(memberId, id);
+                model.addAttribute("courseCompleted", courseCompleted);
+                if (courseCompleted) {
+                    model.addAttribute("nextCourse", courseService.recommendNextCourse(memberId, id).orElse(null));
+                }
+            }
             return "course/detail";
         } catch (CourseNotFoundException e) {
             return "redirect:/courses";
