@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,34 @@ public class CourseService {
                 .orElseThrow(() -> new CourseNotFoundException(id));
 
         return CourseResponse.from(course);
+    }
+
+    /**
+     * 코스를 완료한 회원에게 같은 대상(target)의 로드맵에서 다음으로 들을 코스를 추천한다.
+     * 공식 코스는 id 오름차순이 곧 로드맵 순서다(BEGINNER→ADVANCED, 레벨 안에서도 저장 순서 — 검증됨).
+     * 현재 코스 다음부터 훑어 아직 다 안 끝낸 코스 중 첫 번째를 반환하고, 로드맵을 전부 마쳤거나 현재
+     * 코스가 개인 코스라 로드맵에 없으면 빈 값을 반환한다.
+     */
+    public Optional<CourseResponse> recommendNextCourse(Long memberId, Long currentCourseId) {
+        Course current = courseRepository.findById(currentCourseId)
+                .orElseThrow(() -> new CourseNotFoundException(currentCourseId));
+        List<Course> roadmap = courseRepository.search(current.getTargetType(), null, null);
+        int currentIndex = IntStream.range(0, roadmap.size())
+                .filter(i -> roadmap.get(i).getId().equals(currentCourseId))
+                .findFirst()
+                .orElse(-1);
+        if (currentIndex == -1) {
+            // 개인 코스 등 로드맵(공식 코스 목록)에 없는 코스 — 다음 코스 개념이 없다.
+            return Optional.empty();
+        }
+
+        for (int i = currentIndex + 1; i < roadmap.size(); i++) {
+            Course candidate = roadmap.get(i);
+            if (!progressService.isCourseFullyCompleted(memberId, candidate.getId())) {
+                return Optional.of(CourseResponse.from(candidate));
+            }
+        }
+        return Optional.empty();
     }
 
     @Transactional

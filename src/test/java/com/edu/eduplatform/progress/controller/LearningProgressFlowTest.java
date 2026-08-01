@@ -122,6 +122,44 @@ class LearningProgressFlowTest {
     }
 
     @Test
+    void 코스를_다_완료하면_상세_페이지에_다음_코스_안내가_보인다() throws Exception {
+        MvcResult signUpResult = mockMvc.perform(post("/members")
+                        .with(csrf())
+                        .param("email", "next-course-test@example.com")
+                        .param("nickname", "다음코스테스터")
+                        .param("memberType", "ADULT")
+                        .param("level", "BEGINNER")
+                        .param("password", "password1234"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        MockHttpSession session = (MockHttpSession) signUpResult.getRequest().getSession();
+
+        Course courseA = courseRepository.save(Course.builder()
+                .title("완료용코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lessonA = lessonRepository.save(Lesson.builder()
+                .courseId(courseA.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+        // courseA보다 id가 큰(=로드맵상 다음) 코스 — search()가 courseA 다음으로 이 코스를 찾아야 한다.
+        Course courseB = courseRepository.save(Course.builder()
+                .title("다음코스").description("설명").emoji("📗")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        lessonRepository.save(Lesson.builder()
+                .courseId(courseB.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+
+        mockMvc.perform(get("/courses/{id}", courseA.getId()).session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("이 코스를 모두 완료했어요"))));
+
+        mockMvc.perform(post("/lessons/{id}/complete", lessonA.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/lessons/" + lessonA.getId()));
+
+        mockMvc.perform(get("/courses/{id}", courseA.getId()).session(session))
+                .andExpect(content().string(containsString("이 코스를 모두 완료했어요")))
+                .andExpect(content().string(containsString("다음코스")));
+    }
+
+    @Test
     void 세션이_없으면_학습완료는_로그인으로_리다이렉트된다() throws Exception {
         Course course = courseRepository.save(Course.builder()
                 .title("비로그인코스").description("설명").emoji("📘")

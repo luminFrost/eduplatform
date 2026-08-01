@@ -267,6 +267,79 @@ class CourseServiceTest {
         verify(lessonRepository, never()).save(any(Lesson.class));
     }
 
+    @Test
+    void recommendNextCourse_로드맵상_다음_미완료_코스를_반환한다() throws Exception {
+        Course current = withId(Course.builder()
+                .title("1번 코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course next = withId(Course.builder()
+                .title("2번 코스").description("설명").emoji("📗")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 101L);
+        when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
+        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(current, next));
+        when(progressService.isCourseFullyCompleted(1L, 101L)).thenReturn(false);
+
+        var result = courseService.recommendNextCourse(1L, 100L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().id()).isEqualTo(101L);
+    }
+
+    @Test
+    void recommendNextCourse_이미_완료한_코스는_건너뛴다() throws Exception {
+        Course current = withId(Course.builder()
+                .title("1번 코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course alreadyDone = withId(Course.builder()
+                .title("2번 코스").description("설명").emoji("📗")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 101L);
+        Course notYetDone = withId(Course.builder()
+                .title("3번 코스").description("설명").emoji("📙")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build(), 102L);
+        when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
+        when(courseRepository.search(MemberType.ADULT, null, null))
+                .thenReturn(List.of(current, alreadyDone, notYetDone));
+        when(progressService.isCourseFullyCompleted(1L, 101L)).thenReturn(true);
+        when(progressService.isCourseFullyCompleted(1L, 102L)).thenReturn(false);
+
+        var result = courseService.recommendNextCourse(1L, 100L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().id()).isEqualTo(102L);
+    }
+
+    @Test
+    void recommendNextCourse_로드맵_끝이면_빈_값을_반환한다() throws Exception {
+        Course current = withId(Course.builder()
+                .title("마지막 코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ADVANCED).build(), 100L);
+        when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
+        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(current));
+
+        var result = courseService.recommendNextCourse(1L, 100L);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void recommendNextCourse_개인_코스는_로드맵에_없어_빈_값을_반환한다() throws Exception {
+        Course personalCourse = withId(Course.builder()
+                .title("맞춤 코스").description("설명").emoji("🎯")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .ownerId(1L).focusAreas(Set.of(LessonType.VOCAB))
+                .criteriaSource(CourseCriteriaSource.SELF_SELECTED).build(), 200L);
+        Course officialCourse = withId(Course.builder()
+                .title("공식 코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        when(courseRepository.findById(200L)).thenReturn(java.util.Optional.of(personalCourse));
+        // search()는 ownerId is null인 공식 코스만 반환 — personalCourse(200L)는 결과에 없다.
+        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(officialCourse));
+
+        var result = courseService.recommendNextCourse(1L, 200L);
+
+        assertThat(result).isEmpty();
+    }
+
     private static <T> T withId(T entity, Long id) throws Exception {
         Field field = entity.getClass().getDeclaredField("id");
         field.setAccessible(true);

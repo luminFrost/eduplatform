@@ -45,6 +45,21 @@ public class ProgressService {
                 .orElse(false);
     }
 
+    /** 코스의 레슨을 전부 완료했는지 확인한다. 레슨이 하나도 없는 코스는 완료로 치지 않는다. */
+    public boolean isCourseFullyCompleted(Long memberId, Long courseId) {
+        List<Long> courseLessonIds = lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()
+                .map(Lesson::getId)
+                .toList();
+        if (courseLessonIds.isEmpty()) {
+            return false;
+        }
+        Set<Long> completedLessonIds = learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .map(LearningProgress::getLessonId)
+                .collect(Collectors.toSet());
+        return completedLessonIds.containsAll(courseLessonIds);
+    }
+
     @Transactional
     public void complete(Long memberId, Long lessonId) {
         memberService.getMember(memberId);

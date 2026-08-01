@@ -384,8 +384,40 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     확인 → 오답 제출 시 "아쉬워요" 배너 → 정답(`report`) 제출 시 "정답이에요 🎉" 배너 확인, 비로그인
     시 `/my/daily`가 `/login`으로 리다이렉트되는 것도 확인.
 
+- 코스 완료 시 다음 코스 자동 안내 (dev 병합됨)
+  - PRODUCT.md 3-3 로드맵 컨셉("완료 → 다음 레슨/코스 자동 안내")에서 "다음 레슨"(레슨 상세 이전/다음
+    네비게이션)은 이미 있었지만 "다음 코스"는 없었음 — 코스를 다 들으면 그냥 끝, 다음에 뭘 들어야
+    할지 화면이 알려주지 않던 갭을 채움.
+  - **"다음 코스"의 정의**: 공식 코스는 `SampleDataInitializer`가 대상별로 BEGINNER→ADVANCED 순서로
+    저장돼 있어 id 오름차순이 곧 로드맵 순서라는 걸 시드 코드로 확인(레벨 섹션이 그 순서로 나열돼 있고
+    단일 루프로 순차 저장). `CourseRepository.search(targetType, null, null)`가 이미 그 순서로 반환.
+  - `ProgressService.isCourseFullyCompleted(memberId, courseId)` 신규 — 레슨이 하나도 없는 코스는
+    완료로 안 침. `getCourseProgress()`가 쓰던 "회원 진행 기록 벌크 조회 후 completed lessonId Set으로
+    비교" 패턴을 재사용해 레슨별로 `isCompleted()`를 N번 부르는 것보다 쿼리를 줄임.
+  - `CourseService.recommendNextCourse(memberId, currentCourseId)` 신규 — 현재 코스 다음(id 기준)부터
+    로드맵을 훑어 아직 다 안 끝낸 코스 중 첫 번째를 반환.
+  - **버그 하나 발견·수정(테스트로 잡음)**: 현재 코스가 로드맵에 없는 경우(개인 코스)
+    `currentIndex == -1`이 되는데, `currentIndex + 1`이 0이 돼서 "다음 코스부터 훑기"가 아니라
+    "로드맵 처음부터 훑기"가 돼버리는 함정이 있었음 — 개인 코스를 완료한 회원한테 엉뚱하게 로드맵
+    첫 번째 공식 코스를 "다음 코스"로 추천하는 버그. `recommendNextCourse_개인_코스는_로드맵에_없어_
+    빈_값을_반환한다` 테스트가 처음 실행에서 바로 잡아냄 — `currentIndex == -1`이면 명시적으로 빈 값을
+    반환하는 분기를 추가해 수정.
+  - `CourseViewController.detail()`에 `@CurrentMemberId`/`ProgressService` 추가 — 로그인 && 공식
+    코스(`!course.isPersonal()`)일 때만 완료 여부를 확인하고, 완료면 `nextCourse` 모델 속성을 채움.
+    개인 코스 상세 페이지엔 이 기능 자체를 적용 안 함(로드맵 개념이 없으므로).
+  - 화면: `course/detail.html`의 `.course-header` 바로 아래에 배너 추가 — 기존 `.quiz-question` 카드
+    스타일 재사용(새 CSS 없음). 다음 코스가 없으면(로드맵 끝) "이 레벨의 로드맵을 모두 마쳤어요!" 축하
+    메시지로 대체.
+  - REST API는 이번 범위에서 제외(화면 전용 안내 기능).
+  - 테스트: `ProgressServiceTest`에 `isCourseFullyCompleted` 3개, `CourseServiceTest`에
+    `recommendNextCourse` 4개(그 중 하나가 위 버그를 잡음), `LearningProgressFlowTest`에 웹 플로우
+    1개(완료 전엔 배너 없음 → 레슨 완료 → 배너+다음 코스 링크 확인).
+  - curl로 실서버 검증: ADULT/BEGINNER 코스(21번, VOCAB 7레슨 전부 퀴즈 게이트 있음)의 레슨을 전부
+    브루트포스로 완료 → 코스 상세에 "🎉 이 코스를 모두 완료했어요!" + 다음 코스(22번, 듣기 코스) 링크
+    확인, 그 링크가 실제로 200으로 열리는지 확인. 완료 전엔 배너 없음도 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`, `DailyWordService.collectPhrasePool`/`PictureQuizService.pickTodayQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+2. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`/`isCourseFullyCompleted`, `QuestionService.getDiagnosticTestQuestions`, `DailyWordService.collectPhrasePool`/`PictureQuizService.pickTodayQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
 3. (참고, 새 버그 아님) 그림 퀴즈가 CHILD 전체 레벨(BEGINNER~ADVANCED) 콘텐츠를 다 섞어서 재료로 쓰다 보니, 고급 관용구 레슨의 추상적인 단어가 저학년 그림과 짝지어질 때가 있음(예: 최장단어 추출 휴리스틱이 그림의 핵심 명사 대신 다른 단어를 고르는 경우) — 지금은 허용 가능한 수준으로 판단, 나중에 레벨 필터링이나 더 정교한 단어 선택 로직 고려
 4. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

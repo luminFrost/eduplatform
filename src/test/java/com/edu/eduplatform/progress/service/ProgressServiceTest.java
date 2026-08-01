@@ -115,6 +115,45 @@ class ProgressServiceTest {
     }
 
     @Test
+    void isCourseFullyCompleted_모든_레슨을_완료하면_true() throws Exception {
+        Lesson lesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lesson1, lesson2));
+
+        LearningProgress done1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        done1.complete();
+        LearningProgress done2 = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        done2.complete();
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(done1, done2));
+
+        assertThat(progressService.isCourseFullyCompleted(1L, 100L)).isTrue();
+    }
+
+    @Test
+    void isCourseFullyCompleted_일부만_완료하면_false() throws Exception {
+        Lesson lesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lesson1, lesson2));
+
+        LearningProgress done1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        done1.complete();
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(done1));
+
+        assertThat(progressService.isCourseFullyCompleted(1L, 100L)).isFalse();
+    }
+
+    @Test
+    void isCourseFullyCompleted_레슨이_없는_코스는_false() {
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of());
+
+        assertThat(progressService.isCourseFullyCompleted(1L, 100L)).isFalse();
+    }
+
+    @Test
     void getCourseProgress_코스별로_완료_레슨수와_전체_레슨수를_집계한다() throws Exception {
         Course course = withId(Course.builder()
                 .title("왕초보 회화").description("설명").emoji("🗣️")
