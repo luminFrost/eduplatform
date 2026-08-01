@@ -12,6 +12,8 @@ import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
+import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -118,6 +120,39 @@ public class CourseViewController {
             model.addAttribute("lessonTypes", LessonType.values());
             return "course/personal-new";
         }
+    }
+
+    @GetMapping("/personal/diagnostic-test")
+    public String diagnosticTestForm(@CurrentMemberId Long memberId, Model model) {
+        model.addAttribute("questions", courseService.getDiagnosticTestQuestions(memberId));
+        return "course/diagnostic-test";
+    }
+
+    @PostMapping("/personal/diagnostic-test")
+    public String createPersonalCourseFromDiagnosticTest(
+            @CurrentMemberId Long memberId, @RequestParam Map<String, String> params, Model model
+    ) {
+        try {
+            PersonalCourseCreationResult result = courseService.createPersonalCourseFromDiagnosticTest(memberId, parseAnswers(params));
+            return "redirect:/courses/" + result.course().id();
+        } catch (MemberNotFoundException e) {
+            return "redirect:/members/new";
+        } catch (DiagnosticTestIncompleteException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("questions", courseService.getDiagnosticTestQuestions(memberId));
+            return "course/diagnostic-test";
+        }
+    }
+
+    /** 라디오 그룹 name="answer-{questionId}" 로 제출된 값들을 questionId → 선택한 보기 인덱스로 모은다. */
+    private static Map<Long, Integer> parseAnswers(Map<String, String> params) {
+        Map<Long, Integer> answers = new HashMap<>();
+        params.forEach((key, value) -> {
+            if (key.startsWith("answer-")) {
+                answers.put(Long.valueOf(key.substring("answer-".length())), Integer.valueOf(value));
+            }
+        });
+        return answers;
     }
 
     /** 잘못된 필터 값(예: 오타 섞인 쿼리 파라미터)은 500 대신 "필터 없음"으로 조용히 무시한다. */

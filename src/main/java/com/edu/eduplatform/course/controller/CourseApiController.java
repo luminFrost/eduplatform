@@ -15,8 +15,13 @@ import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
+import com.edu.eduplatform.question.dto.DiagnosticTestSubmission;
+import com.edu.eduplatform.question.dto.QuestionAnswer;
+import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,8 +80,24 @@ public class CourseApiController {
         return ResponseEntity.status(status).body(result.course());
     }
 
+    @PostMapping("/personal/diagnostic-test")
+    public ResponseEntity<CourseResponse> createPersonalFromDiagnosticTest(
+            @CurrentMemberId Long memberId, @Valid @RequestBody DiagnosticTestSubmission submission
+    ) {
+        Map<Long, Integer> answers = submission.answers().stream()
+                .collect(Collectors.toMap(QuestionAnswer::questionId, QuestionAnswer::selectedOptionIndex));
+        PersonalCourseCreationResult result = courseService.createPersonalCourseFromDiagnosticTest(memberId, answers);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.course());
+    }
+
     @ExceptionHandler(InsufficientHistoryException.class)
     public ResponseEntity<String> handleInsufficientHistory(InsufficientHistoryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
+    @ExceptionHandler(DiagnosticTestIncompleteException.class)
+    public ResponseEntity<String> handleDiagnosticTestIncomplete(DiagnosticTestIncompleteException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
