@@ -279,8 +279,21 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - claude-in-chrome으로 신규 회원(전부 0%)과 VOCAB만 3개 완료한 회원 둘 다 확인 — 후자는 어휘만 막대가
     차고 듣기·말하기는 0%로 남아 "균형있게 학습하라"는 메시지가 실제로 전달되는지 눈으로 판단함.
 
+- 개인 코스 기준 판단 고도화 2단계: 진단 테스트(DIAGNOSTIC_TEST) 구현 (dev 병합됨, 우선순위와 무관하게 사용자가 바로 착수 결정)
+  - 새 `question/` 패키지(package-by-feature) — `Question` 엔티티는 특정 레슨이 아니라 **대상·레벨·영역(lessonType)**에 매인 4지선다 문항(`targetType`/`level`/`lessonType`/`prompt`/`audioText`(LISTENING 전용)/`options`/`correctOptionIndex`). `options`는 `Course.focusAreas`(`Set`)와 달리 순서가 채점에 직결되는 `List`라 `@OrderColumn` 필수 — `QuestionRepositoryTest`로 순서 보존을 별도 회귀 테스트함.
+  - `QuestionService.determineFocusAreas()`가 `recommendFocusAreas()`(HISTORY_BASED)와 정확히 같은 "영역별 점수 최솟값 → EnumSet" 패턴으로 채점(이번엔 커버리지가 아니라 정답률 기준). 응시 기록(원시 답안)은 저장하지 않음 — 결과로 만들어진 개인 코스 자체가 기록이라 stateless로 채점하고 끝.
+  - `CourseService.createPersonalCourseFromDiagnosticTest()`가 기존 `buildPersonalCourse()` 공통 헬퍼를 세 번째 진입점으로 그대로 재사용 — SELF_SELECTED/HISTORY_BASED와 동일하게 dedup(같은 focusAreas 조합이면 기존 코스 재사용) 동작.
+  - LISTENING 문항은 새 JS/CSS 없이 레슨 상세에서 쓰던 `static/js/lesson-audio.js`의 `[data-speak-text]` 이벤트 위임을 그대로 재사용(`.listen-button` 클릭 → `speechSynthesis`).
+  - 화면: `course/personal-new.html`에 세 번째 옵션(진단 테스트 링크) 추가, 신규 `course/diagnostic-test.html`(문항 10개 렌더링, `answer-{questionId}` 라디오 그룹) — 제출 시 서버가 전체 미답변을 감지하면 `DiagnosticTestIncompleteException`으로 에러 메시지와 함께 폼을 그대로 되돌려줌.
+  - 시드: `common/config/QuestionDataInitializer.java` 신규(80문항 = 8개 대상·레벨 조합 × 5영역 × 2문항), 배경 에이전트로 병렬 작성 후 통합.
+  - **버그**: 시드 데이터를 `private static final List<Question> QUESTIONS = List.of(...)` 필드로 두었더니 테스트 스위트 전체에서 `StaleObjectStateException`이 20건 발생 — 정적 필드의 엔티티가 첫 컨텍스트 부팅 때 IDENTITY id를 한 번 배정받고 나면, 같은 JVM 안에서 컨텍스트가 여러 번 재부팅되는 테스트 환경에서 `saveAll()`이 `persist()`가 아니라 `merge()`로 라우팅되어 터짐. 필드를 `buildQuestions()` 메서드로 바꿔 호출마다 새 `List.of(...)`를 반환하도록 수정해 해결.
+  - 브라우저 검증 중 두 번째로 발견한 실수(버그 아님, 내 스크립트 실수): `document.querySelector('form')`으로 폼을 골라 제출했다가 헤더 프래그먼트의 숨은 로그아웃 폼이 DOM상 더 앞에 있어 그게 대신 제출되어 로그아웃되는 걸 겪음 — 이후 라디오 인풋에서 `.closest('form')`으로 실제 대상 폼을 특정해 재검증.
+  - claude-in-chrome + curl로 종단 검증: `GET /api/questions/diagnostic-test`가 정답 인덱스 없이 10문항 반환, 폼 렌더링·LISTENING 재생 버튼의 `speechSynthesis` 호출 확인, WRITING을 일부러 틀리게 답 제출 → 결과 코스의 `criteriaSource`가 "진단 테스트"로 표시되고 focusAreas에 WRITING 반영 확인(ADULT/ELEMENTARY 조합에서 실제 레슨 7개 복사까지 확인), 전부 안 답하고 제출 시 에러 메시지와 함께 폼 유지 확인.
+  - **콘텐츠 갭 발견(새 버그 아님, 기존 시드 데이터의 한계)**: ADULT/BEGINNER는 공식 코스에 READING·WRITING 레슨이 아예 없음(VOCAB×3, LISTENING×1, SPEAKING×1만 존재) — 이 조합에서 진단 테스트가 READING/WRITING을 약점으로 지목하면 개인 코스가 0레슨으로 만들어짐. 기존에 "듣기·말하기는 레슨이 없어 골라도 빈 코스가 됨 — 정직하게 그대로 둠"이라고 문서화해둔 것과 같은 패턴이라 별도 수정은 안 함. 다른 조합들도 5영역 중 1~2개씩 빠져있음(예: CHILD/BEGINNER는 WRITING 없음, ADULT/ELEMENTARY·INTERMEDIATE는 READING 없음) — 콘텐츠를 더 채울 때 참고.
+  - 테스트: `QuestionServiceTest`(5개, 채점·동률·미답변·문항없음), `QuestionRepositoryTest`(2개, `@OrderColumn` 순서 보존·조회 필터), `CourseServiceTest`에 DIAGNOSTIC_TEST 케이스 3개 추가.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
-2. 개인 코스 기준 판단 고도화 2단계 — 진단 테스트(DIAGNOSTIC_TEST, 최후순위)
-3. 운영 DB 전환/배포 준비 — 지금까지 전부 H2 인메모리 + 로컬 개발
-4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+2. 운영 DB 전환/배포 준비 — 지금까지 전부 H2 인메모리 + 로컬 개발
+3. (참고, 새 버그 아님) 공식 코스 콘텐츠의 영역 커버리지 갭 — 8개 대상·레벨 조합 중 다수가 5영역(어휘/읽기/쓰기/듣기/말하기) 중 1~2개가 비어있어(위 진단 테스트 항목 참고), 자가선택/이력기반/진단테스트 개인 코스가 해당 영역을 고르면 빈 코스가 될 수 있음
+4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려

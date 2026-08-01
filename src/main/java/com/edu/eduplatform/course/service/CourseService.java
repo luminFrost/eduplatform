@@ -16,7 +16,10 @@ import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.service.ProgressService;
+import com.edu.eduplatform.question.dto.QuestionResponse;
+import com.edu.eduplatform.question.service.QuestionService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class CourseService {
     private final LessonRepository lessonRepository;
     private final MemberService memberService;
     private final ProgressService progressService;
+    private final QuestionService questionService;
 
     public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType) {
         return courseRepository.search(targetType, level, lessonType).stream()
@@ -92,6 +96,25 @@ public class CourseService {
         Set<LessonType> focusAreas = progressService.recommendFocusAreas(memberId);
         return buildPersonalCourse(member, focusAreas, CourseCriteriaSource.HISTORY_BASED,
                 "학습 이력을 분석해 완료율이 낮은 영역(" + describeFocusAreas(focusAreas) + ") 위주로 자동 구성된 코스입니다.");
+    }
+
+    /** 회원의 대상·레벨에 맞는 진단 테스트 문항을 반환한다(정답 인덱스는 포함하지 않음). */
+    public List<QuestionResponse> getDiagnosticTestQuestions(Long memberId) {
+        MemberResponse member = memberService.getMember(memberId);
+        return questionService.getDiagnosticTestQuestions(member.memberType(), member.level());
+    }
+
+    /**
+     * 진단 테스트(DIAGNOSTIC_TEST) 기준으로 개인 코스를 만든다.
+     * 정답률이 가장 낮은 영역(들)을 {@link QuestionService#determineFocusAreas}가 채점해 뽑으면, 그대로
+     * 자가 선택과 동일한 방식으로 레슨을 복사해 코스를 구성한다.
+     */
+    @Transactional
+    public PersonalCourseCreationResult createPersonalCourseFromDiagnosticTest(Long memberId, Map<Long, Integer> answersByQuestionId) {
+        MemberResponse member = memberService.getMember(memberId);
+        Set<LessonType> focusAreas = questionService.determineFocusAreas(member.memberType(), member.level(), answersByQuestionId);
+        return buildPersonalCourse(member, focusAreas, CourseCriteriaSource.DIAGNOSTIC_TEST,
+                "진단 테스트 결과 정답률이 낮았던 영역(" + describeFocusAreas(focusAreas) + ") 위주로 자동 구성된 코스입니다.");
     }
 
     /**

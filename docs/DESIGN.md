@@ -49,7 +49,7 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 > 공식 코스(레벨 기준)와 개인 코스(약점 영역 기준)는 동일한 Course/Lesson 구조를 그대로 쓰며, 화면·진도 추적 로직도 공유한다.
 > 레슨은 여러 코스가 공유하지 않는다 — 개인 코스의 레슨은 새로 만들거나 기존 레슨을 복사해서 구성한다 (다대다 공유 구조 없음).
 >
-> `criteriaSource`(비중 기준 판단 방식) 구현 우선순위: ① `SELF_SELECTED`(자가 선택, 우선 구현) → ② `HISTORY_BASED`(학습 이력 기반) → ③ `DIAGNOSTIC_TEST`(진단 테스트, 최후순위). 셋 다 결과는 동일하게 "이 코스는 어떤 영역에 비중을 두는지"로 저장되므로, 방식이 추가돼도 Course 구조는 그대로 두고 판단 로직만 얹으면 된다.
+> `criteriaSource`(비중 기준 판단 방식) 세 가지 모두 구현 완료: ① `SELF_SELECTED`(자가 선택) → ② `HISTORY_BASED`(학습 이력 기반) → ③ `DIAGNOSTIC_TEST`(진단 테스트, `Question` 도메인 참고). 셋 다 결과는 동일하게 "이 코스는 어떤 영역에 비중을 두는지"로 저장되므로, `CourseService.buildPersonalCourse()` 하나를 공유한다.
 
 ### SkillArea (영역, 개인 코스 focusAreas / 레슨 활동 유형에 공용)
 `VOCAB`(어휘) / `READING`(읽기) / `WRITING`(쓰기) / `LISTENING`(듣기) / `SPEAKING`(말하기) — PRODUCT.md 3-1의 활동 유형과 동일한 5종을 재사용한다.
@@ -73,10 +73,25 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 | completed | boolean | 완료 여부 |
 | completedAt | DateTime | 완료 시각 |
 
+### Question (진단 테스트 문항)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| targetType | Enum | 대상(CHILD/ADULT) |
+| level | Enum | 레벨 |
+| lessonType | Enum | 위 SkillArea 5종 — 특정 레슨이 아니라 대상·레벨·영역에 매인 문항이라 `lessonId`가 아닌 `lessonType`을 직접 가짐 |
+| prompt | String | 문제 텍스트 |
+| audioText | String (nullable) | LISTENING 문항만 사용, 브라우저 `speechSynthesis`로 재생 |
+| options | List\<String\> | 4지선다 보기. `@OrderColumn` 필수(정답 인덱스와 순서가 맞아야 함) |
+| correctOptionIndex | int | 정답 보기 인덱스 |
+
+대상×레벨 8개 조합 × 5개 영역 × 2문항 = 총 80문항(`QuestionDataInitializer` 시드). 응시 기록은 별도로 저장하지 않는다 —
+제출 시점에 바로 채점해 영역별 정답률이 가장 낮은 영역(동률이면 모두)을 뽑고, 그 결과인 개인 코스 자체가 곧 기록이라
+원시 답안까지 영구 저장할 이유가 없다(stateless). 채점 로직은 `QuestionService.determineFocusAreas()`.
+
 ### 추후 확장 후보
 - **Enrollment(수강신청)**: memberId, courseId — 회원이 코스 등록.
 - **Word(단어)**: lessonId, word, meaning, example — 단어 학습.
-- **Quiz/Question(문제)**: lessonId, question, options, answer — 이해도 점검.
 
 > 연관관계는 현재 id 참조(Long)로 느슨하게 두고, 도메인이 안정되면 `@ManyToOne` 등으로 전환한다.
 
@@ -103,6 +118,8 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 | POST | `/api/progress/complete` | 레슨 완료 처리 |
 | GET | `/api/members/{id}/progress` | 회원 진도 조회 |
 | POST | `/api/courses/personal` | 개인 코스 생성 (기준: 자가선택/이력/진단테스트) — **Phase 5** |
+| GET | `/api/questions/diagnostic-test` | 대상·레벨별 진단 테스트 문항 목록(정답 인덱스 제외) |
+| POST | `/api/courses/personal/diagnostic-test` | 진단 테스트 채점 결과로 개인 코스 생성 |
 
 요청/응답은 DTO로 분리하고, 엔티티를 직접 노출하지 않는다.
 공통 응답 포맷(예: `ApiResponse<T>`)을 `common`에 두는 것을 권장.
@@ -125,9 +142,9 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 - 단어(Word), 퀴즈(Quiz) 도메인 추가.
 - 레슨 타입별 학습 화면 분기.
 
-### Phase 5 — 개인화
+### Phase 5 — 개인화 (완료)
 - 개인 코스 도입 (`Course.ownerId`, `focusAreas`, `criteriaSource`) — 공식 코스와 별개로 회원별 맞춤 코스 생성.
-  - 비중 기준 판단 구현 순서: ① 자가 선택 → ② 학습 이력 기반 → ③ 진단 테스트(최후순위, 별도 문항 콘텐츠 필요).
+  - 비중 기준 판단 3방식 모두 구현: ① 자가 선택 → ② 학습 이력 기반 → ③ 진단 테스트(`Question` 도메인, 80문항 시드).
 - 대상(초등/성인)·레벨별 코스 추천·필터.
 - 학습 대시보드.
 

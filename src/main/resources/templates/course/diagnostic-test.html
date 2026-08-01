@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>진단 테스트 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <script th:src="@{/js/lesson-audio.js}" defer></script>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1>진단 테스트</h1>
+    <p>아래 문항에 모두 답하면 정답률이 낮은 영역 위주로 맞춤 코스를 만들어드려요.</p>
+
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+
+    <form th:action="@{/courses/personal/diagnostic-test}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <div class="quiz-question" th:each="q, qStat : ${questions}">
+            <p class="quiz-prompt" th:text="(${qStat.index} + 1) + '. ' + ${q.prompt}"></p>
+            <button type="button" class="listen-button" th:if="${q.audioText != null}"
+                    th:attr="data-speak-text=${q.audioText}">🔊 듣기</button>
+            <div class="quiz-options">
+                <label th:each="opt, optStat : ${q.options}">
+                    <input type="radio" th:name="'answer-' + ${q.id}" th:value="${optStat.index}" required/>
+                    <span th:text="${opt}"></span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit">제출하고 코스 만들기</button>
+    </form>
+
+    <p><a th:href="@{/courses/personal/new}">다른 방법으로 만들기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
