@@ -19,8 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 초등(CHILD) 코스는 레슨마다 "INTRO:" 줄로 여우 선생님 마스코트 인사말을 넣어 시각적으로 심심하지 않게 한다
  * (실제 삽화 도입 전까지 이모지로 대체 — CLAUDE.md 작업 상태 참고).
  * 레슨마다 LessonType(어휘/읽기/쓰기/듣기/말하기)을 태그해 코스 상세 화면의 영역별 탭에서 필터링할 수 있게 한다.
- * 듣기·말하기는 ADULT/BEGINNER에 각 1개 코스만 우선 채웠다(브라우저 TTS로 재생 — lesson/detail.html 참고).
- * 다른 대상·레벨 조합은 아직 "준비 중" 빈 상태 그대로다.
+ * 듣기·말하기는 브라우저 TTS로 재생한다(lesson/detail.html 참고).
+ * 8개 대상·레벨 조합 모두 5개 영역(어휘/읽기/쓰기/듣기/말하기)을 빠짐없이 갖췄다 — 개인 코스(자가선택/이력기반/
+ * 진단테스트)가 어떤 영역을 약점으로 골라도 빈 코스가 되지 않는다.
  * 코스마다 7개 안팎의 레슨을 채워 "레슨이 너무 적다"는 피드백을 반영했다.
  */
 @Component
@@ -291,6 +292,44 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🙂 I'm okay. — 저는 괜찮아요.
                             🌞 Good morning! — 좋은 아침이에요!""")
             )),
+            new CourseSeed("알파벳과 짧은 문장 따라 쓰기", "알파벳과 쉬운 문장을 따라 쓰며 쓰기를 처음 시작하는 코스입니다.", "✏️",
+                    MemberType.CHILD, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("내 이름 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 이름을 써봐요!
+                            😀 I am Tom. — 저는 Tom이에요.
+                            ✋ Hi, my name is Tom. — 안녕, 내 이름은 Tom이야.
+                            ✏️ Nice to meet you. — 만나서 반가워요."""),
+                    new LessonSeed("우리 가족 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 우리 가족을 써봐요!
+                            👩 This is my mom. — 이 사람은 우리 엄마예요.
+                            👨 This is my dad. — 이 사람은 우리 아빠예요.
+                            👦 I love my family. — 저는 우리 가족을 사랑해요."""),
+                    new LessonSeed("내 반려동물 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 반려동물을 써봐요!
+                            🐶 I have a dog. — 저는 강아지가 있어요.
+                            🐱 My cat is small. — 우리 고양이는 작아요.
+                            ❤️ I love my pet. — 저는 제 반려동물을 사랑해요."""),
+                    new LessonSeed("내가 좋아하는 색깔 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내가 좋아하는 색깔을 써봐요!
+                            💙 I like blue. — 저는 파란색을 좋아해요.
+                            💛 My bag is yellow. — 제 가방은 노란색이에요.
+                            ❤️ Red is pretty. — 빨간색은 예뻐요."""),
+                    new LessonSeed("내가 좋아하는 음식 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내가 좋아하는 음식을 써봐요!
+                            🍎 I like apples. — 저는 사과를 좋아해요.
+                            🍕 Pizza is yummy. — 피자는 맛있어요.
+                            🥛 I drink milk. — 저는 우유를 마셔요."""),
+                    new LessonSeed("숫자 세기 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 숫자를 세어봐요!
+                            1️⃣ One, two, three. — 하나, 둘, 셋.
+                            ✋ I have five fingers. — 저는 손가락이 다섯 개 있어요.
+                            🔢 Let's count to ten. — 열까지 세어봐요."""),
+                    new LessonSeed("요일 쓰기", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 요일을 써봐요!
+                            📅 Today is Monday. — 오늘은 월요일이에요.
+                            ☀️ Sunday is fun. — 일요일은 재밌어요.
+                            🏫 I go to school on Friday. — 저는 금요일에 학교에 가요.""")
+            )),
 
             // ---------- CHILD / ELEMENTARY ----------
             new CourseSeed("짧은 이야기로 배우는 영어", "짧은 이야기를 읽고 줄거리를 이해하는 읽기 코스입니다.", "📖",
@@ -483,6 +522,44 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🏫 My house is near the school. — 우리 집은 학교 근처에 있어요.
                             💕 I like my neighborhood. — 저는 우리 동네를 좋아해요.""")
             )),
+            new CourseSeed("나와 가족을 소개하는 글쓰기", "나와 가족, 좋아하는 것을 짧은 문장으로 소개하는 쓰기 코스입니다.", "👪",
+                    MemberType.CHILD, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("나를 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 나를 소개하는 글을 써봐요!
+                            🙋 My name is Jenny. — 제 이름은 Jenny예요.
+                            🎂 I am nine years old. — 저는 아홉 살이에요.
+                            😊 I am happy today. — 저는 오늘 행복해요."""),
+                    new LessonSeed("우리 가족을 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 우리 가족을 소개하는 글을 써봐요!
+                            👪 I have four family members. — 우리 가족은 네 명이에요.
+                            👨‍👩‍👧 My mom cooks well. — 우리 엄마는 요리를 잘해요.
+                            👧 My sister is kind. — 제 여동생은 친절해요."""),
+                    new LessonSeed("우리 집을 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 우리 집을 소개하는 글을 써봐요!
+                            🏠 I live in a big house. — 저는 큰 집에 살아요.
+                            🛏️ My room is small. — 제 방은 작아요.
+                            🌳 We have a garden. — 우리는 정원이 있어요."""),
+                    new LessonSeed("우리 학교를 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 우리 학교를 소개하는 글을 써봐요!
+                            🏫 I go to school every day. — 저는 매일 학교에 가요.
+                            📚 I like my teacher. — 저는 우리 선생님을 좋아해요.
+                            🍱 We eat lunch together. — 우리는 함께 점심을 먹어요."""),
+                    new LessonSeed("내 친구를 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 친구를 소개하는 글을 써봐요!
+                            👫 His name is Minsu. — 그의 이름은 민수예요.
+                            ⚽ We play soccer together. — 우리는 함께 축구를 해요.
+                            😄 He makes me laugh. — 그는 저를 웃게 해요."""),
+                    new LessonSeed("내 반려동물을 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 내 반려동물을 소개하는 글을 써봐요!
+                            🐶 My dog's name is Coco. — 제 강아지 이름은 Coco예요.
+                            🦴 Coco likes to run. — Coco는 뛰는 것을 좋아해요.
+                            🛁 I wash Coco every week. — 저는 매주 Coco를 씻겨줘요."""),
+                    new LessonSeed("나의 하루를 소개해요", LessonType.WRITING, """
+                            INTRO: 🦊 여우 선생님과 함께 나의 하루를 소개하는 글을 써봐요!
+                            ⏰ I wake up at seven. — 저는 일곱 시에 일어나요.
+                            🎒 I go to school in the morning. — 저는 아침에 학교에 가요.
+                            🌙 I sleep at nine. — 저는 아홉 시에 자요.""")
+            )),
 
             // ---------- CHILD / INTERMEDIATE ----------
             new CourseSeed("짧은 대화문 읽고 이해하기", "두 사람의 짧은 대화를 읽고 내용을 파악하는 코스입니다.", "💬",
@@ -672,6 +749,44 @@ public class SampleDataInitializer implements CommandLineRunner {
                             📚 I will study hard. — 저는 열심히 공부할 거예요.
                             💪 I believe I can do it. — 저는 할 수 있다고 믿어요.""")
             )),
+            new CourseSeed("기분과 감정 표현 배우기", "다양한 감정과 기분을 표현하는 어휘를 배우는 코스입니다.", "🙂",
+                    MemberType.CHILD, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("기쁠 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 기쁠 때 쓰는 말을 배워봐요!
+                            🗨️ A: How do you feel today? — 오늘 기분이 어때?
+                            🗨️ B: I feel happy! — 나 기분이 좋아!
+                            😄 I got a present. — 나 선물을 받았어."""),
+                    new LessonSeed("슬플 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 슬플 때 쓰는 말을 배워봐요!
+                            🗨️ A: What's wrong? — 무슨 일 있어?
+                            🗨️ B: I feel sad. — 나 슬퍼.
+                            😢 I lost my toy. — 나 장난감을 잃어버렸어."""),
+                    new LessonSeed("화날 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 화날 때 쓰는 말을 배워봐요!
+                            🗨️ A: Why are you upset? — 왜 화가 났어?
+                            🗨️ B: I feel angry. — 나 화가 나.
+                            😠 He broke my crayon. — 걔가 내 크레파스를 부러뜨렸어."""),
+                    new LessonSeed("신날 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 신날 때 쓰는 말을 배워봐요!
+                            🗨️ A: Are you excited? — 너 신나?
+                            🗨️ B: Yes, I'm so excited! — 응, 나 너무 신나!
+                            🎉 We are going to the zoo. — 우리 동물원에 갈 거야."""),
+                    new LessonSeed("피곤할 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 피곤할 때 쓰는 말을 배워봐요!
+                            🗨️ A: Are you okay? — 괜찮아?
+                            🗨️ B: I feel tired. — 나 피곤해.
+                            😴 I want to take a nap. — 나 낮잠 자고 싶어."""),
+                    new LessonSeed("긴장될 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 긴장될 때 쓰는 말을 배워봐요!
+                            🗨️ A: How do you feel about the test? — 시험 기분이 어때?
+                            🗨️ B: I feel nervous. — 나 긴장돼.
+                            😬 My hands are shaking. — 손이 떨려."""),
+                    new LessonSeed("자랑스러울 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 자랑스러울 때 쓰는 말을 배워봐요!
+                            🗨️ A: You did a great job! — 너 정말 잘했어!
+                            🗨️ B: I feel proud. — 나 자랑스러워.
+                            🏆 I won first place. — 나 1등을 했어.""")
+            )),
 
             // ---------- CHILD / ADVANCED ----------
             new CourseSeed("짧은 영어 동화 읽기", "쉬운 영어 동화를 읽고 교훈을 이해하는 심화 읽기 코스입니다.", "🧚",
@@ -849,6 +964,44 @@ public class SampleDataInitializer implements CommandLineRunner {
                             🦁 He protected his friends from danger every day. — 그는 매일 친구들을 위험으로부터 지켜줬어요.
                             😊 I love this story because it makes me smile. — 저는 이 이야기가 저를 웃게 해서 좋아요.""")
             )),
+            new CourseSeed("재미있는 영어 표현과 관용구", "동화에도 자주 나오는 재미있는 표현과 관용구를 배우는 어휘 코스입니다.", "🎭",
+                    MemberType.CHILD, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("날씨에 관한 표현", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 날씨에 관한 재미있는 표현을 배워봐요!
+                            🌧️ It's raining cats and dogs. — 비가 억수같이 쏟아져요.
+                            ☀️ Every cloud has a silver lining. — 힘든 일에도 좋은 면이 있어요.
+                            🌈 The storm passed quickly. — 폭풍은 금방 지나갔어요."""),
+                    new LessonSeed("처음 만났을 때 쓰는 표현", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 처음 만났을 때 쓰는 표현을 배워봐요!
+                            🧊 She told a joke to break the ice. — 그녀는 어색함을 풀려고 농담을 했어요.
+                            🤝 They hit it off right away. — 그들은 만나자마자 마음이 잘 맞았어요.
+                            😊 New friends can feel like family. — 새 친구는 가족처럼 느껴질 수 있어요."""),
+                    new LessonSeed("쉬운 일을 표현할 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 쉬운 일을 표현하는 말을 배워봐요!
+                            🍰 The quiz was a piece of cake. — 그 퀴즈는 식은 죽 먹기였어요.
+                            🦆 It was like water off a duck's back. — 전혀 신경 쓰이지 않았어요.
+                            😌 Nothing could bother him. — 아무것도 그를 괴롭히지 못했어요."""),
+                    new LessonSeed("동물이 나오는 표현", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 동물이 나오는 재미있는 표현을 배워봐요!
+                            🐺 He cried wolf too many times. — 그는 거짓말을 너무 많이 했어요.
+                            🦁 She is the lion of the class. — 그녀는 반에서 가장 용감해요.
+                            🐑 Don't just follow like sheep. — 그냥 양처럼 따라가지 마세요."""),
+                    new LessonSeed("마음을 표현할 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 마음을 표현하는 말을 배워봐요!
+                            🦋 She had butterflies in her stomach. — 그녀는 긴장돼서 속이 울렁거렸어요.
+                            💔 His heart sank when he heard the news. — 그는 소식을 듣고 마음이 철렁했어요.
+                            🌟 Follow your heart. — 네 마음이 이끄는 대로 해."""),
+                    new LessonSeed("노력에 관한 표현", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 노력에 관한 표현을 배워봐요!
+                            🌳 Rome wasn't built in a day. — 로마는 하루아침에 이루어지지 않았어요.
+                            🐢 Slow and steady wins the race. — 느려도 꾸준한 게 이겨요.
+                            💪 Practice makes perfect. — 연습이 완벽을 만들어요."""),
+                    new LessonSeed("기회를 표현할 때", LessonType.VOCAB, """
+                            INTRO: 🦊 여우 선생님과 함께 기회를 표현하는 말을 배워봐요!
+                            🎯 Once in a blue moon, this happens. — 이런 일은 아주 가끔 일어나요.
+                            🚪 When one door closes, another opens. — 문 하나가 닫히면 다른 문이 열려요.
+                            🐛 The early bird catches the worm. — 일찍 일어나는 새가 벌레를 잡아요.""")
+            )),
 
             // ---------- ADULT / BEGINNER ----------
             new CourseSeed("왕초보 성인 영어 회화", "인사, 자기소개부터 실생활 표현까지 — 말하기 중심의 입문 코스입니다.", "🗣️",
@@ -1005,6 +1158,68 @@ public class SampleDataInitializer implements CommandLineRunner {
                             Congratulations! — 축하해요!
                             You did a great job. — 정말 잘했어요.
                             Good luck with everything. — 모든 일에 행운을 빌어요.""")
+            )),
+            new CourseSeed("생활 속 짧은 안내문 읽기", "표지판, 메뉴판처럼 일상에서 자주 보는 짧은 글을 읽고 이해하는 코스입니다.", "📋",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("가게 안내문 읽기", LessonType.READING, """
+                            Open 9 AM to 9 PM. — 오전 9시부터 오후 9시까지 영업합니다.
+                            Closed on Sundays. — 일요일은 휴무입니다.
+                            Please ring the bell. — 벨을 눌러주세요."""),
+                    new LessonSeed("메뉴판 읽기", LessonType.READING, """
+                            Today's special: chicken soup. — 오늘의 특선: 치킨 수프.
+                            Coffee is two dollars. — 커피는 2달러입니다.
+                            No refunds after ordering. — 주문 후 환불은 불가합니다."""),
+                    new LessonSeed("버스 시간표 안내문 읽기", LessonType.READING, """
+                            The next bus arrives at 3 PM. — 다음 버스는 오후 3시에 도착합니다.
+                            Buses run every 20 minutes. — 버스는 20분마다 운행합니다.
+                            Please have your ticket ready. — 티켓을 준비해 주세요."""),
+                    new LessonSeed("주차 안내판 읽기", LessonType.READING, """
+                            No parking after 6 PM. — 오후 6시 이후 주차 금지입니다.
+                            Visitors must register at the desk. — 방문객은 데스크에 등록해야 합니다.
+                            Parking is free for one hour. — 주차는 1시간 무료입니다."""),
+                    new LessonSeed("택배 상자 라벨 읽기", LessonType.READING, """
+                            Handle with care. — 조심히 다뤄주세요.
+                            This side up. — 이 면이 위로 가야 합니다.
+                            Do not stack. — 쌓지 마세요."""),
+                    new LessonSeed("엘리베이터 안내문 읽기", LessonType.READING, """
+                            Maximum 10 people. — 최대 10명까지 탑승 가능합니다.
+                            Out of service today. — 오늘은 운행하지 않습니다.
+                            Please use the stairs. — 계단을 이용해 주세요."""),
+                    new LessonSeed("화장실 안내판 읽기", LessonType.READING, """
+                            Restroom is out of order. — 화장실이 고장났습니다.
+                            Please use the one on the second floor. — 2층 화장실을 이용해 주세요.
+                            Keep the door closed. — 문을 닫아 주세요.""")
+            )),
+            new CourseSeed("간단한 메시지와 양식 작성하기", "이름·연락처 같은 기본 정보와 짧은 메시지를 작성해보는 쓰기 코스입니다.", "📝",
+                    MemberType.ADULT, EnglishLevel.BEGINNER, List.of(
+                    new LessonSeed("이름과 연락처 양식 작성하기", LessonType.WRITING, """
+                            My name is Sarah Kim. — 제 이름은 사라 김입니다.
+                            My phone number is 010-1234-5678. — 제 전화번호는 010-1234-5678입니다.
+                            My email is sarah@email.com. — 제 이메일은 sarah@email.com입니다."""),
+                    new LessonSeed("친구에게 문자 메시지 쓰기", LessonType.WRITING, """
+                            Hi, are you free tonight? — 안녕, 오늘 밤에 시간 있어?
+                            Let's meet at 7. — 7시에 만나자.
+                            See you soon! — 곧 보자!"""),
+                    new LessonSeed("짧은 감사 메모 쓰기", LessonType.WRITING, """
+                            Thank you for your help. — 도와주셔서 감사합니다.
+                            I really appreciate it. — 정말 감사드립니다.
+                            Have a great day. — 좋은 하루 보내세요."""),
+                    new LessonSeed("부재중 안내 메모 쓰기", LessonType.WRITING, """
+                            I am out of the office today. — 오늘은 사무실에 없습니다.
+                            I will reply tomorrow. — 내일 답장드리겠습니다.
+                            Thank you for your patience. — 기다려 주셔서 감사합니다."""),
+                    new LessonSeed("배송지 양식 작성하기", LessonType.WRITING, """
+                            Please deliver to 12 Main Street. — 메인 스트리트 12번지로 배송해 주세요.
+                            Leave the package at the door. — 소포는 문 앞에 놓아 주세요.
+                            Call before delivery. — 배송 전에 전화해 주세요."""),
+                    new LessonSeed("참석 여부 답장 쓰기", LessonType.WRITING, """
+                            I would love to come. — 꼭 가고 싶어요.
+                            I will bring a friend. — 친구를 데려갈게요.
+                            See you at the party. — 파티에서 만나요."""),
+                    new LessonSeed("동료에게 짧은 메모 남기기", LessonType.WRITING, """
+                            I left the report on your desk. — 보고서를 책상에 놓아두었어요.
+                            Please check it today. — 오늘 확인해 주세요.
+                            Let me know if you have questions. — 질문 있으면 알려주세요.""")
             )),
 
             // ---------- ADULT / ELEMENTARY ----------
@@ -1163,6 +1378,37 @@ public class SampleDataInitializer implements CommandLineRunner {
                             See you tomorrow! — 내일 봬요!
                             Have a good evening. — 좋은 저녁 보내세요.""")
             )),
+            new CourseSeed("간단한 이메일과 공지 읽기", "짧은 업무 이메일과 공지사항을 읽고 핵심 내용을 파악하는 코스입니다.", "📧",
+                    MemberType.ADULT, EnglishLevel.ELEMENTARY, List.of(
+                    new LessonSeed("회의 일정 변경 공지 읽기", LessonType.READING, """
+                            The meeting has been moved to 3 PM. — 회의가 오후 3시로 변경되었습니다.
+                            Please update your calendar. — 일정을 업데이트해 주세요.
+                            Sorry for the inconvenience. — 불편을 드려 죄송합니다."""),
+                    new LessonSeed("감사 이메일 읽기", LessonType.READING, """
+                            Thank you for attending the workshop. — 워크숍에 참석해 주셔서 감사합니다.
+                            Your feedback means a lot to us. — 여러분의 피드백은 저희에게 큰 의미가 있습니다.
+                            We hope to see you again soon. — 곧 다시 뵙기를 바랍니다."""),
+                    new LessonSeed("사무실 휴무 공지 읽기", LessonType.READING, """
+                            The office will be closed on Monday. — 사무실은 월요일에 휴무입니다.
+                            We will reopen on Tuesday. — 화요일에 다시 문을 엽니다.
+                            Please contact us by email if needed. — 필요하시면 이메일로 연락해 주세요."""),
+                    new LessonSeed("배송 확인 이메일 읽기", LessonType.READING, """
+                            Your order has been shipped. — 주문하신 상품이 발송되었습니다.
+                            It will arrive within three days. — 3일 이내에 도착할 예정입니다.
+                            Thank you for shopping with us. — 저희 쇼핑몰을 이용해 주셔서 감사합니다."""),
+                    new LessonSeed("리마인더 이메일 읽기", LessonType.READING, """
+                            This is a reminder about tomorrow's meeting. — 내일 회의에 대한 안내입니다.
+                            Please bring your laptop. — 노트북을 지참해 주세요.
+                            The meeting starts at 10 AM. — 회의는 오전 10시에 시작합니다."""),
+                    new LessonSeed("환영 이메일 읽기", LessonType.READING, """
+                            Welcome to our team! — 저희 팀에 오신 것을 환영합니다!
+                            We are excited to work with you. — 함께 일하게 되어 기쁩니다.
+                            Please let us know if you need anything. — 필요한 것이 있으면 알려주세요."""),
+                    new LessonSeed("설문조사 요청 이메일 읽기", LessonType.READING, """
+                            We would like your feedback. — 여러분의 의견을 듣고 싶습니다.
+                            The survey takes five minutes. — 설문조사는 5분 정도 걸립니다.
+                            Your answers are anonymous. — 답변은 익명으로 처리됩니다.""")
+            )),
 
             // ---------- ADULT / INTERMEDIATE ----------
             new CourseSeed("비즈니스 영어 이메일 작성", "업무 상황별 이메일을 작성해보는 실용 쓰기 코스입니다.", "💼",
@@ -1319,6 +1565,37 @@ public class SampleDataInitializer implements CommandLineRunner {
                             I think we've covered everything we needed to. — 필요한 부분은 다 다룬 것 같습니다.
                             I'm glad we could work this out together. — 함께 해결할 수 있어서 기쁩니다.""")
             )),
+            new CourseSeed("업무 보고서와 뉴스 기사 읽기", "업무 관련 보고서와 짧은 뉴스 기사를 읽고 요점을 파악하는 코스입니다.", "📰",
+                    MemberType.ADULT, EnglishLevel.INTERMEDIATE, List.of(
+                    new LessonSeed("분기 매출 요약 보고서 읽기", LessonType.READING, """
+                            Sales increased by 12 percent this quarter. — 이번 분기 매출이 12퍼센트 증가했습니다.
+                            The growth was driven by strong online sales. — 성장은 온라인 판매 호조에 힘입은 것입니다.
+                            We expect this trend to continue next quarter. — 다음 분기에도 이 흐름이 이어질 것으로 예상됩니다."""),
+                    new LessonSeed("프로젝트 진행 보고서 읽기", LessonType.READING, """
+                            The project is currently on schedule. — 프로젝트는 현재 일정대로 진행되고 있습니다.
+                            Two tasks remain before the deadline. — 마감 전까지 두 가지 작업이 남아 있습니다.
+                            The team will submit the final report next week. — 팀은 다음 주에 최종 보고서를 제출할 것입니다."""),
+                    new LessonSeed("제품 출시 뉴스 브리핑 읽기", LessonType.READING, """
+                            The company launched a new product yesterday. — 그 회사는 어제 신제품을 출시했습니다.
+                            Early reviews have been positive. — 초기 반응은 긍정적입니다.
+                            The product will be available nationwide next month. — 그 제품은 다음 달 전국에서 판매될 예정입니다."""),
+                    new LessonSeed("시장 동향 기사 읽기", LessonType.READING, """
+                            Demand for electric vehicles is rising steadily. — 전기차 수요가 꾸준히 증가하고 있습니다.
+                            Several companies are expanding their production lines. — 여러 기업이 생산 라인을 확장하고 있습니다.
+                            Analysts expect prices to drop next year. — 분석가들은 내년에 가격이 하락할 것으로 예상합니다."""),
+                    new LessonSeed("사내 정책 변경 공지 읽기", LessonType.READING, """
+                            The company has updated its remote work policy. — 회사가 재택근무 정책을 업데이트했습니다.
+                            Employees may work from home twice a week. — 직원들은 일주일에 두 번 재택근무를 할 수 있습니다.
+                            The new policy takes effect next month. — 새 정책은 다음 달부터 시행됩니다."""),
+                    new LessonSeed("경제 뉴스 브리핑 읽기", LessonType.READING, """
+                            The unemployment rate fell slightly last month. — 지난달 실업률이 소폭 하락했습니다.
+                            Consumer spending continues to grow. — 소비 지출은 계속 증가하고 있습니다.
+                            Experts remain cautious about the overall outlook. — 전문가들은 전반적인 전망에 대해 여전히 신중한 입장입니다."""),
+                    new LessonSeed("회사 공지사항 읽기", LessonType.READING, """
+                            The company will host its annual conference in October. — 회사는 10월에 연례 컨퍼런스를 개최할 예정입니다.
+                            All employees are encouraged to attend. — 모든 직원이 참석하기를 권장합니다.
+                            Registration details will be shared soon. — 등록 안내는 곧 공유될 예정입니다.""")
+            )),
 
             // ---------- ADULT / ADVANCED ----------
             new CourseSeed("시사 이슈로 배우는 영어 토론", "시사 주제로 의견을 주고받는 토론 표현을 배우는 코스입니다.", "🗞️",
@@ -1471,6 +1748,37 @@ public class SampleDataInitializer implements CommandLineRunner {
                             Could you tell me more about the team I'd be working with? — 제가 함께 일하게 될 팀에 대해 더 알려주실 수 있나요?
                             What does success look like in this role after a year? — 이 직무에서 1년 후 성공은 어떤 모습이라고 보시나요?
                             Thank you again for this opportunity. — 이 기회를 주셔서 다시 한번 감사드립니다.""")
+            )),
+            new CourseSeed("설득력 있는 의견 글쓰기", "논리적 근거를 바탕으로 의견을 설득력 있게 작성하는 심화 쓰기 코스입니다.", "✒️",
+                    MemberType.ADULT, EnglishLevel.ADVANCED, List.of(
+                    new LessonSeed("주장 제시하기", LessonType.WRITING, """
+                            This essay argues that remote work improves productivity. — 이 글은 재택근무가 생산성을 향상시킨다고 주장합니다.
+                            The following points support this claim. — 다음 내용은 이 주장을 뒷받침합니다.
+                            A closer look at the evidence reveals a clear pattern. — 근거를 자세히 살펴보면 뚜렷한 경향이 드러납니다."""),
+                    new LessonSeed("근거 제시하기", LessonType.WRITING, """
+                            Studies show that flexible schedules reduce employee turnover. — 연구에 따르면 유연한 근무 일정은 이직률을 낮춥니다.
+                            Data from several companies confirms this trend. — 여러 기업의 데이터가 이 경향을 뒷받침합니다.
+                            These findings strengthen the argument considerably. — 이러한 결과는 주장을 상당히 강화합니다."""),
+                    new LessonSeed("반대 의견 인정하기", LessonType.WRITING, """
+                            Some critics argue that remote work weakens collaboration. — 일부 비평가들은 재택근무가 협업을 약화시킨다고 주장합니다.
+                            This concern is not without merit. — 이 우려는 나름의 타당성이 있습니다.
+                            However, it does not undermine the overall argument. — 그러나 이는 전체 주장을 훼손하지는 않습니다."""),
+                    new LessonSeed("반박하기", LessonType.WRITING, """
+                            While collaboration may face challenges, technology can bridge the gap. — 협업에 어려움이 있을 수 있지만, 기술이 그 간극을 메울 수 있습니다.
+                            Companies that invest in digital tools report smoother teamwork. — 디지털 도구에 투자한 기업들은 더 원활한 협업을 보고합니다.
+                            This evidence directly counters the original objection. — 이 근거는 원래의 반론을 직접적으로 반박합니다."""),
+                    new LessonSeed("논리적 연결어 사용하기", LessonType.WRITING, """
+                            Furthermore, employee satisfaction has increased significantly. — 게다가 직원 만족도가 크게 증가했습니다.
+                            In contrast, traditional office settings show slower growth. — 반면 전통적인 사무실 환경은 더딘 성장을 보입니다.
+                            Therefore, the benefits clearly outweigh the drawbacks. — 따라서 이점이 단점보다 명백히 큽니다."""),
+                    new LessonSeed("설득력 있게 결론짓기", LessonType.WRITING, """
+                            In conclusion, the evidence strongly supports remote work policies. — 결론적으로, 근거는 재택근무 정책을 강력히 뒷받침합니다.
+                            The benefits extend beyond individual employees to the company as a whole. — 그 이점은 개별 직원을 넘어 회사 전체로 확장됩니다.
+                            This issue deserves serious consideration going forward. — 이 사안은 앞으로 진지하게 고려할 가치가 있습니다."""),
+                    new LessonSeed("행동 촉구하기", LessonType.WRITING, """
+                            It is time for companies to embrace flexible work policies. — 이제 기업들이 유연근무 정책을 받아들여야 할 때입니다.
+                            Leaders must act before losing valuable talent. — 리더들은 소중한 인재를 잃기 전에 행동해야 합니다.
+                            The future of work depends on this decision. — 일의 미래는 이 결정에 달려 있습니다.""")
             ))
     );
 }

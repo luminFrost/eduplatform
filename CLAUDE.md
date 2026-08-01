@@ -292,8 +292,32 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - **콘텐츠 갭 발견(새 버그 아님, 기존 시드 데이터의 한계)**: ADULT/BEGINNER는 공식 코스에 READING·WRITING 레슨이 아예 없음(VOCAB×3, LISTENING×1, SPEAKING×1만 존재) — 이 조합에서 진단 테스트가 READING/WRITING을 약점으로 지목하면 개인 코스가 0레슨으로 만들어짐. 기존에 "듣기·말하기는 레슨이 없어 골라도 빈 코스가 됨 — 정직하게 그대로 둠"이라고 문서화해둔 것과 같은 패턴이라 별도 수정은 안 함. 다른 조합들도 5영역 중 1~2개씩 빠져있음(예: CHILD/BEGINNER는 WRITING 없음, ADULT/ELEMENTARY·INTERMEDIATE는 READING 없음) — 콘텐츠를 더 채울 때 참고.
   - 테스트: `QuestionServiceTest`(5개, 채점·동률·미답변·문항없음), `QuestionRepositoryTest`(2개, `@OrderColumn` 순서 보존·조회 필터), `CourseServiceTest`에 DIAGNOSTIC_TEST 케이스 3개 추가.
 
+- 공식 코스 콘텐츠 커버리지 갭 채우기 (dev 병합됨)
+  - 진단 테스트 검증 중 발견한 문제(바로 위 항목)를 이어서 해결 — `SampleDataInitializer.java`를 직접 파싱해
+    8개 대상·레벨 조합 중 몇 개가 5영역(어휘/읽기/쓰기/듣기/말하기) 중 몇 개씩 비어있는지 정확히 확인:
+    CHILD/BEGINNER·ELEMENTARY는 WRITING 없음, CHILD/INTERMEDIATE·ADVANCED는 VOCAB 없음,
+    ADULT/BEGINNER는 READING·WRITING 둘 다 없음, ADULT/ELEMENTARY·INTERMEDIATE는 READING 없음,
+    ADULT/ADVANCED는 WRITING 없음 — 총 9개 코스(각 7레슨=63레슨) 부족.
+  - 새 도메인/API/화면 변경 없이 순수 콘텐츠 작업이라 판단, 이전 "듣기·말하기 확장" 때와 같은 패턴으로
+    배경 에이전트 2개(CHILD 4개 코스 / ADULT 5개 코스)에 제목·설명·이모지·영역은 내가 고정해서 지시하고
+    레슨 7개의 실제 문장·번역만 채우게 한 뒤, 결과를 텍스트로 받아 `SampleDataInitializer.COURSE_SEEDS`의
+    해당 `// ---------- TARGET / LEVEL ----------` 섹션 끝에 직접 순서대로 붙여넣음(동시 편집 충돌 없음).
+  - CHILD 신규 코스는 기존 톤 그대로: BEGINNER/ELEMENTARY WRITING은 자기소개·가족·반려동물 수준의 짧은
+    베껴쓰기, INTERMEDIATE VOCAB은 감정 표현(대화문 수준), ADVANCED VOCAB은 동화에 어울리는 관용구
+    (`It's raining cats and dogs` 등). ADULT 신규 코스도 기존 톤 그대로: BEGINNER READING/WRITING은
+    표지판·양식 수준, ELEMENTARY/INTERMEDIATE READING은 업무 이메일·보고서 수준, ADVANCED WRITING은
+    논증 에세이 수준(기존 토론/인터뷰 코스와 같은 격식).
+  - 통합 직후 `grep -c "new CourseSeed("` = 49(기존 40+9), `grep -c "new LessonSeed("` = 343(기존 280+63)로
+    개수를 스크립트로 검증(지난번 "듣기·말하기 전체 확장" 때 코스 2개를 붙여넣다 빠뜨렸던 실수를 반복하지
+    않기 위해 매번 하는 습관). 붙여넣으며 보니 클래스 상단 Javadoc이 "듣기·말하기는 ADULT/BEGINNER에만",
+    "다른 조합은 준비 중"이라고 여러 세션 전 상태로 outdated돼 있던 것도 발견해 이번 참에 정정.
+  - 검증: curl로 8개 조합 전부 5영역 커버리지 확인(python 스크립트로 target×level별 `lessonType` 합집합
+    계산), 그리고 지난번 실제로 빈 코스가 만들어졌던 바로 그 케이스(ADULT/BEGINNER 회원이 진단 테스트에서
+    WRITING을 일부러 틀리게 답 제출)를 다시 재현해 이번엔 레슨 7개가 실제로 복사되는지 확인함(`/courses/50`
+    → WRITING 레슨 7개 정상 생성). `./gradlew build`/`test` 전체 통과(데이터 시딩만 바뀐 변경이라 기존
+    테스트에 영향 없음, 예상대로).
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 지금까지 전부 H2 인메모리 + 로컬 개발
-3. (참고, 새 버그 아님) 공식 코스 콘텐츠의 영역 커버리지 갭 — 8개 대상·레벨 조합 중 다수가 5영역(어휘/읽기/쓰기/듣기/말하기) 중 1~2개가 비어있어(위 진단 테스트 항목 참고), 자가선택/이력기반/진단테스트 개인 코스가 해당 영역을 고르면 빈 코스가 될 수 있음
-4. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
+3. (참고, 새 버그 아님) N+1 쿼리 몇 곳(`CourseService.createPersonalCourse`/`createPersonalCourseFromHistory`/`createPersonalCourseFromDiagnosticTest`, `ProgressService.getCourseProgress`/`recommendFocusAreas`/`getSkillAreaProgress`, `QuestionService.getDiagnosticTestQuestions`) — 지금 데이터량에선 무해하지만 코스/레슨이 크게 늘면 최적화 고려
