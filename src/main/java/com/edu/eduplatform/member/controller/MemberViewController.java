@@ -20,6 +20,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequiredArgsConstructor
@@ -31,8 +32,11 @@ public class MemberViewController {
     private final CurrentMemberSession currentMemberSession;
 
     @GetMapping("/new")
-    public String signUpForm(Model model) {
+    public String signUpForm(@RequestParam(required = false) String target,
+                              @RequestParam(required = false) String recommendedLevel, Model model) {
         addFormOptions(model);
+        model.addAttribute("recommendedTarget", target);
+        model.addAttribute("recommendedLevel", recommendedLevel);
         return "member/signup-form";
     }
 

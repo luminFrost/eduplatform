@@ -7,6 +7,7 @@ import com.edu.eduplatform.question.domain.Question;
 import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
 import com.edu.eduplatform.question.repository.QuestionRepository;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -22,12 +23,53 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class QuestionService {
 
+    /** 레벨 배치 테스트에서 레벨당 뽑아 쓰는 문항 수(영역 무관, 앞의 N개). */
+    private static final int PLACEMENT_QUESTIONS_PER_LEVEL = 2;
+    /** 이 비율 이상 맞혀야 그 레벨을 "통과"한 것으로 본다. */
+    private static final double PLACEMENT_PASS_THRESHOLD = 0.5;
+
     private final QuestionRepository questionRepository;
 
     public List<QuestionResponse> getDiagnosticTestQuestions(MemberType targetType, EnglishLevel level) {
         return questionRepository.findByTargetTypeAndLevel(targetType, level).stream()
                 .map(QuestionResponse::from)
                 .toList();
+    }
+
+    /** 가입 전 레벨 배치 테스트 문항 — 레벨마다 앞의 {@link #PLACEMENT_QUESTIONS_PER_LEVEL}개씩, 총 4레벨분. */
+    public List<QuestionResponse> getLevelPlacementQuestions(MemberType targetType) {
+        return Arrays.stream(EnglishLevel.values())
+                .flatMap(level -> questionRepository.findByTargetTypeAndLevel(targetType, level).stream()
+                        .limit(PLACEMENT_QUESTIONS_PER_LEVEL))
+                .map(QuestionResponse::from)
+                .toList();
+    }
+
+    /**
+     * BEGINNER부터 순서대로 레벨별 정답률을 확인해, 과반 이상 맞힌 마지막 레벨을 추천한다. 어느 레벨에서
+     * 과반 미만이면 더 높은 레벨은 보지 않고 멈춘다 — BEGINNER조차 과반 미만이어도 BEGINNER를 추천한다
+     * (최저 바닥). 미답변 문항은 오답으로 친다 — 진단 테스트와 달리 낮은 판돈의 "제안"이라 전부 답해야
+     * 한다는 강제가 없다.
+     */
+    public EnglishLevel recommendLevel(MemberType targetType, Map<Long, Integer> answersByQuestionId) {
+        EnglishLevel recommended = EnglishLevel.BEGINNER;
+        for (EnglishLevel level : EnglishLevel.values()) {
+            List<Question> levelQuestions = questionRepository.findByTargetTypeAndLevel(targetType, level).stream()
+                    .limit(PLACEMENT_QUESTIONS_PER_LEVEL)
+                    .toList();
+            if (levelQuestions.isEmpty()) {
+                break;
+            }
+            long correct = levelQuestions.stream()
+                    .filter(question -> Objects.equals(
+                            answersByQuestionId.get(question.getId()), question.getCorrectOptionIndex()))
+                    .count();
+            if (correct / (double) levelQuestions.size() < PLACEMENT_PASS_THRESHOLD) {
+                break;
+            }
+            recommended = level;
+        }
+        return recommended;
     }
 
     /**

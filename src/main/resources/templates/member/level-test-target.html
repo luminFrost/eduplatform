@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>레벨 테스트 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1>레벨 테스트</h1>
+    <p>누구를 위한 가입인가요? 대상에 맞는 짧은 문항으로 시작 레벨을 추천해 드려요.</p>
+
+    <p><a th:href="@{/members/new/level-test(target=CHILD)}">🧒 초등학생</a></p>
+    <p><a th:href="@{/members/new/level-test(target=ADULT)}">🧑 성인</a></p>
+
+    <p><a th:href="@{/members/new}">가입 폼으로 돌아가기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/login", "/css/**", "/images/**", "/js/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/members/new").permitAll()
                         .requestMatchers(HttpMethod.POST, "/members").permitAll()
+                        .requestMatchers("/members/new/level-test").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // 아래 3개는 특정 규칙이라, 뒤따르는 일반 /courses/** permitAll보다 먼저 와야 한다.
                         .requestMatchers("/my", "/my/**").authenticated()
