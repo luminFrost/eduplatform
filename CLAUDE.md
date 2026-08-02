@@ -777,6 +777,37 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     진짜 진단 테스트에 반영됨을 종단으로 검증) → 문항 수정(폼 프리필 확인)·삭제 확인 → 대상·레벨·영역
     3중 필터 조합(CHILD/BEGINNER/SPEAKING) 정확히 2건 반환 확인 → 일반 회원 403 확인.
 
+- 관리자 콘텐츠 커버리지 대시보드 (dev 병합됨)
+  - CLAUDE.md 작업 이력에 반복해서 나오던 패턴("8개 대상·레벨 조합 중 몇 개가 5영역 중 몇 개씩
+    비어있는지"를 그때그때 python 스크립트로 확인)을 관리자 화면의 상시 표로 대체.
+  - Course/Lesson/Question 세 도메인을 동등하게 넘나드는 리포팅이라 어느 한 도메인 서비스에 얹지 않고,
+    `HomeController`가 "특정 도메인에 안 속하는 화면"의 자리로 쓰이는 것과 같은 이유로 신규
+    `common/service/ContentCoverageService` + `common/web/AdminDashboardController`(`GET /admin`)로 분리.
+    새 쿼리 없이 기존 메서드 조합(`CourseRepository.search`/`LessonRepository.findByCourseIdIn`/
+    `QuestionRepository.findByTargetTypeAndLevel`, 전부 이미 있던 것)만으로 8×5 집계.
+  - `SecurityConfig`의 `/admin/**` → `hasRole("ADMIN")` 규칙이 이미 커버해서 이번에도 시큐리티 설정
+    변경 없음(문항 관리 때와 동일한 패턴).
+  - 레슨 수·문항 수 0인 칸은 dataviz 스킬의 상태색 원칙대로 `color-mix(in srgb, var(--color-danger)
+    12%, transparent)`로 배경을 살짝 물들여 강조(텍스트 "0"도 항상 같이 보여 색만으로 정보를 전달하지
+    않음) — `--color-danger`가 이미 다크모드 대응 변수라 새 다크 대응 없이 자동으로 맞음.
+  - 헤더 "관리자" 링크를 `/admin/courses`에서 `/admin`(대시보드)으로 바꾸고, 코스/문항 관리 목록
+    페이지 각각에 서로 오갈 수 있는 링크 추가 — 대시보드·코스 관리·문항 관리 세 화면이 서로 연결됨.
+  - **버그 발견·수정(테스트가 아니라 실브라우저 렌더링에서 바로 잡음)**: 템플릿에서 `th:classappend`에
+    `${(row.lessonCountByType[t] ?: 0) == 0} ? 'zero' : ''`처럼 SpringEL elvis(`?:`)를 `${...}` 안에
+    쓰고 그 바깥에 Thymeleaf 자체 삼항(`? :`)을 또 겹쳤더니, attoparser가 표현식 경계를 잘못 잡아
+    `[t]`의 `t`를 반복 변수 참조가 아니라 리터럴 문자열 `"t"`로 취급해버려
+    `SpelEvaluationException`(String→LessonType 변환 실패)로 터짐 — `th:text`처럼 `${...} ?: 0`
+    (elvis가 `${}` 밖에 있는 형태)는 문제없었는데, elvis를 `${}` **안**에 넣은 조합에서만 재현됨.
+    `.get(t) != null ? ... : 0` / `.get(t) == null or ... == 0`처럼 elvis를 아예 안 쓰는 형태로 바꿔
+    해결 — 교훈: Thymeleaf에서 SpEL elvis와 Thymeleaf 자체 삼항을 같은 속성에 섞어 쓰지 않는다.
+  - 테스트: 신규 `ContentCoverageServiceTest`(Mockito, 8개 조합 전부 반환·영역별 카운트 정확성),
+    신규 `AdminDashboardControllerTest`(비로그인 리다이렉트, 일반 회원 403, 관리자는 200+표 렌더링).
+  - curl+claude-in-chrome 실서버 검증: 관리자 로그인 → `/admin`에서 레슨 수·문항 수 표 둘 다 렌더링
+    확인 → **이미 지난 세션에서 8개 조합 전부 5영역을 채워둔 상태라 실제로는 0인 칸이 하나도 없음을
+    확인**(대시보드가 정직하게 "갭 없음"을 보여준 것 — 기능이 실제로 맞게 집계한다는 방증) → `.zero`
+    클래스의 실제 CSS 적용을 `getComputedStyle`로 직접 확인(배경 `color-mix` 결과, 빨간 텍스트, 굵은
+    글씨 전부 정상 적용).
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
