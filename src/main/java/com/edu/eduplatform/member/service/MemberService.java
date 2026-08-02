@@ -3,7 +3,10 @@ package com.edu.eduplatform.member.service;
 import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.dto.MemberCreateRequest;
 import com.edu.eduplatform.member.dto.MemberResponse;
+import com.edu.eduplatform.member.dto.MemberUpdateRequest;
+import com.edu.eduplatform.member.dto.PasswordChangeRequest;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
+import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,5 +50,31 @@ public class MemberService {
                 .orElseThrow(() -> new MemberNotFoundException(id));
 
         return MemberResponse.from(member);
+    }
+
+    @Transactional
+    public MemberResponse updateProfile(Long memberId, MemberUpdateRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+
+        member.changeNickname(request.nickname());
+        member.changeLevel(request.level());
+        memberRepository.save(member);
+
+        return MemberResponse.from(member);
+    }
+
+    /** 세션의 인증 정보는 로그인 시점 스냅샷이라, 비밀번호를 바꿔도 현재 세션엔 영향이 없다(다음 로그인부터 적용). */
+    @Transactional
+    public void changePassword(Long memberId, PasswordChangeRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+
+        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
+            throw new InvalidPasswordException();
+        }
+
+        member.changePassword(passwordEncoder.encode(request.newPassword()));
+        memberRepository.save(member);
     }
 }
