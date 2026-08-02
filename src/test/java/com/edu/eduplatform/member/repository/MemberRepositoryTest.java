@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.Member;
+import com.edu.eduplatform.member.domain.MemberRole;
 import com.edu.eduplatform.member.domain.MemberType;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -38,5 +39,21 @@ class MemberRepositoryTest {
         Optional<Member> found = memberRepository.findByEmail("nobody@example.com");
 
         assertThat(found).isEmpty();
+    }
+
+    @Test
+    void role을_지정하지_않으면_USER로_기본값이_저장된다() {
+        Member member = Member.builder()
+                .email("norole@example.com")
+                .nickname("역할없음")
+                .memberType(MemberType.ADULT)
+                .level(EnglishLevel.BEGINNER)
+                .password("password1234")
+                .build();
+        Member saved = memberRepository.save(member);
+
+        Member found = memberRepository.findById(saved.getId()).orElseThrow();
+
+        assertThat(found.getRole()).isEqualTo(MemberRole.USER);
     }
 }

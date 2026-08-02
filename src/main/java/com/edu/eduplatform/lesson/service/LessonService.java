@@ -4,6 +4,8 @@ import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.dto.LessonAdminRequest;
+import com.edu.eduplatform.lesson.dto.LessonAdminResponse;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.ContentLine;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LessonQuiz;
@@ -47,6 +49,45 @@ public class LessonService {
                         imageFor(firstContentIcon(lesson.getContent()))
                 ))
                 .toList();
+    }
+
+    /** 관리자 수정 폼용 — 파싱된 카드가 아니라 원본 콘텐츠 문자열 그대로 반환한다. */
+    public LessonAdminResponse getLessonForEdit(Long id) {
+        Lesson lesson = lessonRepository.findById(id)
+                .orElseThrow(() -> new LessonNotFoundException(id));
+        return new LessonAdminResponse(
+                lesson.getId(), lesson.getCourseId(), lesson.getTitle(), lesson.getOrderNo(),
+                lesson.getContent(), lesson.getLessonType());
+    }
+
+    @Transactional
+    public void createLesson(Long courseId, LessonAdminRequest request) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new CourseNotFoundException(courseId);
+        }
+        lessonRepository.save(Lesson.builder()
+                .courseId(courseId)
+                .title(request.title())
+                .orderNo(request.orderNo())
+                .content(request.content())
+                .lessonType(request.lessonType())
+                .build());
+    }
+
+    @Transactional
+    public void updateLesson(Long lessonId, LessonAdminRequest request) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new LessonNotFoundException(lessonId));
+        lesson.updateDetails(request.title(), request.orderNo(), request.content(), request.lessonType());
+        lessonRepository.save(lesson);
+    }
+
+    @Transactional
+    public void deleteLesson(Long lessonId) {
+        if (!lessonRepository.existsById(lessonId)) {
+            throw new LessonNotFoundException(lessonId);
+        }
+        lessonRepository.deleteById(lessonId);
     }
 
     public LessonDetailResponse getDetail(Long id) {

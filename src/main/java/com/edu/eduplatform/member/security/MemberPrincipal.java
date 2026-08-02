@@ -1,6 +1,8 @@
 package com.edu.eduplatform.member.security;
 
 import com.edu.eduplatform.member.domain.Member;
+import com.edu.eduplatform.member.domain.MemberRole;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,15 +19,17 @@ public class MemberPrincipal implements UserDetails {
     private final Long memberId;
     private final String email;
     private final String password;
+    private final MemberRole role;
 
-    private MemberPrincipal(Long memberId, String email, String password) {
+    private MemberPrincipal(Long memberId, String email, String password, MemberRole role) {
         this.memberId = memberId;
         this.email = email;
         this.password = password;
+        this.role = role;
     }
 
     public static MemberPrincipal of(Member member) {
-        return new MemberPrincipal(member.getId(), member.getEmail(), member.getPassword());
+        return new MemberPrincipal(member.getId(), member.getEmail(), member.getPassword(), member.getRole());
     }
 
     public Long getMemberId() {
@@ -44,6 +48,11 @@ public class MemberPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_MEMBER"));
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_MEMBER"));
+        if (role == MemberRole.ADMIN) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
+        return authorities;
     }
 }

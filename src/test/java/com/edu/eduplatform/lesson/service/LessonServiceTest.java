@@ -1,6 +1,7 @@
 package com.edu.eduplatform.lesson.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -181,6 +182,73 @@ class LessonServiceTest {
         assertThat(pairs).extracting(IconPair::word).containsExactlyInAnyOrder("apple", "elephant");
         verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.ADVANCED), any(), any());
         verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.INTERMEDIATE), any(), any());
+    }
+
+    @Test
+    void createLesson_존재하는_코스면_레슨을_저장한다() {
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        var request = new com.edu.eduplatform.lesson.dto.LessonAdminRequest("새 레슨", 1, "내용", LessonType.VOCAB);
+
+        lessonService.createLesson(100L, request);
+
+        org.mockito.ArgumentCaptor<Lesson> captor = org.mockito.ArgumentCaptor.forClass(Lesson.class);
+        verify(lessonRepository).save(captor.capture());
+        assertThat(captor.getValue().getCourseId()).isEqualTo(100L);
+        assertThat(captor.getValue().getTitle()).isEqualTo("새 레슨");
+    }
+
+    @Test
+    void createLesson_존재하지_않는_코스면_예외를_던진다() {
+        when(courseRepository.existsById(999L)).thenReturn(false);
+        var request = new com.edu.eduplatform.lesson.dto.LessonAdminRequest("새 레슨", 1, "내용", LessonType.VOCAB);
+
+        assertThatThrownBy(() -> lessonService.createLesson(999L, request))
+                .isInstanceOf(com.edu.eduplatform.course.exception.CourseNotFoundException.class);
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
+    void updateLesson_존재하는_레슨이면_내용을_수정한다() throws Exception {
+        Lesson lesson = withLessonId(Lesson.builder()
+                .courseId(100L).orderNo(1).title("기존 제목")
+                .content("기존 내용").lessonType(LessonType.VOCAB).build(), 10L);
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(lesson));
+        var request = new com.edu.eduplatform.lesson.dto.LessonAdminRequest("새 제목", 2, "새 내용", LessonType.WRITING);
+
+        lessonService.updateLesson(10L, request);
+
+        assertThat(lesson.getTitle()).isEqualTo("새 제목");
+        assertThat(lesson.getOrderNo()).isEqualTo(2);
+        assertThat(lesson.getContent()).isEqualTo("새 내용");
+        assertThat(lesson.getLessonType()).isEqualTo(LessonType.WRITING);
+        verify(lessonRepository).save(lesson);
+    }
+
+    @Test
+    void updateLesson_존재하지_않는_레슨이면_예외를_던진다() {
+        when(lessonRepository.findById(999L)).thenReturn(Optional.empty());
+        var request = new com.edu.eduplatform.lesson.dto.LessonAdminRequest("새 제목", 1, "내용", LessonType.VOCAB);
+
+        assertThatThrownBy(() -> lessonService.updateLesson(999L, request))
+                .isInstanceOf(com.edu.eduplatform.lesson.exception.LessonNotFoundException.class);
+    }
+
+    @Test
+    void deleteLesson_존재하는_레슨이면_삭제한다() {
+        when(lessonRepository.existsById(10L)).thenReturn(true);
+
+        lessonService.deleteLesson(10L);
+
+        verify(lessonRepository).deleteById(10L);
+    }
+
+    @Test
+    void deleteLesson_존재하지_않는_레슨이면_예외를_던진다() {
+        when(lessonRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> lessonService.deleteLesson(999L))
+                .isInstanceOf(com.edu.eduplatform.lesson.exception.LessonNotFoundException.class);
+        verify(lessonRepository, never()).deleteById(any());
     }
 
     private static Course withId(Course course, Long id) throws Exception {

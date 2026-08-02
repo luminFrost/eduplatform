@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="(${courseId} != null ? '코스 수정' : '새 코스') + ' - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1 th:text="${courseId} != null ? '코스 수정' : '새 코스 만들기'"></h1>
+
+    <ul class="error-message" th:if="${validationErrors}">
+        <li th:each="msg : ${validationErrors}" th:text="${msg}"></li>
+    </ul>
+
+    <form th:action="${courseId} != null ? @{/admin/courses/{id}/edit(id=${courseId})} : @{/admin/courses/new}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div>
+            <label>코스명 <input type="text" name="title" th:value="${form?.title}"/></label>
+        </div>
+        <div>
+            <label>설명 <input type="text" name="description" th:value="${form?.description}"/></label>
+        </div>
+        <div>
+            <label>이모지 <input type="text" name="emoji" th:value="${form?.emoji}" placeholder="예: 📘"/></label>
+        </div>
+        <div>
+            <label>대상
+                <select name="targetType">
+                    <option th:each="type : ${memberTypes}"
+                            th:value="${type}"
+                            th:selected="${form != null and form.targetType == type}"
+                            th:text="${type}"></option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>레벨
+                <select name="level">
+                    <option th:each="lvl : ${levels}"
+                            th:value="${lvl}"
+                            th:selected="${form != null and form.level == lvl}"
+                            th:text="${lvl}"></option>
+                </select>
+            </label>
+        </div>
+        <button type="submit" th:text="${courseId} != null ? '수정하기' : '만들기'"></button>
+    </form>
+
+    <p><a th:href="@{/admin/courses}">코스 관리로 돌아가기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

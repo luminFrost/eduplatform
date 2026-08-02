@@ -86,6 +86,14 @@ public class Course extends BaseTimeEntity {
         this.criteriaSource = criteriaSource;
     }
 
+    public void updateDetails(String title, String description, String emoji, MemberType targetType, EnglishLevel level) {
+        this.title = title;
+        this.description = description;
+        this.emoji = emoji;
+        this.targetType = targetType;
+        this.level = level;
+    }
+
     public boolean isPersonal() {
         return ownerId != null;
     }

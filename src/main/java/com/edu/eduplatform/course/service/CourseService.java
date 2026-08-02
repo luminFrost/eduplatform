@@ -99,6 +99,15 @@ public class CourseService {
         return CourseResponse.from(courseRepository.save(course));
     }
 
+    @Transactional
+    public CourseResponse updateCourse(Long id, CourseCreateRequest request) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new CourseNotFoundException(id));
+        course.updateDetails(request.title(), request.description(), request.emoji(), request.targetType(), request.level());
+        courseRepository.save(course);
+        return CourseResponse.from(course);
+    }
+
     /**
      * 자가 선택(SELF_SELECTED) 기준으로 개인 코스를 만든다.
      * 회원과 같은 대상·레벨의 공식 코스들에서 선택한 영역(focusAreas)에 해당하는 레슨을 그대로 복사해 담는다

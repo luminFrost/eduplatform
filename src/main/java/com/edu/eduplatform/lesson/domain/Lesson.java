@@ -52,4 +52,11 @@ public class Lesson extends BaseTimeEntity {
         this.content = content;
         this.lessonType = lessonType;
     }
+
+    public void updateDetails(String title, int orderNo, String content, LessonType lessonType) {
+        this.title = title;
+        this.orderNo = orderNo;
+        this.content = content;
+        this.lessonType = lessonType;
+    }
 }

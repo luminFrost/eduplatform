@@ -3,6 +3,7 @@ package com.edu.eduplatform.course.controller;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,18 +15,24 @@ import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
+import com.edu.eduplatform.member.domain.Member;
+import com.edu.eduplatform.member.domain.MemberRole;
 import com.edu.eduplatform.member.domain.MemberType;
+import com.edu.eduplatform.member.repository.MemberRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class CourseApiControllerTest {
+
+    private static final String RAW_PASSWORD = "password1234";
 
     @Autowired
     private MockMvc mockMvc;
@@ -39,12 +46,23 @@ class CourseApiControllerTest {
     @Autowired
     private LessonRepository lessonRepository;
 
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Test
-    void 코스등록_성공하면_201과_코스정보를_반환한다() throws Exception {
+    void 코스등록_관리자가_요청하면_201과_코스정보를_반환한다() throws Exception {
+        Member admin = memberRepository.save(Member.builder()
+                .email("course-api-admin@example.com").nickname("코스API관리자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.ADVANCED)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).role(MemberRole.ADMIN).build());
         String requestBody = objectMapper.writeValueAsString(new CreateRequest(
                 "여행 영어 실전 표현", "공항, 숙소에서 바로 쓰는 표현", MemberType.ADULT, EnglishLevel.ELEMENTARY));
 
         mockMvc.perform(post("/api/courses")
+                        .with(httpBasic(admin.getEmail(), RAW_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -54,13 +72,45 @@ class CourseApiControllerTest {
 
     @Test
     void 코스등록_제목이_비어있으면_400을_반환한다() throws Exception {
+        Member admin = memberRepository.save(Member.builder()
+                .email("course-api-admin2@example.com").nickname("코스API관리자2")
+                .memberType(MemberType.ADULT).level(EnglishLevel.ADVANCED)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).role(MemberRole.ADMIN).build());
         String requestBody = objectMapper.writeValueAsString(new CreateRequest(
                 "", "설명", MemberType.ADULT, EnglishLevel.BEGINNER));
 
         mockMvc.perform(post("/api/courses")
+                        .with(httpBasic(admin.getEmail(), RAW_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 코스등록_일반_회원이_요청하면_403을_반환한다() throws Exception {
+        Member member = memberRepository.save(Member.builder()
+                .email("course-api-member@example.com").nickname("일반회원")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+        String requestBody = objectMapper.writeValueAsString(new CreateRequest(
+                "여행 영어 실전 표현", "공항, 숙소에서 바로 쓰는 표현", MemberType.ADULT, EnglishLevel.ELEMENTARY));
+
+        mockMvc.perform(post("/api/courses")
+                        .with(httpBasic(member.getEmail(), RAW_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 코스등록_인증없이_요청하면_401을_반환한다() throws Exception {
+        String requestBody = objectMapper.writeValueAsString(new CreateRequest(
+                "여행 영어 실전 표현", "공항, 숙소에서 바로 쓰는 표현", MemberType.ADULT, EnglishLevel.ELEMENTARY));
+
+        mockMvc.perform(post("/api/courses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

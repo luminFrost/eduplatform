@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>관리자 · 코스 관리 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page page-wide">
+    <h1>코스 관리</h1>
+    <p><a th:href="@{/admin/courses/new}">+ 새 코스 만들기</a></p>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(courses)}">등록된 공식 코스가 없습니다.</p>
+
+    <div class="card-grid" th:unless="${#lists.isEmpty(courses)}">
+        <a class="card course-card" th:each="c, cStat : ${courses}"
+           th:href="@{/admin/courses/{id}(id=${c.id})}"
+           th:classappend="'accent-' + (${cStat.index} % 4)">
+            <span class="course-card-icon" th:text="${c.emoji}"></span>
+            <div class="course-card-badges">
+                <span class="badge" th:text="${c.targetType}"></span>
+                <span class="badge" th:text="${c.level}"></span>
+            </div>
+            <h3 th:text="${c.title}"></h3>
+            <p th:text="${c.description}"></p>
+            <span class="card-cta">관리하기 <span class="lesson-chevron">›</span></span>
+        </a>
+    </div>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
