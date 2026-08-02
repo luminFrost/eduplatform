@@ -254,7 +254,7 @@ class ProgressServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")
@@ -294,7 +294,7 @@ class ProgressServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")
@@ -358,7 +358,7 @@ class ProgressServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("코스").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("어휘1")

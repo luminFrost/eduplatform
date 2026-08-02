@@ -99,7 +99,7 @@ public class DailyWordService {
 
     private List<PhrasePair> collectPhrasePool(MemberResponse member) {
         Map<String, PhrasePair> pairsByEnglish = new LinkedHashMap<>();
-        List<Course> courses = courseRepository.search(member.memberType(), member.level(), null);
+        List<Course> courses = courseRepository.search(member.memberType(), member.level(), null, null);
         Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
                 .findByCourseIdIn(courses.stream().map(Course::getId).toList()).stream()
                 .collect(Collectors.groupingBy(Lesson::getCourseId));

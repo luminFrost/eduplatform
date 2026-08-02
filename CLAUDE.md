@@ -502,6 +502,29 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     현재 비밀번호로 에러 확인 → 맞는 현재 비밀번호로 변경 성공 → 같은 세션 계속 유효 확인 → 로그아웃 →
     이전 비밀번호 로그인 실패·새 비밀번호 로그인 성공까지 전부 확인.
 
+- 코스 검색 (dev 병합됨)
+  - 공식 코스가 58개로 늘어난 뒤에도 대상·레벨·영역 3개 필터만 있고 제목·설명으로 자유 검색할 방법이
+    없던 갭을 채움. `CourseRepository.search()`에 기존 `targetType`/`level`/`lessonType`과 같은
+    `(:param is null or ...)` nullable 패턴으로 4번째 `keyword` 파라미터만 추가(새 쿼리 메서드 불필요) —
+    `lower(title) like lower(concat('%',:keyword,'%')) or lower(description) like ...`로 제목·설명
+    동시 매칭, 대소문자 무관.
+  - `search()` 시그니처가 바뀌면서 호출부 6곳(`CourseService.list/buildPersonalCourse/recommendNextCourse`,
+    `ProgressService.computeSkillAreaCounts`, `LessonService.collectIconPairs`,
+    `DailyWordService.collectPhrasePool`) 전부 마지막 인자에 `null`만 추가— 필터 조합 로직 자체는 안 건드림.
+    `CourseViewController`/`CourseApiController`의 `list()`만 실제로 `keyword` 파라미터를 받아 전달.
+  - 화면: `course/list.html`의 `filter-form`에 검색 입력 추가. 레벨 경로(`level-path`)·영역 탭
+    (`skill-tabs`)의 기존 필터 링크 11개 전부에 `keyword=${selectedKeyword}`를 같이 실어, 검색어를
+    유지한 채로 다른 필터를 바꿀 수 있게 함(하나라도 빠뜨리면 그 링크를 탈 때만 검색어가 조용히 사라지는
+    버그가 생기므로 grep으로 전수 확인).
+  - 테스트: 기존 `CourseRepositoryTest`/`CourseServiceTest`/`ProgressServiceTest`/`DailyWordServiceTest`/
+    `LessonServiceTest`의 `search(...)` 호출 스텁 22곳에 4번째 인자 추가(대부분 `null`, 동작 변경 없음).
+    `CourseRepositoryTest`에 키워드 검색 신규 테스트 추가(제목/설명 부분·대소문자 무관 매칭, 필터 동시
+    적용, 매칭 없으면 빈 결과). `./gradlew build` 전체 통과 확인.
+  - curl로 실서버 검증: `GET /api/courses?keyword=...`가 제목/설명에 매칭되는 코스만 반환, 대상 필터와
+    동시 적용, `/courses` 화면에서 검색어가 `input[name=keyword]`에 유지되고 레벨 경로 링크의 href에도
+    `keyword` 쿼리 파라미터가 그대로 붙어나오는 것 확인, 매칭 없는 검색어에 "조건에 맞는 코스가
+    없습니다" 빈 상태 메시지 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

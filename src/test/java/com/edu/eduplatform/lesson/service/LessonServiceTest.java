@@ -170,8 +170,8 @@ class LessonServiceTest {
                 .content("🐘 A big elephant walks. — 큰 코끼리가 걸어요.")
                 .lessonType(LessonType.VOCAB).build(), 20L);
 
-        when(courseRepository.search(MemberType.CHILD, EnglishLevel.BEGINNER, null)).thenReturn(List.of(beginnerCourse));
-        when(courseRepository.search(MemberType.CHILD, EnglishLevel.ELEMENTARY, null)).thenReturn(List.of(elementaryCourse));
+        when(courseRepository.search(MemberType.CHILD, EnglishLevel.BEGINNER, null, null)).thenReturn(List.of(beginnerCourse));
+        when(courseRepository.search(MemberType.CHILD, EnglishLevel.ELEMENTARY, null, null)).thenReturn(List.of(elementaryCourse));
         when(lessonRepository.findByCourseIdIn(List.of(1L, 2L))).thenReturn(List.of(beginnerLesson, elementaryLesson));
         when(iconCatalog.resolveImagePath("🍎")).thenReturn("/images/openmoji/1F34E.svg");
         when(iconCatalog.resolveImagePath("🐘")).thenReturn("/images/openmoji/1F418.svg");
@@ -179,8 +179,8 @@ class LessonServiceTest {
         List<IconPair> pairs = lessonService.collectIconPairs(MemberType.CHILD);
 
         assertThat(pairs).extracting(IconPair::word).containsExactlyInAnyOrder("apple", "elephant");
-        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.ADVANCED), any());
-        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.INTERMEDIATE), any());
+        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.ADVANCED), any(), any());
+        verify(courseRepository, never()).search(eq(MemberType.CHILD), eq(EnglishLevel.INTERMEDIATE), any(), any());
     }
 
     private static Course withId(Course course, Long id) throws Exception {

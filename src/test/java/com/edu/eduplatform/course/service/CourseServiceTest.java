@@ -67,7 +67,7 @@ class CourseServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("왕초보 회화").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson = withId(Lesson.builder()
@@ -142,7 +142,7 @@ class CourseServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("왕초보 회화").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson = withId(Lesson.builder()
@@ -198,7 +198,7 @@ class CourseServiceTest {
         Course officialCourse = withId(Course.builder()
                 .title("왕초보 회화").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .thenReturn(List.of(officialCourse));
 
         Lesson vocabLesson = withId(Lesson.builder()
@@ -276,7 +276,7 @@ class CourseServiceTest {
                 .title("2번 코스").description("설명").emoji("📗")
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 101L);
         when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
-        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(current, next));
+        when(courseRepository.search(MemberType.ADULT, null, null, null)).thenReturn(List.of(current, next));
         when(progressService.isCourseFullyCompleted(1L, 101L)).thenReturn(false);
 
         var result = courseService.recommendNextCourse(1L, 100L);
@@ -297,7 +297,7 @@ class CourseServiceTest {
                 .title("3번 코스").description("설명").emoji("📙")
                 .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build(), 102L);
         when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
-        when(courseRepository.search(MemberType.ADULT, null, null))
+        when(courseRepository.search(MemberType.ADULT, null, null, null))
                 .thenReturn(List.of(current, alreadyDone, notYetDone));
         when(progressService.isCourseFullyCompleted(1L, 101L)).thenReturn(true);
         when(progressService.isCourseFullyCompleted(1L, 102L)).thenReturn(false);
@@ -314,7 +314,7 @@ class CourseServiceTest {
                 .title("마지막 코스").description("설명").emoji("📘")
                 .targetType(MemberType.ADULT).level(EnglishLevel.ADVANCED).build(), 100L);
         when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(current));
-        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(current));
+        when(courseRepository.search(MemberType.ADULT, null, null, null)).thenReturn(List.of(current));
 
         var result = courseService.recommendNextCourse(1L, 100L);
 
@@ -333,7 +333,7 @@ class CourseServiceTest {
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
         when(courseRepository.findById(200L)).thenReturn(java.util.Optional.of(personalCourse));
         // search()는 ownerId is null인 공식 코스만 반환 — personalCourse(200L)는 결과에 없다.
-        when(courseRepository.search(MemberType.ADULT, null, null)).thenReturn(List.of(officialCourse));
+        when(courseRepository.search(MemberType.ADULT, null, null, null)).thenReturn(List.of(officialCourse));
 
         var result = courseService.recommendNextCourse(1L, 200L);
 
