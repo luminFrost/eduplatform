@@ -13,6 +13,7 @@ import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
+import com.edu.eduplatform.lesson.dto.LessonSearchResultResponse;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.lesson.service.LessonService.IconPair;
 import com.edu.eduplatform.member.domain.EnglishLevel;
@@ -249,6 +250,59 @@ class LessonServiceTest {
         assertThatThrownBy(() -> lessonService.deleteLesson(999L))
                 .isInstanceOf(com.edu.eduplatform.lesson.exception.LessonNotFoundException.class);
         verify(lessonRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void searchLessons_매칭된_레슨을_코스_정보와_스니펫과_함께_반환한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("여행 영어").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build(), 100L);
+        Lesson lesson = withLessonId(Lesson.builder()
+                .courseId(100L).orderNo(1).title("1과")
+                .content("I would like a coffee, please. — 저는 커피를 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        when(lessonRepository.searchByContent("coffee")).thenReturn(List.of(lesson));
+        when(courseRepository.findAllById(List.of(100L))).thenReturn(List.of(course));
+
+        List<LessonSearchResultResponse> result = lessonService.searchLessons("coffee");
+
+        assertThat(result).hasSize(1);
+        LessonSearchResultResponse r = result.get(0);
+        assertThat(r.lessonId()).isEqualTo(10L);
+        assertThat(r.courseId()).isEqualTo(100L);
+        assertThat(r.courseTitle()).isEqualTo("여행 영어");
+        assertThat(r.snippetText()).isEqualTo("I would like a coffee, please.");
+        assertThat(r.snippetSubtext()).isEqualTo("저는 커피를 부탁드립니다.");
+    }
+
+    @Test
+    void searchLessons_한글_번역에만_키워드가_있어도_찾는다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build(), 100L);
+        Lesson lesson = withLessonId(Lesson.builder()
+                .courseId(100L).orderNo(1).title("1과")
+                .content("I need help. — 도와주세요 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build(), 10L);
+        when(lessonRepository.searchByContent("부탁")).thenReturn(List.of(lesson));
+        when(courseRepository.findAllById(List.of(100L))).thenReturn(List.of(course));
+
+        List<LessonSearchResultResponse> result = lessonService.searchLessons("부탁");
+
+        assertThat(result.get(0).snippetSubtext()).isEqualTo("도와주세요 부탁드립니다.");
+    }
+
+    @Test
+    void searchLessons_키워드가_없으면_빈_목록을_반환한다() {
+        assertThat(lessonService.searchLessons(null)).isEmpty();
+        assertThat(lessonService.searchLessons("  ")).isEmpty();
+    }
+
+    @Test
+    void searchLessons_매칭이_없으면_빈_목록을_반환한다() {
+        when(lessonRepository.searchByContent("없는단어")).thenReturn(List.of());
+
+        assertThat(lessonService.searchLessons("없는단어")).isEmpty();
     }
 
     private static Course withId(Course course, Long id) throws Exception {

@@ -66,6 +66,23 @@
         </th:block>
     </div>
 
+    <div th:if="${selectedKeyword != null and selectedKeyword != '' and not #lists.isEmpty(lessonResults)}">
+        <h2>레슨에서 찾은 결과</h2>
+        <ul class="lesson-list">
+            <li th:each="r : ${lessonResults}">
+                <a class="lesson-row" th:href="@{/lessons/{id}(id=${r.lessonId})}">
+                    <span class="lesson-text">
+                        <span class="lesson-eyebrow" th:text="${r.courseTitle}"></span>
+                        <span class="lesson-title" th:text="${r.lessonTitle}"></span>
+                        <span class="kr" th:if="${r.snippetText}"
+                              th:text="${r.snippetText} + (${r.snippetSubtext} != null ? ' — ' + ${r.snippetSubtext} : '')"></span>
+                    </span>
+                    <span class="lesson-chevron">›</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
     <p class="empty-state" th:if="${#lists.isEmpty(courses)}">조건에 맞는 코스가 없습니다.</p>
 
     <div class="card-grid" th:unless="${#lists.isEmpty(courses)}">
