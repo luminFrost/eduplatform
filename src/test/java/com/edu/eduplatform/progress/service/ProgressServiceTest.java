@@ -439,6 +439,7 @@ class ProgressServiceTest {
         assertThat(summary.completedLessons()).isEqualTo(3);
         assertThat(summary.coursesInProgress()).isEqualTo(2);
         assertThat(summary.overallPercentage()).isEqualTo(75);
+        assertThat(summary.currentStreak()).isEqualTo(1);
     }
 
     @Test
@@ -450,6 +451,54 @@ class ProgressServiceTest {
         assertThat(summary.completedLessons()).isEqualTo(0);
         assertThat(summary.coursesInProgress()).isEqualTo(0);
         assertThat(summary.overallPercentage()).isEqualTo(0);
+        assertThat(summary.currentStreak()).isEqualTo(0);
+    }
+
+    @Test
+    void getCurrentStreak_오늘까지_연속으로_학습했으면_연속_일수를_반환한다() throws Exception {
+        LearningProgress today = withCompletedAt(newCompleted(10L), LocalDateTime.now());
+        LearningProgress yesterday = withCompletedAt(newCompleted(11L), LocalDateTime.now().minusDays(1));
+        LearningProgress twoDaysAgo = withCompletedAt(newCompleted(12L), LocalDateTime.now().minusDays(2));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(today, yesterday, twoDaysAgo));
+
+        assertThat(progressService.getCurrentStreak(1L)).isEqualTo(3);
+    }
+
+    @Test
+    void getCurrentStreak_오늘_안_했어도_어제까지_이어져_있으면_유지된다() throws Exception {
+        LearningProgress yesterday = withCompletedAt(newCompleted(10L), LocalDateTime.now().minusDays(1));
+        LearningProgress twoDaysAgo = withCompletedAt(newCompleted(11L), LocalDateTime.now().minusDays(2));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(yesterday, twoDaysAgo));
+
+        assertThat(progressService.getCurrentStreak(1L)).isEqualTo(2);
+    }
+
+    @Test
+    void getCurrentStreak_어제_오늘_공백이면_끊긴_것으로_본다() throws Exception {
+        LearningProgress threeDaysAgo = withCompletedAt(newCompleted(10L), LocalDateTime.now().minusDays(3));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(threeDaysAgo));
+
+        assertThat(progressService.getCurrentStreak(1L)).isEqualTo(0);
+    }
+
+    @Test
+    void getCurrentStreak_기록이_없으면_0을_반환한다() {
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        assertThat(progressService.getCurrentStreak(1L)).isEqualTo(0);
+    }
+
+    private static LearningProgress newCompleted(Long lessonId) {
+        LearningProgress progress = LearningProgress.builder().memberId(1L).lessonId(lessonId).build();
+        progress.complete();
+        return progress;
+    }
+
+    private static LearningProgress withCompletedAt(LearningProgress progress, LocalDateTime completedAt) throws Exception {
+        Field field = LearningProgress.class.getDeclaredField("completedAt");
+        field.setAccessible(true);
+        field.set(progress, completedAt);
+        return progress;
     }
 
     private static <T> T withId(T entity, Long id) throws Exception {

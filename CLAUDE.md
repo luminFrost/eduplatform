@@ -552,6 +552,32 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     레슨엔 마이크 버튼이 아예 렌더링 안 되는 것도 확인(`document.querySelectorAll('[data-check-text]')`
     로 개수 0 검증), 콘솔 에러 없음 확인.
 
+- 학습 스트릭(연속 학습일) 추적 (dev 병합됨)
+  - "매일매일 단어장/그림 퀴즈" 기능 때 "새 추적 데이터 필요해서 stateless 원칙 벗어남"이라며 범위에서
+    뺐던 항목("나중에 원하면 별도로 설계"로 남겨뒀던 것) — 다시 보니 `LearningProgress.completedAt`이
+    이미 레슨 완료 시각을 저장하고 있어서 **새 테이블 없이** 날짜 단위로 묶기만 하면 계산 가능함을 확인.
+  - `ProgressService.getCurrentStreak(memberId)` 신규 — `findByMemberId` 결과에서 완료된 항목의
+    `completedAt`을 `LocalDate`로 묶어 오늘부터 거꾸로 훑으며 연속 일수를 셈. 오늘 아직 학습을 안 했어도
+    어제까지 이어져 있으면 스트릭이 살아있는 것으로 보는 하루 유예(`STREAK_GRACE_PERIOD_DAYS`)를 둠 —
+    그렇지 않으면 자정 넘어가는 순간 스트릭이 매번 리셋되는 것처럼 보여 사용자 경험이 나쁨.
+  - `DashboardSummaryResponse`에 `currentStreak` 필드 추가, `getDashboardSummary()`가 함께 계산해
+    반환. 마이페이지 `.stat-tile-row`(기존 3개: 완료 레슨/학습 중인 코스/전체 진도율)에 4번째 타일로
+    노출 — `grid-template-columns: repeat(auto-fit, minmax(150px, 1fr))`라 새 CSS 없이 자동 배치.
+    0보다 크면 🔥 이모지를 붙임.
+  - 스트릭 최고 기록·알림·프리즈(연속 유지권) 같은 게임화 장치는 전부 새 상태가 필요해 범위 제외 —
+    "현재 스트릭"만 stateless로 즉석 계산.
+  - 테스트: `ProgressServiceTest`에 `getCurrentStreak` 4개(연속 3일, 오늘 공백이어도 어제까지면 유지,
+    어제·오늘 둘 다 공백이면 끊김, 기록 없음) — `completedAt`을 과거 날짜로 만들기 위해 리플렉션 기반
+    `withCompletedAt` 헬퍼 신규 추가(먼저 `complete()`로 completed=true를 만든 뒤 시각만 덮어씀).
+    기존 `getDashboardSummary_*` 2개에 `currentStreak` 단언 추가(레코드 필드 추가라 하위 호환, 기존
+    스텁 재사용 가능해 추가 스텁 불필요).
+  - curl 실서버 검증 중 시행착오: 회원가입 폼의 CSRF hidden input이 (Security 도입 때 이미 문서화해둔
+    대로) 자동 주입 값과 수동 입력 값 2개가 나란히 렌더링되는데, `grep -o '_csrf...'`가 둘을 이어붙여
+    깨진 토큰을 만드는 바람에 첫 두 번의 가입 시도가 403으로 실패 — `head -1`로 첫 번째 값만 골라
+    해결. 레슨 완료도 VOCAB 레슨에 퀴즈 게이트가 걸려 있어 무작정 완료 POST가 200(미완료)으로 되돌아옴을
+    보고 4개 보기를 브루트포스로 순회해 정답을 찾은 뒤에야 완료(302) 확인 — 이후 `/my`에서 "1 🔥"로
+    정확히 반영되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
