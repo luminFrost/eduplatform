@@ -952,6 +952,35 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     중입니다.")과 함께 뜨는 것 확인 → 클릭하면 실제 그 레슨(`/lessons/240`)으로 바로 이동하는 것
     확인 → 매칭 없는 검색어는 기존처럼 빈 상태 메시지 그대로인 것(회귀 없음) 확인.
 
+- 로그인 시도 제한(무차별 대입 방지) (dev 병합됨)
+  - 지금까지 비밀번호를 몇 번 틀려도 아무 제한이 없었음 — 관리자 계정 이메일(`admin@eduplatform.com`)이
+    CLAUDE.md에 공개돼 있어 같은 위험에 노출돼 있던 상태였음. 이메일별로 로그인 실패 횟수를 추적해
+    5회 연속 실패하면 15분간 잠그는 기본 방어선 추가.
+  - **SecurityConfig를 전혀 안 건드림** — Spring Security의 `ProviderManager`가 인증 성공/실패마다
+    자동으로 발행하는 `AuthenticationFailureBadCredentialsEvent`/`AuthenticationSuccessEvent`를
+    `@EventListener`로 구독하는 신규 `LoginAttemptService`(인메모리 `ConcurrentHashMap`, H2도
+    인메모리로 쓰는 이 프로젝트 규모에 맞춘 단순함 — Redis 등 외부 저장소는 과함)만 추가하고,
+    `MemberUserDetailsService.loadUserByUsername()`이 회원 조회 직후 `isLocked()`를 확인해
+    `LockedException`을 던지는 식으로 끝 — Spring Security의 `DaoAuthenticationProvider`가 비밀번호
+    검증 자체를 하기 전에 인증을 막아준다.
+  - `UsernameNotFoundException`도 기본 설정(`hideUserNotFoundExceptions=true`)에선
+    `AuthenticationFailureBadCredentialsEvent`로 통일 발행돼서, "존재하지 않는 이메일"과 "틀린
+    비밀번호"가 구분 없이 똑같이 실패로 집계됨(사용자 열거 공격 방지 원칙과도 자연스럽게 맞음).
+  - **잠긴 상태를 화면에 노출하지 않기로 의도적으로 결정** — `LoginViewController`가 `?error` 유무만
+    보고 항상 같은 고정 문구를 보여주는데, `LockedException`도 같은 `/login?error` 경로를 타므로
+    "지금 막 잠겼다"는 신호를 공격자에게 안 주게 됨(표준적인 관행). 대신 로그인 폼에 정책 자체(몇 번
+    틀리면 얼마나 잠기는지)는 고정 안내 문구로 미리 알려줌.
+  - **알려진 트레이드오프를 정직하게 문서화**: 계정 잠금 방식 자체가 "공격자가 남의 이메일만 알면
+    일부러 틀린 비밀번호로 그 계정을 잠가버리는" DoS에 열려 있음 — IP 기반 제한을 같이 걸면 완화되지만
+    이번엔 범위 제외(이 프로젝트 규모에서 과한 방어).
+  - 테스트: 신규 `LoginAttemptServiceTest`(7개 — 잠김/안 잠김 경계, 성공 시 초기화, 이메일 대소문자
+    무관, `forceState`로 실제 시간 대기 없이 잠금 만료 검증), 신규 `MemberUserDetailsServiceTest`(정상
+    반환, 존재하지 않는 회원, 잠긴 계정은 `LockedException`).
+  - curl 실서버 종단 검증: 테스트 계정에 일부러 틀린 비밀번호 5회 연속 제출 → **맞는 비밀번호로
+    6번째 시도해도 여전히 `/login?error`로 리다이렉트되는 것 확인**(화면 메시지는 의도적으로 동일해서
+    이 방식으로만 잠금 여부를 확인할 수 있음) → 완전히 다른 계정(`admin@eduplatform.com`)은 영향
+    없이 정상 로그인되는 것 확인(잠금이 계정별로 격리됨을 증명).
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
