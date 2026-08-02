@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>관리자 · 문항 관리 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page page-wide">
+    <h1>문항 관리</h1>
+    <p><a th:href="@{/admin/courses}">← 코스 관리로</a> · <a th:href="@{/admin/questions/new}">+ 새 문항 만들기</a></p>
+
+    <form class="filter-form" th:action="@{/admin/questions}" method="get">
+        <div>
+            <label>대상</label>
+            <select name="target">
+                <option value="" th:selected="${selectedTarget == null or selectedTarget == ''}">전체</option>
+                <option th:each="type : ${memberTypes}"
+                        th:value="${type}"
+                        th:selected="${selectedTarget == type.name()}"
+                        th:text="${type}"></option>
+            </select>
+        </div>
+        <div>
+            <label>레벨</label>
+            <select name="level">
+                <option value="" th:selected="${selectedLevel == null or selectedLevel == ''}">전체</option>
+                <option th:each="lvl : ${levels}"
+                        th:value="${lvl}"
+                        th:selected="${selectedLevel == lvl.name()}"
+                        th:text="${lvl}"></option>
+            </select>
+        </div>
+        <div>
+            <label>영역</label>
+            <select name="type">
+                <option value="" th:selected="${selectedType == null or selectedType == ''}">전체</option>
+                <option th:each="t : ${lessonTypes}"
+                        th:value="${t}"
+                        th:selected="${selectedType == t.name()}"
+                        th:text="${t}"></option>
+            </select>
+        </div>
+        <button type="submit">필터 적용</button>
+    </form>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(questions)}">조건에 맞는 문항이 없습니다.</p>
+
+    <ul class="lesson-list" th:unless="${#lists.isEmpty(questions)}">
+        <li th:each="q : ${questions}">
+            <div class="lesson-row">
+                <span class="lesson-text">
+                    <span class="lesson-eyebrow" th:text="${q.targetType} + ' · ' + ${q.level} + ' · ' + ${q.lessonType}"></span>
+                    <span class="lesson-title" th:text="${q.prompt}"></span>
+                </span>
+                <a th:href="@{/admin/questions/{id}/edit(id=${q.id})}">수정</a>
+                <form th:action="@{/admin/questions/{id}/delete(id=${q.id})}" method="post" class="lesson-delete-form">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit">삭제</button>
+                </form>
+            </div>
+        </li>
+    </ul>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

@@ -2,14 +2,20 @@ package com.edu.eduplatform.question.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.question.domain.Question;
+import com.edu.eduplatform.question.dto.QuestionAdminRequest;
+import com.edu.eduplatform.question.dto.QuestionAdminResponse;
 import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
+import com.edu.eduplatform.question.exception.QuestionNotFoundException;
 import com.edu.eduplatform.question.repository.QuestionRepository;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -182,6 +188,82 @@ class QuestionServiceTest {
                 .options(List.of("A", "B", "C", "D"))
                 .correctOptionIndex(correctOptionIndex)
                 .build();
+    }
+
+    @Test
+    void getAllQuestions_필터_없이_전체를_반환한다() throws Exception {
+        Question q1 = withId(question(LessonType.VOCAB, 0), 1L);
+        Question q2 = withId(question(LessonType.READING, 1), 2L);
+        when(questionRepository.findAll()).thenReturn(List.of(q1, q2));
+
+        List<QuestionAdminResponse> result = questionService.getAllQuestions();
+
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(QuestionAdminResponse::id).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void createQuestion_요청대로_문항을_저장한다() {
+        var request = new QuestionAdminRequest(
+                MemberType.ADULT, EnglishLevel.BEGINNER, LessonType.VOCAB, "새 문제",
+                null, "보기1", "보기2", "보기3", "보기4", 2);
+
+        questionService.createQuestion(request);
+
+        org.mockito.ArgumentCaptor<Question> captor = org.mockito.ArgumentCaptor.forClass(Question.class);
+        verify(questionRepository).save(captor.capture());
+        assertThat(captor.getValue().getPrompt()).isEqualTo("새 문제");
+        assertThat(captor.getValue().getOptions()).containsExactly("보기1", "보기2", "보기3", "보기4");
+        assertThat(captor.getValue().getCorrectOptionIndex()).isEqualTo(2);
+    }
+
+    @Test
+    void updateQuestion_존재하는_문항이면_내용을_수정한다() throws Exception {
+        Question question = withId(question(LessonType.VOCAB, 0), 1L);
+        when(questionRepository.findById(1L)).thenReturn(java.util.Optional.of(question));
+        var request = new QuestionAdminRequest(
+                MemberType.CHILD, EnglishLevel.ADVANCED, LessonType.WRITING, "수정된 문제",
+                "audio text", "새보기1", "새보기2", "새보기3", "새보기4", 3);
+
+        questionService.updateQuestion(1L, request);
+
+        assertThat(question.getPrompt()).isEqualTo("수정된 문제");
+        assertThat(question.getTargetType()).isEqualTo(MemberType.CHILD);
+        assertThat(question.getLevel()).isEqualTo(EnglishLevel.ADVANCED);
+        assertThat(question.getLessonType()).isEqualTo(LessonType.WRITING);
+        assertThat(question.getAudioText()).isEqualTo("audio text");
+        assertThat(question.getOptions()).containsExactly("새보기1", "새보기2", "새보기3", "새보기4");
+        assertThat(question.getCorrectOptionIndex()).isEqualTo(3);
+        verify(questionRepository).save(question);
+    }
+
+    @Test
+    void updateQuestion_존재하지_않는_문항이면_예외를_던진다() {
+        when(questionRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        var request = new QuestionAdminRequest(
+                MemberType.ADULT, EnglishLevel.BEGINNER, LessonType.VOCAB, "문제",
+                null, "1", "2", "3", "4", 0);
+
+        assertThatThrownBy(() -> questionService.updateQuestion(999L, request))
+                .isInstanceOf(QuestionNotFoundException.class);
+    }
+
+    @Test
+    void deleteQuestion_존재하는_문항이면_삭제한다() {
+        when(questionRepository.existsById(1L)).thenReturn(true);
+
+        questionService.deleteQuestion(1L);
+
+        verify(questionRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteQuestion_존재하지_않는_문항이면_예외를_던진다() {
+        when(questionRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> questionService.deleteQuestion(999L))
+                .isInstanceOf(QuestionNotFoundException.class);
+        verify(questionRepository, never()).deleteById(any());
     }
 
     private static Question withId(Question question, Long id) throws Exception {

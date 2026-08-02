@@ -82,4 +82,15 @@ public class Question extends BaseTimeEntity {
         this.options = options != null ? options : new ArrayList<>();
         this.correctOptionIndex = correctOptionIndex;
     }
+
+    public void updateDetails(MemberType targetType, EnglishLevel level, LessonType lessonType,
+                               String prompt, String audioText, List<String> options, int correctOptionIndex) {
+        this.targetType = targetType;
+        this.level = level;
+        this.lessonType = lessonType;
+        this.prompt = prompt;
+        this.audioText = audioText;
+        this.options = new ArrayList<>(options);
+        this.correctOptionIndex = correctOptionIndex;
+    }
 }
