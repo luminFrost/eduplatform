@@ -639,6 +639,54 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     월화수목금토일로 오늘(일)이 맨 끝에 오는 것 확인. 500px 모바일 폭에서 7칸이 줄바꿈 없이 들어가고
     페이지 전체 가로 스크롤도 없는 것(`scrollWidth === clientWidth`) 확인.
 
+- 다크모드 (dev 병합됨)
+  - 대부분의 색을 이미 `:root`의 CSS 커스텀 프로퍼티 9개로 관리하고 있었다는 걸 확인 — 하드코딩된 hex
+    39곳을 전수 확인해 실제로 다크 대응이 필요한 건 셋뿐이라고 판단(html/body 배경 그라디언트,
+    `.error-message`/`.speech-result.incorrect`의 빨강, `button:disabled`의 회색). 새 시맨틱 변수
+    3개(`--color-danger`/`--color-disabled-bg`/`--color-disabled-text`) 추가 후 이 셋을 변수로 치환.
+    나머지 뱃지·영역 태그·플래시카드 이미지 밴드 등은 자기 배경+자기 글자색을 다 가진 "자기 완결적
+    파스텔 칩"이라 페이지 테마와 무관하게 그대로 잘 보인다고 보고 범위에서 뺌.
+  - `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])`(시스템 설정 자동 반영)과
+    `:root[data-theme="dark"]`(수동 토글, 시스템 설정보다 우선) 두 선택자에 같은 다크 값을 나란히 선언.
+    `html`/`body`의 배경 그라디언트도 같은 패턴으로 다크 버전 추가.
+  - 신규 `static/js/theme-toggle.js` — `lesson-audio.js`와 같은 이벤트 위임 스타일(전역
+    `document.addEventListener('click', ...)`), `localStorage.theme`에 저장하고 `<html>`의
+    `data-theme` 속성을 토글. `SecurityConfig`가 이미 `/js/**`를 permitAll로 열어둬서 시큐리티 설정
+    변경 불필요. 헤더(`fragments/layout.html`)에 🌙/☀️ 토글 버튼 + 스크립트 태그 추가 —
+    `header`/`footer` 프래그먼트가 모든 페이지에 공유되는 구조 덕분에 지난 뷰포트 메타 태그 작업과
+    달리 17개 템플릿을 안 건드리고 이 파일 하나로 끝남. FOUC(전환 시 깜빡임) 완전 제거는 17개
+    템플릿 `<head>`에 인라인 스크립트가 필요해 과한 엔지니어링으로 판단하고 범위에서 뺌 — 시스템
+    다크 모드 자동 적용 자체는 순수 CSS 미디어 쿼리만으로 되므로 이 트레이드오프의 영향은 "수동
+    토글 직후 새로고침할 때"로 한정됨.
+  - **버그 1(구현 중 발견)**: 처음엔 `<script>` 태그를 `</header>` 바로 뒤, `th:fragment="header"`가
+    붙은 `<header>` 엘리먼트의 형제로 넣었다가 완전히 렌더링에서 빠지는 걸 발견 — Thymeleaf의
+    `th:replace="~{fragments/layout :: header}"`는 `th:fragment` 속성이 붙은 엘리먼트 "자기 자신과
+    그 자손"만 선택하지, 형제 엘리먼트는 프래그먼트에 포함되지 않는다. `<script>`를 `<header>` 내부
+    (`</nav>` 뒤, `</header>` 앞)로 옮겨 자손이 되게 해서 해결 — curl로 응답 HTML에 스크립트 태그가
+    실제로 나오는지 확인하며 잡음.
+  - **버그 2(실브라우저 검증 중 발견)**: `.badge`/`.level-pill`이 배경은 `var(--color-primary-light)`
+    (다크 모드에서 남색으로 바뀜)를 쓰면서 글자색은 `#3730a3`(진보라)를 하드코딩하고 있어서, 다크
+    모드에서 남색 배경 위에 진보라 글자가 겹쳐 거의 안 보이는 대비 사고가 날 뻔했음. `.personal-course-
+    badge`도 배경은 `var(--color-accent-light)`, 글자는 `#065f46`(진녹) 하드코딩으로 같은 문제.
+    처음 계획에서 "자기 완결적 파스텔 칩이라 안전하다"고 판단했던 게 틀렸던 경우 — 실제로는 배경만
+    변수화돼 있고 글자색은 하드코딩인 "반쪽짜리" 칩이었음. `--color-badge-text`/`--color-badge-
+    accent-text` 시맨틱 변수 신규 추가(라이트: 기존 값 그대로, 다크: 밝은 인디고/민트로) 후 세 곳
+    전부 치환해 해결. **교훈**: `var(--color-*-light)`를 배경으로 쓰는 곳은 전부 grep으로 찾아
+    글자색도 변수인지 하나씩 확인해야 한다 — "칩처럼 보이는 것"과 "실제로 자기 완결적인 것"은 다름.
+  - **자동화 환경 이슈(버그 아님)**: claude-in-chrome의 `screenshot`/`find` 도구가 이 세션에서 계속
+    타임아웃(확장 프로그램 자체의 메시지 채널 노이즈로 추정, 콘솔에 찍히는
+    "message channel closed" 예외와 함께). `javascript_tool`로 `.click()`/`dispatchEvent`를 쏴도
+    실제 페이지 스크립트의 `document.addEventListener('click', ...)` 리스너까지 이벤트가 전달되지
+    않는 것도 확인(진단용 리스너로 재현) — 기존 메모리에 적어둔 "claude-in-chrome 클릭/타이핑 불안정"
+    문제의 연장선. 우회: 토글 버튼 클릭을 시뮬레이션하는 대신 `document.documentElement.setAttribute
+    ('data-theme','dark')`/`localStorage.setItem('theme','dark')`를 직접 호출해 하위 로직(CSS 변수
+    적용, localStorage 기반 유지)만 골라 검증 — 클릭 핸들러 자체의 등록 여부는 코드 리뷰로 신뢰(기존
+    검증된 `lesson-audio.js`와 동일한 패턴).
+  - curl+claude-in-chrome 실서버 검증: 다크 속성 적용 시 카드/뱃지/헤더/네비 전부 `getComputedStyle`로
+    올바른 다크 변수 값이 적용되는지 확인, `localStorage`에 저장된 테마가 페이지 이동 후에도 유지되는지
+    (새 페이지 로드 시 스크립트가 `data-theme` 재적용) 확인, 개인 코스를 실제로 만들어
+    `.personal-course-badge`가 새 변수로 올바르게 렌더링되는지 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

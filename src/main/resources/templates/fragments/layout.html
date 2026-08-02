@@ -13,7 +13,9 @@
             </form>
             <a th:href="@{/login}" sec:authorize="isAnonymous()">로그인</a>
             <a th:href="@{/members/new}" sec:authorize="isAnonymous()">회원가입</a>
+            <button type="button" id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환">🌙</button>
         </nav>
+        <script th:src="@{/js/theme-toggle.js}" defer></script>
     </header>
 
     <footer class="site-footer" th:fragment="footer">
