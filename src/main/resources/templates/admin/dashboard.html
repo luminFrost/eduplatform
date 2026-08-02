@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>관리자 · 콘텐츠 커버리지 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page page-wide">
+    <h1>콘텐츠 커버리지</h1>
+    <p><a th:href="@{/admin/courses}">코스 관리 →</a> · <a th:href="@{/admin/questions}">문항 관리 →</a></p>
+    <p class="empty-state">대상·레벨 조합마다 영역별 레슨·문항 수를 보여줍니다. 0인 칸은 강조 표시됩니다.</p>
+
+    <h2>레슨 수</h2>
+    <div class="table-scroll">
+    <table class="coverage-table">
+        <thead>
+        <tr>
+            <th>대상 · 레벨</th>
+            <th th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+                <span th:case="'VOCAB'">어휘</span>
+                <span th:case="'READING'">읽기</span>
+                <span th:case="'WRITING'">쓰기</span>
+                <span th:case="'LISTENING'">듣기</span>
+                <span th:case="'SPEAKING'">말하기</span>
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${rows}">
+            <td th:text="${row.targetType} + ' · ' + ${row.level}"></td>
+            <td th:each="t : ${lessonTypes}"
+                th:text="${row.lessonCountByType.get(t) != null ? row.lessonCountByType.get(t) : 0}"
+                th:classappend="${row.lessonCountByType.get(t) == null or row.lessonCountByType.get(t) == 0} ? 'zero' : ''"></td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h2>문항 수</h2>
+    <div class="table-scroll">
+    <table class="coverage-table">
+        <thead>
+        <tr>
+            <th>대상 · 레벨</th>
+            <th th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+                <span th:case="'VOCAB'">어휘</span>
+                <span th:case="'READING'">읽기</span>
+                <span th:case="'WRITING'">쓰기</span>
+                <span th:case="'LISTENING'">듣기</span>
+                <span th:case="'SPEAKING'">말하기</span>
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${rows}">
+            <td th:text="${row.targetType} + ' · ' + ${row.level}"></td>
+            <td th:each="t : ${lessonTypes}"
+                th:text="${row.questionCountByType.get(t) != null ? row.questionCountByType.get(t) : 0}"
+                th:classappend="${row.questionCountByType.get(t) == null or row.questionCountByType.get(t) == 0} ? 'zero' : ''"></td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
