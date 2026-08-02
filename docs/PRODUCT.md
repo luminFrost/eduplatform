@@ -99,6 +99,9 @@ BEGINNER(입문) → ELEMENTARY(초급) → INTERMEDIATE(중급) → ADVANCED(�
 
 ## 7. 열린 질문 (추후 결정)
 
-- 레벨 판정: 가입 시 자가 선택 vs 간단한 레벨 테스트?
-- 오디오 소스: 자체 녹음 vs TTS(음성합성)?
-- 말하기 평가: 발음 점수화 범위와 방식?
+- ~~레벨 판정: 가입 시 자가 선택 vs 간단한 레벨 테스트?~~ → 둘 다 제공(자가 선택 + `/members/new/level-test`
+  간단 배치 테스트). CLAUDE.md "회원가입 시 레벨 배치 테스트" 참고.
+- ~~오디오 소스: 자체 녹음 vs TTS(음성합성)?~~ → 브라우저 내장 `speechSynthesis`(TTS)로 결정. CLAUDE.md
+  "듣기·말하기 콘텐츠 착수" 참고.
+- ~~말하기 평가: 발음 점수화 범위와 방식?~~ → 점수화 없이 브라우저 `SpeechRecognition`으로 인식한 텍스트를
+  목표 문장과 정규화 후 완전 일치로만 비교(정답/오답 이분법). CLAUDE.md "실제 음성인식 SPEAKING" 참고.
