@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page page-wide">
+    <main id="main-content" class="page page-wide">
     <h1>콘텐츠 커버리지</h1>
     <p><a th:href="@{/admin/courses}">코스 관리 →</a> · <a th:href="@{/admin/questions}">문항 관리 →</a></p>
     <p class="empty-state">대상·레벨 조합마다 영역별 레슨·문항 수를 보여줍니다. 0인 칸은 강조 표시됩니다.</p>
@@ -19,8 +19,8 @@
     <table class="coverage-table">
         <thead>
         <tr>
-            <th>대상 · 레벨</th>
-            <th th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+            <th scope="col">대상 · 레벨</th>
+            <th scope="col" th:each="t : ${lessonTypes}" th:switch="${t.name()}">
                 <span th:case="'VOCAB'">어휘</span>
                 <span th:case="'READING'">읽기</span>
                 <span th:case="'WRITING'">쓰기</span>
@@ -45,8 +45,8 @@
     <table class="coverage-table">
         <thead>
         <tr>
-            <th>대상 · 레벨</th>
-            <th th:each="t : ${lessonTypes}" th:switch="${t.name()}">
+            <th scope="col">대상 · 레벨</th>
+            <th scope="col" th:each="t : ${lessonTypes}" th:switch="${t.name()}">
                 <span th:case="'VOCAB'">어휘</span>
                 <span th:case="'READING'">읽기</span>
                 <span th:case="'WRITING'">쓰기</span>

@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <h1 th:text="${member.nickname} + '님의 학습 현황'"></h1>
     <p><a th:href="@{/my/profile}">프로필 수정 →</a></p>
 
