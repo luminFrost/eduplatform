@@ -26,6 +26,7 @@
     </form>
 
     <p><a th:href="@{/members/new}">계정이 없으신가요? 가입하기</a></p>
+    <p class="empty-state">비밀번호를 5회 연속 틀리면 15분간 로그인이 제한됩니다.</p>
     </main>
     <div th:replace="~{fragments/layout :: footer}"></div>
 </body>
