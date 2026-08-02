@@ -7,15 +7,19 @@ import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.Member;
+import com.edu.eduplatform.member.domain.MemberRole;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberCreateRequest;
+import com.edu.eduplatform.member.dto.MemberAdminResponse;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
+import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -107,6 +111,58 @@ class MemberServiceTest {
         when(memberRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> memberService.changePassword(999L, new PasswordChangeRequest("a", "newPassword1")))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+
+    @Test
+    void listMembers_키워드가_없으면_전체를_id_오름차순으로_반환한다() throws Exception {
+        Member m2 = withId(Member.builder()
+                .email("b@example.com").nickname("두번째")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("hashed").build(), 2L);
+        Member m1 = withId(Member.builder()
+                .email("a@example.com").nickname("첫번째")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("hashed").build(), 1L);
+        when(memberRepository.findAll()).thenReturn(List.of(m2, m1));
+
+        List<MemberAdminResponse> result = memberService.listMembers(null);
+
+        assertThat(result).extracting(MemberAdminResponse::id).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void listMembers_키워드가_있으면_이메일_닉네임으로_검색한다() {
+        when(memberRepository.findByEmailContainingIgnoreCaseOrNicknameContainingIgnoreCase("루나", "루나"))
+                .thenReturn(List.of());
+
+        memberService.listMembers("루나");
+
+        org.mockito.Mockito.verify(memberRepository)
+                .findByEmailContainingIgnoreCaseOrNicknameContainingIgnoreCase("루나", "루나");
+    }
+
+    @Test
+    void changeRole_정상적으로_역할을_바꾼다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("a@example.com").nickname("테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("hashed").build(), 2L);
+        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
+
+        memberService.changeRole(2L, 1L, MemberRole.ADMIN);
+
+        assertThat(member.getRole()).isEqualTo(MemberRole.ADMIN);
+    }
+
+    @Test
+    void changeRole_자기_자신이면_예외를_던진다() {
+        assertThatThrownBy(() -> memberService.changeRole(1L, 1L, MemberRole.ADMIN))
+                .isInstanceOf(CannotChangeSelfRoleException.class);
+    }
+
+    @Test
+    void changeRole_존재하지_않는_회원이면_예외를_던진다() {
+        when(memberRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> memberService.changeRole(999L, 1L, MemberRole.ADMIN))
                 .isInstanceOf(MemberNotFoundException.class);
     }
 
