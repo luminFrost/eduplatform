@@ -10,6 +10,7 @@ import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.ContentLine;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LessonQuiz;
 import com.edu.eduplatform.lesson.dto.LessonDetailResponse.LineType;
+import com.edu.eduplatform.lesson.dto.LessonSearchResultResponse;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
@@ -29,6 +30,7 @@ import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +51,43 @@ public class LessonService {
                         imageFor(firstContentIcon(lesson.getContent()))
                 ))
                 .toList();
+    }
+
+    /**
+     * 코스 검색(키워드)이 제목·설명뿐 아니라 레슨 내용까지 넓어질 때, 매칭된 레슨으로 바로 이동할 수 있게
+     * 코스 정보와 매칭 줄(스니펫)을 함께 반환한다. 새 파싱 규칙 없이 기존 {@link #parseContent}를 재사용.
+     */
+    public List<LessonSearchResultResponse> searchLessons(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        List<Lesson> lessons = lessonRepository.searchByContent(keyword);
+        if (lessons.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Course> coursesById = courseRepository
+                .findAllById(lessons.stream().map(Lesson::getCourseId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course));
+
+        return lessons.stream()
+                .map(lesson -> {
+                    ContentLine match = findMatchingLine(parseContent(lesson.getContent()), keyword);
+                    Course course = coursesById.get(lesson.getCourseId());
+                    return new LessonSearchResultResponse(
+                            lesson.getId(), lesson.getTitle(), course.getId(), course.getTitle(),
+                            match != null ? match.text() : null, match != null ? match.subtext() : null);
+                })
+                .toList();
+    }
+
+    private static ContentLine findMatchingLine(List<ContentLine> lines, String keyword) {
+        String lower = keyword.toLowerCase();
+        return lines.stream()
+                .filter(line -> (line.text() != null && line.text().toLowerCase().contains(lower))
+                        || (line.subtext() != null && line.subtext().toLowerCase().contains(lower)))
+                .findFirst()
+                .orElse(null);
     }
 
     /** 관리자 수정 폼용 — 파싱된 카드가 아니라 원본 콘텐츠 문자열 그대로 반환한다. */

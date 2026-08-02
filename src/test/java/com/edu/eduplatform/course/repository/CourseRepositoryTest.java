@@ -114,4 +114,19 @@ class CourseRepositoryTest {
                 .extracting(Course::getId)
                 .containsExactly(second.getId(), first.getId());
     }
+
+    @Test
+    void search_키워드가_제목_설명엔_없어도_레슨_내용에_있으면_코스를_반환한다() {
+        Course course = courseRepository.save(Course.builder()
+                .title("여행 영어").description("공항, 숙소에서 바로 쓰는 표현")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build());
+        lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("1과")
+                .content("I would like a coffee, please. — 저는 커피를 부탁드립니다.")
+                .lessonType(LessonType.VOCAB).build());
+
+        assertThat(courseRepository.search(null, null, null, "coffee"))
+                .extracting(Course::getTitle)
+                .containsExactly("여행 영어");
+    }
 }

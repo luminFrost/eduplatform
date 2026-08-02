@@ -20,7 +20,10 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
                   select l.courseId from Lesson l where l.lessonType = :lessonType
               ))
               and (:keyword is null or lower(c.title) like lower(concat('%', :keyword, '%'))
-                   or lower(c.description) like lower(concat('%', :keyword, '%')))
+                   or lower(c.description) like lower(concat('%', :keyword, '%'))
+                   or c.id in (
+                       select l.courseId from Lesson l where lower(cast(l.content as string)) like lower(concat('%', :keyword, '%'))
+                   ))
             order by c.id asc
             """)
     List<Course> search(

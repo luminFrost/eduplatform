@@ -53,6 +53,7 @@ public class CourseViewController {
         String keywordFilter = StringUtils.hasText(keyword) ? keyword.strip() : null;
 
         model.addAttribute("courses", courseService.list(targetType, levelFilter, typeFilter, keywordFilter));
+        model.addAttribute("lessonResults", lessonService.searchLessons(keywordFilter));
         model.addAttribute("memberTypes", MemberType.values());
         model.addAttribute("lessonTypes", LessonType.values());
         model.addAttribute("selectedTarget", target);
