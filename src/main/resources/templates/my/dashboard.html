@@ -32,6 +32,17 @@
         </div>
     </div>
 
+    <h2>최근 7일 학습 활동</h2>
+    <div class="activity-heatmap">
+        <div class="activity-cell" th:each="d : ${weeklyActivity}">
+            <span class="activity-cell-label" th:text="${d.dayLabel}"></span>
+            <span class="activity-cell-box"
+                  th:classappend="'level-' + (${d.completedCount} == 0 ? 0 : (${d.completedCount} <= 1 ? 1 : (${d.completedCount} <= 3 ? 2 : (${d.completedCount} <= 5 ? 3 : 4))))"
+                  th:title="${d.date} + ' · ' + ${d.completedCount} + '개 완료'"></span>
+            <span class="activity-cell-count" th:text="${d.completedCount}"></span>
+        </div>
+    </div>
+
     <p><a th:href="@{/my/daily}">오늘의 단어 보러가기 →</a></p>
     <p><a th:href="@{/my/review}">복습할 레슨 보기 →</a></p>
 

@@ -22,12 +22,14 @@ import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
+import com.edu.eduplatform.progress.dto.DailyActivityResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
 import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -486,6 +488,36 @@ class ProgressServiceTest {
         when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
 
         assertThat(progressService.getCurrentStreak(1L)).isEqualTo(0);
+    }
+
+    @Test
+    void getWeeklyActivity_최근_7일을_오래된_날짜부터_순서대로_반환한다() throws Exception {
+        LearningProgress today1 = withCompletedAt(newCompleted(10L), LocalDateTime.now());
+        LearningProgress today2 = withCompletedAt(newCompleted(11L), LocalDateTime.now());
+        LearningProgress today3 = withCompletedAt(newCompleted(12L), LocalDateTime.now());
+        LearningProgress twoDaysAgo = withCompletedAt(newCompleted(13L), LocalDateTime.now().minusDays(2));
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(today1, today2, today3, twoDaysAgo));
+
+        List<DailyActivityResponse> result = progressService.getWeeklyActivity(1L);
+
+        assertThat(result).hasSize(7);
+        assertThat(result.get(0).date()).isEqualTo(LocalDate.now().minusDays(6));
+        assertThat(result.get(6).date()).isEqualTo(LocalDate.now());
+        assertThat(result.get(6).completedCount()).isEqualTo(3);
+        assertThat(result.get(4).date()).isEqualTo(LocalDate.now().minusDays(2));
+        assertThat(result.get(4).completedCount()).isEqualTo(1);
+        assertThat(result.get(0).completedCount()).isEqualTo(0);
+    }
+
+    @Test
+    void getWeeklyActivity_기록이_없으면_7일_전부_0으로_채운다() {
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        List<DailyActivityResponse> result = progressService.getWeeklyActivity(1L);
+
+        assertThat(result).hasSize(7);
+        assertThat(result).allMatch(d -> d.completedCount() == 0);
     }
 
     private static LearningProgress newCompleted(Long lessonId) {

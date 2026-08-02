@@ -610,6 +610,35 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     신뢰도 높다고 판단.
   - 서버 로직 변경 없음(템플릿 `<head>`·CSS만) — `./gradlew build` 기존 테스트 그대로 통과 확인용.
 
+- 주간 학습 활동 히트맵 (dev 병합됨)
+  - 스트릭(연속 학습일) 기능이 "며칠 연속"이라는 숫자 하나만 보여줬는데, "최근 7일 동안 어느 요일에
+    얼마나 학습했는지"를 한눈에 보여주는 시각화를 마이페이지에 추가함 — 스트릭과 같은 데이터
+    (`LearningProgress.completedAt`)를 다른 관점(요일별 강도)으로 보여주는 자연스러운 확장, 새 추적
+    데이터 없음.
+  - `ProgressService.getWeeklyActivity(memberId)` 신규 — 완료 기록을 `LocalDate`별로 묶어 최근 7일
+    (오늘 포함, 오래된 날짜부터)을 배열로 반환. 요일 라벨("월"~"일")은 Thymeleaf `#temporals.format()`
+    (로케일 의존적이라 영문으로 나올 위험)을 안 쓰고 서비스에서 `DayOfWeek`별로 직접 한글 매핑 —
+    이 프로젝트가 지금까지 한글 라벨을 전부 Java 쪽에서 하드코딩해온 관례를 따름. 신규 DTO
+    `DailyActivityResponse(date, dayLabel, completedCount)`.
+  - dataviz 스킬 가이드에 따라 색상은 카테고리컬 팔레트가 아니라 **단일 hue(`--color-primary`)의 알파값
+    4단계**로만 인코딩(요일별 학습량은 크기 비교이지 카테고리 비교가 아니므로) — 팔레트 검증 스크립트는
+    카테고리컬/다이버징 대상이라 이번엔 스킵. **모바일 감사에서 배운 교훈을 바로 적용**: 값을 hover
+    툴팁으로만 보여주면 터치 기기에서 안 보이므로, 완료 개수를 각 칸 아래 숫자로 항상 노출하고 색 강도는
+    보조 신호로만 씀.
+  - `.activity-heatmap`은 `.stat-tile-row`(auto-fit 그리드)와 달리 요일 순서가 반드시 월→일로 유지돼야
+    해서 `auto-fit`으로 줄바꿈되면 안 됨 — grid 대신 `flex` 고정 7칸으로 구현.
+  - 화면: `my/dashboard.html`의 스탯 타일 바로 아래 배치(스트릭과 인접해 같은 데이터의 다른 관점임을
+    시각적으로 연결). `MyPageController`에 `weeklyActivity` 모델 속성 추가.
+  - 테스트: `ProgressServiceTest`에 `getWeeklyActivity` 2개(연속 3일치 완료 기록이 정확한 순서·개수로
+    나오는지, 기록 없으면 7일 전부 0인지) — 스트릭 테스트 때 추가해둔 `withCompletedAt`/`newCompleted`
+    헬퍼 그대로 재사용.
+  - curl+claude-in-chrome 실서버 검증: 신규 회원은 7칸 전부 `level-0`/count 0 확인 → VOCAB 레슨 2개를
+    브루트포스로 완료(레슨마다 매 요청 새 `Random()`으로 오답 보기가 바뀌어(`LessonService.buildQuiz`)
+    똑같은 4지선다도 요청마다 다르게 보임을 재확인, 정답 텍스트 자체는 결정론적이라 옵션이 바뀌어도
+    브루트포스로 문제없이 통과) → 오늘 날짜(일요일) 칸이 `level-2`/count 2로 정확히 반영, 요일 순서도
+    월화수목금토일로 오늘(일)이 맨 끝에 오는 것 확인. 500px 모바일 폭에서 7칸이 줄바꿈 없이 들어가고
+    페이지 전체 가로 스크롤도 없는 것(`scrollWidth === clientWidth`) 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
