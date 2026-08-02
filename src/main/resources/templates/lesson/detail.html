@@ -10,7 +10,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <p class="breadcrumb">
         <a th:href="@{/courses/{id}(id=${lesson.courseId})}" th:text="${lesson.courseTitle}"></a>
         &rsaquo; <span th:text="${lesson.orderNo} + '과 ' + ${lesson.title}"></span>
@@ -63,8 +63,8 @@
 
         <form th:if="${currentMemberId != null and !completed}" th:action="@{/lessons/{id}/complete(id=${lesson.id})}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <div class="quiz-question" th:if="${lesson.quiz != null}">
-                <p class="quiz-prompt" th:text="${lesson.quiz.sentenceWithBlank}"></p>
+            <fieldset class="quiz-question" th:if="${lesson.quiz != null}">
+                <legend class="quiz-prompt" th:text="${lesson.quiz.sentenceWithBlank}"></legend>
                 <p class="kr" th:text="${lesson.quiz.translation}"></p>
                 <p class="error-message" th:if="${quizError}" th:text="${quizError}"></p>
                 <div class="quiz-options">
@@ -73,7 +73,7 @@
                         <span th:text="${opt}"></span>
                     </label>
                 </div>
-            </div>
+            </fieldset>
             <button type="submit">학습 완료</button>
         </form>
         <button th:if="${currentMemberId != null and completed}" type="button" disabled>완료함 ✓</button>

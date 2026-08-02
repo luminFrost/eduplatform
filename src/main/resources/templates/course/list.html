@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page page-wide">
+    <main id="main-content" class="page page-wide">
     <h1>코스 목록</h1>
 
     <form class="filter-form" th:action="@{/courses}" method="get">

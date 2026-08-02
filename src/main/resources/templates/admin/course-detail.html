@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <div class="course-header">
         <span class="course-emoji large" th:text="${course.emoji}"></span>
         <span class="badge" th:text="${course.targetType}"></span>

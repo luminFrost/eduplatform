@@ -10,7 +10,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <h1>레벨 테스트</h1>
     <p>쉬운 문항부터 어려운 문항까지 8개예요. 어디까지 맞히는지에 따라 시작 레벨을 추천해 드려요.</p>
 
@@ -18,8 +18,8 @@
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="target" th:value="${target}"/>
 
-        <div class="quiz-question" th:each="q, qStat : ${questions}">
-            <p class="quiz-prompt" th:text="(${qStat.index} + 1) + '. ' + ${q.prompt}"></p>
+        <fieldset class="quiz-question" th:each="q, qStat : ${questions}">
+            <legend class="quiz-prompt" th:text="(${qStat.index} + 1) + '. ' + ${q.prompt}"></legend>
             <button type="button" class="listen-button" th:if="${q.audioText != null}"
                     th:attr="data-speak-text=${q.audioText}">🔊 듣기</button>
             <div class="quiz-options">
@@ -28,7 +28,7 @@
                     <span th:text="${opt}"></span>
                 </label>
             </div>
-        </div>
+        </fieldset>
 
         <button type="submit">제출하고 레벨 추천받기</button>
     </form>

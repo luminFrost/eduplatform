@@ -187,6 +187,24 @@ ul {
 
 /* ---------- site header ---------- */
 
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--color-primary);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    z-index: 100;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.skip-link:focus {
+    left: 8px;
+    top: 8px;
+}
+
 .site-header {
     display: flex;
     align-items: center;
@@ -1166,6 +1184,18 @@ input[type="radio"] {
 .quiz-prompt {
     font-weight: 600;
     margin-bottom: 10px;
+}
+
+/* .quiz-question/.quiz-prompt are now <fieldset>/<legend> for screen-reader grouping — reset browser defaults */
+fieldset.quiz-question {
+    min-width: 0;
+    margin: 0 0 16px;
+}
+
+legend.quiz-prompt {
+    width: 100%;
+    padding: 0;
+    display: block;
 }
 
 .quiz-options {

@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <h1>그림 퀴즈 결과</h1>
     <p th:text="${total} + '문제 중 ' + ${score} + '개 정답!'"></p>
     <p><a th:href="@{/quiz/picture}">다시 풀기</a> (오늘은 같은 문제가 나와요)</p>

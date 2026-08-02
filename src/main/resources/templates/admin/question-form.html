@@ -9,7 +9,7 @@
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
-    <main class="page">
+    <main id="main-content" class="page">
     <h1 th:text="${questionId} != null ? '문항 수정' : '새 문항 만들기'"></h1>
 
     <ul class="error-message" th:if="${validationErrors}">
@@ -60,25 +60,25 @@
             <input type="radio" name="correctOptionIndex" id="correct-1" value="0"
                    th:checked="${form != null and form.correctOptionIndex == 0}"/>
             <label for="correct-1">정답</label>
-            <input type="text" name="option1" th:value="${form?.option1}" placeholder="보기 1"/>
+            <input type="text" name="option1" th:value="${form?.option1}" placeholder="보기 1" aria-label="보기 1"/>
         </div>
         <div class="option-row">
             <input type="radio" name="correctOptionIndex" id="correct-2" value="1"
                    th:checked="${form != null and form.correctOptionIndex == 1}"/>
             <label for="correct-2">정답</label>
-            <input type="text" name="option2" th:value="${form?.option2}" placeholder="보기 2"/>
+            <input type="text" name="option2" th:value="${form?.option2}" placeholder="보기 2" aria-label="보기 2"/>
         </div>
         <div class="option-row">
             <input type="radio" name="correctOptionIndex" id="correct-3" value="2"
                    th:checked="${form != null and form.correctOptionIndex == 2}"/>
             <label for="correct-3">정답</label>
-            <input type="text" name="option3" th:value="${form?.option3}" placeholder="보기 3"/>
+            <input type="text" name="option3" th:value="${form?.option3}" placeholder="보기 3" aria-label="보기 3"/>
         </div>
         <div class="option-row">
             <input type="radio" name="correctOptionIndex" id="correct-4" value="3"
                    th:checked="${form != null and form.correctOptionIndex == 3}"/>
             <label for="correct-4">정답</label>
-            <input type="text" name="option4" th:value="${form?.option4}" placeholder="보기 4"/>
+            <input type="text" name="option4" th:value="${form?.option4}" placeholder="보기 4" aria-label="보기 4"/>
         </div>
 
         <button type="submit" th:text="${questionId} != null ? '수정하기' : '만들기'"></button>
