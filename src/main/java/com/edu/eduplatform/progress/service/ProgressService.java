@@ -15,6 +15,7 @@ import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -40,6 +41,9 @@ public class ProgressService {
     private static final int REVIEW_DUE_AFTER_DAYS = 3;
     /** 복습 목록에 한 번에 보여줄 최대 개수. */
     private static final int REVIEW_LIST_LIMIT = 10;
+
+    /** "오늘 학습 안 해도 어제까지 했으면 아직 안 끊긴 것"으로 보는 유예 기준(일). */
+    private static final int STREAK_GRACE_PERIOD_DAYS = 1;
 
     private final LearningProgressRepository learningProgressRepository;
     private final LessonRepository lessonRepository;
@@ -233,14 +237,43 @@ public class ProgressService {
                 .toList();
     }
 
-    /** 마이페이지 대시보드 상단 요약 통계(완료 레슨 수/학습 중인 코스 수/전체 진도율). */
+    /** 마이페이지 대시보드 상단 요약 통계(완료 레슨 수/학습 중인 코스 수/전체 진도율/연속 학습일). */
     public DashboardSummaryResponse getDashboardSummary(Long memberId) {
         List<CourseProgressResponse> courseProgress = getCourseProgress(memberId);
         int totalCompleted = courseProgress.stream().mapToInt(CourseProgressResponse::completedLessons).sum();
         int totalLessons = courseProgress.stream().mapToInt(CourseProgressResponse::totalLessons).sum();
         int overallPercentage = totalLessons == 0 ? 0 : (int) Math.round(totalCompleted * 100.0 / totalLessons);
 
-        return new DashboardSummaryResponse(totalCompleted, courseProgress.size(), overallPercentage);
+        return new DashboardSummaryResponse(totalCompleted, courseProgress.size(), overallPercentage, getCurrentStreak(memberId));
+    }
+
+    /**
+     * 오늘까지 연속으로 학습한 날짜 수. 새 추적 데이터 없이 기존 completedAt만으로 즉석 계산한다(stateless).
+     * 오늘 아직 학습을 안 했어도 어제까지 이어져 있으면 스트릭이 살아있는 것으로 본다(하루 유예).
+     */
+    public int getCurrentStreak(Long memberId) {
+        Set<LocalDate> activeDates = learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .map(progress -> progress.getCompletedAt().toLocalDate())
+                .collect(Collectors.toSet());
+        if (activeDates.isEmpty()) {
+            return 0;
+        }
+
+        LocalDate cursor = LocalDate.now();
+        if (!activeDates.contains(cursor)) {
+            cursor = cursor.minusDays(STREAK_GRACE_PERIOD_DAYS);
+            if (!activeDates.contains(cursor)) {
+                return 0;
+            }
+        }
+
+        int streak = 0;
+        while (activeDates.contains(cursor)) {
+            streak++;
+            cursor = cursor.minusDays(1);
+        }
+        return streak;
     }
 
     /** 영역별 완료/가능 레슨 수. {@link #recommendFocusAreas}와 {@link #getSkillAreaProgress}가 공유한다. */

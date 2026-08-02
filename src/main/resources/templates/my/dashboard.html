@@ -25,6 +25,10 @@
             <span class="stat-value" th:text="${summary.overallPercentage} + '%'"></span>
             <span class="stat-label">전체 진도율</span>
         </div>
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${summary.currentStreak} + (${summary.currentStreak} > 0 ? ' 🔥' : '')"></span>
+            <span class="stat-label">연속 학습일</span>
+        </div>
     </div>
 
     <p><a th:href="@{/my/daily}">오늘의 단어 보러가기 →</a></p>
