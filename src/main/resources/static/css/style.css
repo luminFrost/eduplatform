@@ -1123,6 +1123,23 @@ input[type="radio"] {
     margin-right: 6px;
 }
 
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.option-row label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.option-row input[type="text"] {
+    flex: 1;
+    width: auto;
+}
+
 .quiz-question {
     background: var(--color-surface);
     border: 2px solid var(--color-border);

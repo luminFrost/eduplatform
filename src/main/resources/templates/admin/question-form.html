@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="(${questionId} != null ? '문항 수정' : '새 문항') + ' - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main class="page">
+    <h1 th:text="${questionId} != null ? '문항 수정' : '새 문항 만들기'"></h1>
+
+    <ul class="error-message" th:if="${validationErrors}">
+        <li th:each="msg : ${validationErrors}" th:text="${msg}"></li>
+    </ul>
+
+    <form th:action="${questionId} != null ? @{/admin/questions/{id}/edit(id=${questionId})} : @{/admin/questions/new}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div>
+            <label>대상
+                <select name="targetType">
+                    <option th:each="type : ${memberTypes}"
+                            th:value="${type}"
+                            th:selected="${form != null and form.targetType == type}"
+                            th:text="${type}"></option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>레벨
+                <select name="level">
+                    <option th:each="lvl : ${levels}"
+                            th:value="${lvl}"
+                            th:selected="${form != null and form.level == lvl}"
+                            th:text="${lvl}"></option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>영역
+                <select name="lessonType">
+                    <option th:each="t : ${lessonTypes}"
+                            th:value="${t}"
+                            th:selected="${form != null and form.lessonType == t}"
+                            th:text="${t}"></option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>문제 <textarea name="prompt" rows="3" th:text="${form?.prompt}"></textarea></label>
+        </div>
+        <div>
+            <label>듣기 재생 텍스트(선택) <input type="text" name="audioText" th:value="${form?.audioText}"/></label>
+            <p class="empty-state">영역이 "LISTENING"일 때만 이 텍스트가 재생됩니다. 다른 영역이면 비워두세요.</p>
+        </div>
+
+        <div class="option-row">
+            <input type="radio" name="correctOptionIndex" id="correct-1" value="0"
+                   th:checked="${form != null and form.correctOptionIndex == 0}"/>
+            <label for="correct-1">정답</label>
+            <input type="text" name="option1" th:value="${form?.option1}" placeholder="보기 1"/>
+        </div>
+        <div class="option-row">
+            <input type="radio" name="correctOptionIndex" id="correct-2" value="1"
+                   th:checked="${form != null and form.correctOptionIndex == 1}"/>
+            <label for="correct-2">정답</label>
+            <input type="text" name="option2" th:value="${form?.option2}" placeholder="보기 2"/>
+        </div>
+        <div class="option-row">
+            <input type="radio" name="correctOptionIndex" id="correct-3" value="2"
+                   th:checked="${form != null and form.correctOptionIndex == 2}"/>
+            <label for="correct-3">정답</label>
+            <input type="text" name="option3" th:value="${form?.option3}" placeholder="보기 3"/>
+        </div>
+        <div class="option-row">
+            <input type="radio" name="correctOptionIndex" id="correct-4" value="3"
+                   th:checked="${form != null and form.correctOptionIndex == 3}"/>
+            <label for="correct-4">정답</label>
+            <input type="text" name="option4" th:value="${form?.option4}" placeholder="보기 4"/>
+        </div>
+
+        <button type="submit" th:text="${questionId} != null ? '수정하기' : '만들기'"></button>
+    </form>
+
+    <p><a th:href="@{/admin/questions}">문항 관리로 돌아가기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

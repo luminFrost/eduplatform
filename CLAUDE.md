@@ -737,6 +737,46 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     정확히 파싱되는 것 확인 → 코스 검색(`keyword=관리자`)에 새 코스가 바로 잡히는 것 확인 → 레슨 수정·
     삭제 확인 → 무인증 `POST /api/courses` 401, 일반 회원 `/admin/courses` 403 확인.
 
+- 진단 테스트 문항 관리 화면 (dev 병합됨)
+  - 지난번 코스·레슨 관리자 화면을 만들 때 범위에서 뺐던 `Question`(진단 테스트/레벨 배치 테스트 공용
+    80문항)을 이어서 추가 — 지금까지 전부 `QuestionDataInitializer.java`에 코드로만 박혀 있었음.
+  - `SecurityConfig`의 `/admin/**` → `hasRole("ADMIN")` 규칙이 이미 모든 `/admin/**` 경로를 커버해서
+    **시큐리티 설정 변경이 전혀 필요 없었음**(코스/레슨 때는 이 규칙 자체를 새로 추가해야 했던 것과 다름).
+  - `options`(`@ElementCollection`+`@OrderColumn`)를 동적으로 늘렸다 줄였다 하는 대신, 이 프로젝트
+    전체가 실제로 4지선다만 쓴다는 걸 확인하고 관리자 폼도 **고정 4개 입력 필드**(`option1~4`)로
+    단순화 — Spring record 생성자로 `List<String>` 폼 바인딩하는 복잡함을 피함. `QuestionAdminRequest`에
+    `options()` 편의 메서드만 추가해 서비스 계층엔 그대로 `List<String>`으로 전달.
+  - `Question.updateDetails(...)` 신규 상태 변경 메서드, `QuestionService`에 CRUD 4개
+    (`getAllQuestions`/`getQuestionForEdit`/`createQuestion`/`updateQuestion`/`deleteQuestion`),
+    신규 `QuestionAdminController`(`/admin/questions`, 대상·레벨·영역 필터는 80건 정도라 새 동적 쿼리
+    없이 스트림 필터링), 템플릿 2개(`question-list.html`/`question-form.html`) 신규. 코스 관리 목록
+    페이지에 "문항 관리 →" 링크 추가(헤더에 새 항목 추가 대신).
+  - **버그 발견·수정(테스트가 바로 잡음)**: `Question.updateDetails()`를 처음엔 `this.options.clear();
+    this.options.addAll(options);`로 짰는데, 실서비스 흐름(Hibernate가 관리하는 컬렉션)에선 문제없이
+    동작하지만 순수 Mockito 단위 테스트(`QuestionServiceTest`, ORM 개입 없음)에서
+    `UnsupportedOperationException`으로 즉시 실패 — `QuestionAdminRequest.options()`가
+    `List.of(...)`(불변)를 반환하는데, 생성자가 이 불변 리스트 참조를 그대로 필드에 박아두면
+    이후 `clear()` 호출이 막힘. `this.options = new ArrayList<>(options);`로 재할당하는 방식으로 바꿔
+    해결 — 원본이 뭐든(불변이든 가변이든) 항상 새 가변 리스트를 만들어 안전.
+  - **두 번째 발견(통합 테스트가 잡음)**: 문항 생성 직후 컨트롤러 테스트에서
+    `questionRepository.findAll()`로 방금 만든 문항을 찾아 `.getOptions()`를 바로 확인하려 했다가
+    `LazyInitializationException`(세션 밖에서 지연 컬렉션 접근) 발생 — `options`가 지연 로딩 컬렉션이라
+    트랜잭션(세션) 밖에서 건드리면 항상 이렇게 터진다는 걸 실제로 겪음. 실제 서비스 코드는
+    `QuestionService`의 클래스 레벨 `@Transactional` 안에서만 `.getOptions()`에 접근해 문제없지만,
+    테스트 코드가 그 경계 밖에서 엔티티를 직접 찌른 게 원인 — 수정 폼 렌더링 응답(HTTP 레벨, 서비스가
+    트랜잭션 안에서 이미 DTO로 변환해 내려줌)에서 보기 값이 보이는지 확인하는 방식으로 테스트를 바꿔
+    해결. (교훈: `@ElementCollection`/지연 연관관계가 있는 엔티티는 테스트에서도 리포지토리를 직접
+    찔러보지 말고 서비스/컨트롤러 경계를 통해 확인해야 함.)
+  - 테스트: `QuestionServiceTest`에 5개(`getAllQuestions`/`createQuestion`/`updateQuestion` 성공·실패/
+    `deleteQuestion` 성공·실패), 신규 `QuestionAdminControllerTest`(비로그인 리다이렉트, 일반 회원 403,
+    생성→수정→삭제 종단 흐름, 검증 오류 시 폼 유지 — 코스/레슨 관리자 테스트와 같은 `POST /login` 세션
+    헬퍼 재사용).
+  - curl 실서버 종단 검증: 관리자 로그인 → `/admin/questions`에서 80문항 전체 목록 확인 → LISTENING
+    문항 신규 생성(audioText 포함) → **`GET /api/questions/diagnostic-test`(target=ADULT,
+    level=BEGINNER)에서 LISTENING 문항 수가 2→3으로 실제로 늘어난 것 확인**(관리자 화면에서 만든 문항이
+    진짜 진단 테스트에 반영됨을 종단으로 검증) → 문항 수정(폼 프리필 확인)·삭제 확인 → 대상·레벨·영역
+    3중 필터 조합(CHILD/BEGINNER/SPEAKING) 정확히 2건 반환 확인 → 일반 회원 403 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

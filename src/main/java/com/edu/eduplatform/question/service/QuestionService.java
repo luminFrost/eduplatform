@@ -4,8 +4,11 @@ import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.question.domain.Question;
+import com.edu.eduplatform.question.dto.QuestionAdminRequest;
+import com.edu.eduplatform.question.dto.QuestionAdminResponse;
 import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
+import com.edu.eduplatform.question.exception.QuestionNotFoundException;
 import com.edu.eduplatform.question.repository.QuestionRepository;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -29,6 +32,54 @@ public class QuestionService {
     private static final double PLACEMENT_PASS_THRESHOLD = 0.5;
 
     private final QuestionRepository questionRepository;
+
+    /** 관리자 문항 목록 — 필터 없이 전체를 반환한다(80건 안팎이라 별도 동적 쿼리 없이 스트림 필터링으로 충분). */
+    public List<QuestionAdminResponse> getAllQuestions() {
+        return questionRepository.findAll().stream()
+                .map(QuestionService::toAdminResponse)
+                .toList();
+    }
+
+    public QuestionAdminResponse getQuestionForEdit(Long id) {
+        return toAdminResponse(questionRepository.findById(id)
+                .orElseThrow(() -> new QuestionNotFoundException(id)));
+    }
+
+    @Transactional
+    public void createQuestion(QuestionAdminRequest request) {
+        questionRepository.save(Question.builder()
+                .targetType(request.targetType())
+                .level(request.level())
+                .lessonType(request.lessonType())
+                .prompt(request.prompt())
+                .audioText(request.audioText())
+                .options(request.options())
+                .correctOptionIndex(request.correctOptionIndex())
+                .build());
+    }
+
+    @Transactional
+    public void updateQuestion(Long id, QuestionAdminRequest request) {
+        Question question = questionRepository.findById(id)
+                .orElseThrow(() -> new QuestionNotFoundException(id));
+        question.updateDetails(request.targetType(), request.level(), request.lessonType(),
+                request.prompt(), request.audioText(), request.options(), request.correctOptionIndex());
+        questionRepository.save(question);
+    }
+
+    @Transactional
+    public void deleteQuestion(Long id) {
+        if (!questionRepository.existsById(id)) {
+            throw new QuestionNotFoundException(id);
+        }
+        questionRepository.deleteById(id);
+    }
+
+    private static QuestionAdminResponse toAdminResponse(Question question) {
+        return new QuestionAdminResponse(
+                question.getId(), question.getTargetType(), question.getLevel(), question.getLessonType(),
+                question.getPrompt(), question.getAudioText(), question.getOptions(), question.getCorrectOptionIndex());
+    }
 
     public List<QuestionResponse> getDiagnosticTestQuestions(MemberType targetType, EnglishLevel level) {
         return questionRepository.findByTargetTypeAndLevel(targetType, level).stream()
