@@ -3,7 +3,10 @@ package com.edu.eduplatform.progress.controller;
 import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.member.service.MemberService;
+import com.edu.eduplatform.progress.dto.DailyActivityResponse;
 import com.edu.eduplatform.progress.service.ProgressService;
+import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,10 +24,14 @@ public class MyPageController {
     public String dashboard(@CurrentMemberId Long memberId, Model model) {
         model.addAttribute("member", memberService.getMember(memberId));
         model.addAttribute("summary", progressService.getDashboardSummary(memberId));
-        model.addAttribute("weeklyActivity", progressService.getWeeklyActivity(memberId));
         model.addAttribute("skillAreaProgress", progressService.getSkillAreaProgress(memberId));
         model.addAttribute("courseProgress", progressService.getCourseProgress(memberId));
         model.addAttribute("personalCourses", courseService.listPersonalCourses(memberId));
+
+        List<DailyActivityResponse> monthlyActivity = progressService.getMonthlyActivity(memberId);
+        model.addAttribute("monthlyActivity", monthlyActivity);
+        model.addAttribute("leadingBlanks", monthlyActivity.get(0).date().getDayOfWeek().getValue() - 1);
+        model.addAttribute("today", LocalDate.now());
         return "my/dashboard";
     }
 }

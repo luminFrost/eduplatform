@@ -32,14 +32,21 @@
         </div>
     </div>
 
-    <h2>최근 7일 학습 활동</h2>
-    <div class="activity-heatmap">
-        <div class="activity-cell" th:each="d : ${weeklyActivity}">
-            <span class="activity-cell-label" th:text="${d.dayLabel}"></span>
-            <span class="activity-cell-box"
-                  th:classappend="'level-' + (${d.completedCount} == 0 ? 0 : (${d.completedCount} <= 1 ? 1 : (${d.completedCount} <= 3 ? 2 : (${d.completedCount} <= 5 ? 3 : 4))))"
-                  th:title="${d.date} + ' · ' + ${d.completedCount} + '개 완료'"></span>
-            <span class="activity-cell-count" th:text="${d.completedCount}"></span>
+    <h2 th:text="${#temporals.format(today, 'yyyy년 M월')} + ' 학습 활동'"></h2>
+    <div class="activity-calendar">
+        <span class="cal-weekday">월</span>
+        <span class="cal-weekday">화</span>
+        <span class="cal-weekday">수</span>
+        <span class="cal-weekday">목</span>
+        <span class="cal-weekday">금</span>
+        <span class="cal-weekday">토</span>
+        <span class="cal-weekday">일</span>
+        <span class="cal-cell blank" th:if="${leadingBlanks > 0}" th:each="i : ${#numbers.sequence(1, leadingBlanks)}"></span>
+        <div class="cal-cell" th:each="d : ${monthlyActivity}"
+             th:classappend="${d.date.isAfter(today)} ? 'future' : ('level-' + (${d.completedCount} == 0 ? 0 : (${d.completedCount} <= 1 ? 1 : (${d.completedCount} <= 3 ? 2 : (${d.completedCount} <= 5 ? 3 : 4)))) + (${d.date.equals(today)} ? ' today' : ''))"
+             th:title="${d.date} + ' · ' + ${d.completedCount} + '개 완료'">
+            <span class="cal-day" th:text="${d.date.dayOfMonth}"></span>
+            <span class="cal-count" th:unless="${d.date.isAfter(today)}" th:text="${d.completedCount}"></span>
         </div>
     </div>
 
