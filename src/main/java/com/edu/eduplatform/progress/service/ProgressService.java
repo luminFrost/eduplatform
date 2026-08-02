@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,9 +45,6 @@ public class ProgressService {
 
     /** "오늘 학습 안 해도 어제까지 했으면 아직 안 끊긴 것"으로 보는 유예 기준(일). */
     private static final int STREAK_GRACE_PERIOD_DAYS = 1;
-
-    /** 마이페이지 활동 히트맵에 보여줄 최근 일수. */
-    private static final int WEEKLY_ACTIVITY_DAYS = 7;
 
     private final LearningProgressRepository learningProgressRepository;
     private final LessonRepository lessonRepository;
@@ -281,16 +277,17 @@ public class ProgressService {
         return streak;
     }
 
-    /** 최근 {@link #WEEKLY_ACTIVITY_DAYS}일(오늘 포함, 오래된 날짜부터) 일별 완료 레슨 수. 마이페이지 활동 히트맵에 쓰인다. */
-    public List<DailyActivityResponse> getWeeklyActivity(Long memberId) {
+    /** 이번 달 1일부터 말일까지 일별 완료 레슨 수. 마이페이지 활동 캘린더에 쓰인다. */
+    public List<DailyActivityResponse> getMonthlyActivity(Long memberId) {
         Map<LocalDate, Long> countsByDate = learningProgressRepository.findByMemberId(memberId).stream()
                 .filter(LearningProgress::isCompleted)
                 .collect(Collectors.groupingBy(
                         progress -> progress.getCompletedAt().toLocalDate(), Collectors.counting()));
 
-        LocalDate start = LocalDate.now().minusDays(WEEKLY_ACTIVITY_DAYS - 1);
-        return IntStream.range(0, WEEKLY_ACTIVITY_DAYS)
-                .mapToObj(start::plusDays)
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.withDayOfMonth(1);
+        LocalDate end = today.withDayOfMonth(today.lengthOfMonth());
+        return start.datesUntil(end.plusDays(1))
                 .map(date -> new DailyActivityResponse(
                         date, dayLabel(date), countsByDate.getOrDefault(date, 0L).intValue()))
                 .toList();

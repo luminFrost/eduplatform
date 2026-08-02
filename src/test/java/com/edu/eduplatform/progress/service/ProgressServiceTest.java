@@ -491,32 +491,34 @@ class ProgressServiceTest {
     }
 
     @Test
-    void getWeeklyActivity_최근_7일을_오래된_날짜부터_순서대로_반환한다() throws Exception {
-        LearningProgress today1 = withCompletedAt(newCompleted(10L), LocalDateTime.now());
-        LearningProgress today2 = withCompletedAt(newCompleted(11L), LocalDateTime.now());
-        LearningProgress today3 = withCompletedAt(newCompleted(12L), LocalDateTime.now());
-        LearningProgress twoDaysAgo = withCompletedAt(newCompleted(13L), LocalDateTime.now().minusDays(2));
+    void getMonthlyActivity_이번_달_1일부터_말일까지_날짜순으로_반환한다() throws Exception {
+        LocalDate start = LocalDate.now().withDayOfMonth(1);
+        LearningProgress day1a = withCompletedAt(newCompleted(10L), start.atStartOfDay().plusHours(10));
+        LearningProgress day1b = withCompletedAt(newCompleted(11L), start.atStartOfDay().plusHours(11));
+        LearningProgress day1c = withCompletedAt(newCompleted(12L), start.atStartOfDay().plusHours(12));
+        LearningProgress day3 = withCompletedAt(newCompleted(13L), start.plusDays(2).atStartOfDay().plusHours(9));
         when(learningProgressRepository.findByMemberId(1L))
-                .thenReturn(List.of(today1, today2, today3, twoDaysAgo));
+                .thenReturn(List.of(day1a, day1b, day1c, day3));
 
-        List<DailyActivityResponse> result = progressService.getWeeklyActivity(1L);
+        List<DailyActivityResponse> result = progressService.getMonthlyActivity(1L);
 
-        assertThat(result).hasSize(7);
-        assertThat(result.get(0).date()).isEqualTo(LocalDate.now().minusDays(6));
-        assertThat(result.get(6).date()).isEqualTo(LocalDate.now());
-        assertThat(result.get(6).completedCount()).isEqualTo(3);
-        assertThat(result.get(4).date()).isEqualTo(LocalDate.now().minusDays(2));
-        assertThat(result.get(4).completedCount()).isEqualTo(1);
-        assertThat(result.get(0).completedCount()).isEqualTo(0);
+        int expectedDays = LocalDate.now().lengthOfMonth();
+        assertThat(result).hasSize(expectedDays);
+        assertThat(result.get(0).date()).isEqualTo(start);
+        assertThat(result.get(0).completedCount()).isEqualTo(3);
+        assertThat(result.get(2).date()).isEqualTo(start.plusDays(2));
+        assertThat(result.get(2).completedCount()).isEqualTo(1);
+        assertThat(result.get(1).completedCount()).isEqualTo(0);
+        assertThat(result.get(expectedDays - 1).date()).isEqualTo(LocalDate.now().withDayOfMonth(expectedDays));
     }
 
     @Test
-    void getWeeklyActivity_기록이_없으면_7일_전부_0으로_채운다() {
+    void getMonthlyActivity_기록이_없으면_이번_달_전부_0으로_채운다() {
         when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
 
-        List<DailyActivityResponse> result = progressService.getWeeklyActivity(1L);
+        List<DailyActivityResponse> result = progressService.getMonthlyActivity(1L);
 
-        assertThat(result).hasSize(7);
+        assertThat(result).hasSize(LocalDate.now().lengthOfMonth());
         assertThat(result).allMatch(d -> d.completedCount() == 0);
     }
 
