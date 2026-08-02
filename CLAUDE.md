@@ -687,6 +687,56 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     (새 페이지 로드 시 스크립트가 `data-theme` 재적용) 확인, 개인 코스를 실제로 만들어
     `.personal-course-badge`가 새 변수로 올바르게 렌더링되는지 확인.
 
+- 관리자 콘텐츠 관리 화면 (dev 병합됨)
+  - 지금까지 공식 코스·레슨은 전부 `SampleDataInitializer.java`를 직접 편집(배경 에이전트로 텍스트를
+    받아 손으로 붙여넣기)하는 방식으로만 늘려왔음. 코스·레슨을 화면에서 만들고 고치는 최소 관리자 UI를
+    추가해 앞으로의 콘텐츠 작업을 코드 편집 없이 할 수 있게 함.
+  - **회원 역할(Role) 신규 도입** — 지금까지 `MemberPrincipal.getAuthorities()`가 모든 회원에게 고정된
+    `ROLE_MEMBER` 하나만 줬음(역할 개념 자체가 없었음). `member/domain/MemberRole`(USER/ADMIN) 신규,
+    `Member`에 `role` 필드 추가(생성자에서 null이면 USER 기본값 — 기존 `Member.builder()...build()`
+    호출부 전부 무변경으로 계속 동작). `MemberPrincipal`이 ADMIN이면 `ROLE_ADMIN`도 같이 부여.
+    회원가입 폼(`MemberCreateRequest`/`MemberService.signUp()`)은 손대지 않아 자가 ADMIN 승격은 불가능.
+  - `common/config/AdminAccountInitializer` 신규(`CommandLineRunner`, `SampleDataInitializer`와 같은
+    멱등성 패턴) — H2가 인메모리라 재부팅마다 사라지므로 고정 관리자 계정을 매번 시딩.
+    **로그인 정보: `admin@eduplatform.com` / `Admin1234!`.**
+  - **관리자 화면을 만드는 김에 보안 허점 하나 같이 발견·마감**: `POST /api/courses`(공식 코스 생성
+    API)가 Phase 6 인증 도입 때 개인 코스 관련 엔드포인트만 챙기고 이건 빠뜨려서 지금까지 **인증 없이
+    열려 있었음**. `apiSecurityFilterChain`에 `hasRole("ADMIN")` 추가로 마감, `webSecurityFilterChain`에
+    `/admin/**` → `hasRole("ADMIN")` 규칙 추가(다른 특정 규칙들처럼 `anyRequest()`보다 먼저).
+  - 코스 생성은 기존 `CourseCreateRequest`/`CourseService.create()`를 그대로 재사용(필드가 이미
+    정확히 일치). 수정만 신규 — `Course.updateDetails(...)` 상태 변경 메서드(세터 없음 컨벤션) +
+    `CourseService.updateCourse()`.
+  - 레슨은 지금까지 조회 메서드만 있고 쓰기 경로가 전혀 없었음(전부 `SampleDataInitializer`가
+    `lessonRepository.save()`로 직접 저장) — `Lesson.updateDetails(...)` 신규, 신규 DTO
+    `LessonAdminRequest`(생성·수정 폼 공용), `LessonService.createLesson/updateLesson/deleteLesson`
+    신규. 레슨 수정 폼은 `LessonService.getDetail()`(파싱된 카드 형태)이 아니라 원본 콘텐츠 문자열이
+    그대로 필요해서 신규 `LessonAdminResponse`/`LessonService.getLessonForEdit()`로 분리.
+  - 화면: 기존 패키지-바이-피처 구조를 따라 새 `admin` 패키지를 만들지 않고 `course`/`lesson` 패키지
+    안에 관리자 컨트롤러를 나란히 추가(`CourseAdminController`, `LessonAdminController`). 템플릿 4개
+    신규(`templates/admin/`) — 기존 `.page`/`.card-grid`/`.lesson-list`/`button`/`.error-message` 스타일
+    그대로 재사용, 새 CSS 거의 없음. 레슨 콘텐츠 textarea 아래에 `INTRO:`/"영어 — 한글" 컨벤션 안내
+    문구 추가(새 파싱 규칙 없이 기존 컨벤션 그대로 따르게 유도). 헤더에 "관리자" 링크는
+    `sec:authorize="hasRole('ADMIN')"`로 관리자에게만 노출.
+  - **범위 제외**: 코스 삭제(고아 레코드 위험 대비 효용 낮음), 진단 테스트 문항 관리, 관리자 승격/강등
+    UI(고정 시드 계정 하나로 충분), 콘텐츠 실시간 미리보기.
+  - **다크모드 사이드 버그 발견·수정**: 레슨 콘텐츠 textarea에 스타일을 입히려고 CSS를 보다가,
+    `input, select` 공용 규칙에 `color`가 아예 없었다는 걸 발견 — 라이트 모드에선 기본 검은 글자가
+    `--color-surface`(흰 배경)와 우연히 맞아 문제가 없었지만, 지난 다크모드 작업 이후로 다크 모드에서는
+    모든 입력 필드가 "검은 글자 on 남색 배경"이라 전혀 안 보였을 것(로그인/회원가입/검색창 등 사이트
+    전체 영향). `textarea`를 같은 규칙에 합치면서 `color: var(--color-text)`를 같이 추가해 관리자
+    화면뿐 아니라 사이트 전체 다크 모드 입력 필드를 한 번에 고침 — claude-in-chrome으로 다크 속성 적용 후
+    로그인 폼 입력창 글자색이 밝은 회색으로 정상 표시되는 것 확인.
+  - 테스트: `MemberRepositoryTest`(role 기본값 USER), `CourseServiceTest`(`updateCourse` 2개),
+    `LessonServiceTest`(create/update/delete 6개), 신규 `CourseAdminControllerTest`/
+    `LessonAdminControllerTest`(비로그인 리다이렉트, 일반 회원 403, 관리자 생성/수정/삭제 성공, 검증
+    오류 시 폼 유지 — `POST /login` 폼 로그인으로 세션을 직접 만드는 새 헬퍼 패턴 사용, 기존
+    `signUp()` 헬퍼는 항상 USER라 관리자 테스트엔 못 씀), `CourseApiControllerTest`(무인증 401·일반
+    회원 403·관리자 201로 갱신).
+  - curl+claude-in-chrome 실서버 종단 검증: 관리자 로그인(`Admin1234!`) → `/admin/courses`에서 새 코스
+    생성 → 실제 `INTRO:`/"영어 — 한글" 컨벤션으로 레슨 작성 → 공개 레슨 페이지에서 INTRO+PHRASE 카드로
+    정확히 파싱되는 것 확인 → 코스 검색(`keyword=관리자`)에 새 코스가 바로 잡히는 것 확인 → 레슨 수정·
+    삭제 확인 → 무인증 `POST /api/courses` 401, 일반 회원 `/admin/courses` 403 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

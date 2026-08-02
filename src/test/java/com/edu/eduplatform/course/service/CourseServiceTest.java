@@ -340,6 +340,35 @@ class CourseServiceTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void updateCourse_존재하는_코스면_내용을_수정한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("기존 제목").description("기존 설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        when(courseRepository.findById(100L)).thenReturn(java.util.Optional.of(course));
+
+        var request = new com.edu.eduplatform.course.dto.CourseCreateRequest(
+                "새 제목", "새 설명", "🆕", MemberType.CHILD, EnglishLevel.ADVANCED);
+        var result = courseService.updateCourse(100L, request);
+
+        assertThat(result.title()).isEqualTo("새 제목");
+        assertThat(result.description()).isEqualTo("새 설명");
+        assertThat(result.emoji()).isEqualTo("🆕");
+        assertThat(result.targetType()).isEqualTo(MemberType.CHILD);
+        assertThat(result.level()).isEqualTo(EnglishLevel.ADVANCED);
+    }
+
+    @Test
+    void updateCourse_존재하지_않는_코스면_예외를_던진다() {
+        when(courseRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+
+        var request = new com.edu.eduplatform.course.dto.CourseCreateRequest(
+                "새 제목", "새 설명", "🆕", MemberType.CHILD, EnglishLevel.ADVANCED);
+
+        assertThatThrownBy(() -> courseService.updateCourse(999L, request))
+                .isInstanceOf(com.edu.eduplatform.course.exception.CourseNotFoundException.class);
+    }
+
     private static <T> T withId(T entity, Long id) throws Exception {
         Field field = entity.getClass().getDeclaredField("id");
         field.setAccessible(true);

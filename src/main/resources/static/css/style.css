@@ -143,11 +143,13 @@ label {
     margin-bottom: 4px;
 }
 
-input, select {
+input, select, textarea {
     width: 100%;
     box-sizing: border-box;
     padding: 9px 10px;
     font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-text);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-surface);
@@ -231,6 +233,10 @@ ul {
 }
 
 .nav-logout-form {
+    display: inline;
+}
+
+.lesson-delete-form {
     display: inline;
 }
 
