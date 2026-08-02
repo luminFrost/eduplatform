@@ -252,7 +252,7 @@ public class ProgressService {
         Map<LessonType, Long> completedCountByType = lessonRepository.findAllById(completedLessonIds).stream()
                 .collect(Collectors.groupingBy(Lesson::getLessonType, Collectors.counting()));
 
-        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null);
+        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null, null);
         Map<LessonType, Long> availableCountByType = lessonRepository
                 .findByCourseIdIn(officialCourses.stream().map(Course::getId).toList()).stream()
                 .collect(Collectors.groupingBy(Lesson::getLessonType, Collectors.counting()));

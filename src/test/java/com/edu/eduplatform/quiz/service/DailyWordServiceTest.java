@@ -57,7 +57,7 @@ class DailyWordServiceTest {
 
     @Test
     void getTodayWords_재료가_없으면_빈_목록을_반환한다() {
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null)).thenReturn(List.of());
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null)).thenReturn(List.of());
 
         List<DailyWord> words = dailyWordService.getTodayWords(MEMBER);
 
@@ -100,7 +100,7 @@ class DailyWordServiceTest {
                 .content("I really enjoy summer vacation. — 나는 여름 방학을 정말 좋아해요.")
                 .lessonType(LessonType.VOCAB).build(), 11L);
 
-        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null)).thenReturn(List.of(course));
+        when(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null)).thenReturn(List.of(course));
         when(lessonRepository.findByCourseIdIn(List.of(1L))).thenReturn(List.of(lesson1, lesson2));
         when(lessonService.parseContent(lesson1.getContent())).thenReturn(List.of(
                 new ContentLine(LineType.PHRASE, "I would like a coffee, please.", "저는 커피를 부탁드립니다.", null, null)));

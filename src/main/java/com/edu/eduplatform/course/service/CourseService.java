@@ -39,8 +39,8 @@ public class CourseService {
     private final ProgressService progressService;
     private final QuestionService questionService;
 
-    public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType) {
-        return courseRepository.search(targetType, level, lessonType).stream()
+    public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType, String keyword) {
+        return courseRepository.search(targetType, level, lessonType, keyword).stream()
                 .map(CourseResponse::from)
                 .toList();
     }
@@ -67,7 +67,7 @@ public class CourseService {
     public Optional<CourseResponse> recommendNextCourse(Long memberId, Long currentCourseId) {
         Course current = courseRepository.findById(currentCourseId)
                 .orElseThrow(() -> new CourseNotFoundException(currentCourseId));
-        List<Course> roadmap = courseRepository.search(current.getTargetType(), null, null);
+        List<Course> roadmap = courseRepository.search(current.getTargetType(), null, null, null);
         int currentIndex = IntStream.range(0, roadmap.size())
                 .filter(i -> roadmap.get(i).getId().equals(currentCourseId))
                 .findFirst()
@@ -160,7 +160,7 @@ public class CourseService {
             return new PersonalCourseCreationResult(CourseResponse.from(existing.get()), false);
         }
 
-        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null);
+        List<Course> officialCourses = courseRepository.search(member.memberType(), member.level(), null, null);
         Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
                 .findByCourseIdIn(officialCourses.stream().map(Course::getId).toList()).stream()
                 .collect(Collectors.groupingBy(Lesson::getCourseId));

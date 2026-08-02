@@ -47,9 +47,10 @@ public class CourseApiController {
     public List<CourseResponse> list(
             @RequestParam(required = false) MemberType target,
             @RequestParam(required = false) EnglishLevel level,
-            @RequestParam(required = false) LessonType type
+            @RequestParam(required = false) LessonType type,
+            @RequestParam(required = false) String keyword
     ) {
-        return courseService.list(target, level, type);
+        return courseService.list(target, level, type, keyword);
     }
 
     @PostMapping

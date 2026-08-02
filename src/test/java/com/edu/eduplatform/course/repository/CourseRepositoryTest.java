@@ -33,12 +33,35 @@ class CourseRepositoryTest {
                 .title("비즈니스 영어").description("설명")
                 .targetType(MemberType.ADULT).level(EnglishLevel.INTERMEDIATE).build());
 
-        assertThat(courseRepository.search(null, null, null)).hasSize(3);
-        assertThat(courseRepository.search(MemberType.ADULT, null, null)).hasSize(2);
-        assertThat(courseRepository.search(null, EnglishLevel.BEGINNER, null)).hasSize(2);
-        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        assertThat(courseRepository.search(null, null, null, null)).hasSize(3);
+        assertThat(courseRepository.search(MemberType.ADULT, null, null, null)).hasSize(2);
+        assertThat(courseRepository.search(null, EnglishLevel.BEGINNER, null, null)).hasSize(2);
+        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .extracting(Course::getTitle)
                 .containsExactly("왕초보 회화");
+    }
+
+    @Test
+    void search_키워드로_제목_설명을_대소문자_무관_부분일치_검색한다() {
+        courseRepository.save(Course.builder()
+                .title("Coffee Chat").description("커피 마시며 나누는 스몰토크")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        courseRepository.save(Course.builder()
+                .title("여행 영어").description("공항에서 Coffee 주문하기 등")
+                .targetType(MemberType.ADULT).level(EnglishLevel.ELEMENTARY).build());
+        courseRepository.save(Course.builder()
+                .title("비즈니스 영어").description("회의·이메일 표현")
+                .targetType(MemberType.ADULT).level(EnglishLevel.INTERMEDIATE).build());
+
+        assertThat(courseRepository.search(null, null, null, "coffee"))
+                .extracting(Course::getTitle)
+                .containsExactlyInAnyOrder("Coffee Chat", "여행 영어");
+        assertThat(courseRepository.search(null, null, null, "COFFEE"))
+                .hasSize(2);
+        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, "coffee"))
+                .extracting(Course::getTitle)
+                .containsExactly("Coffee Chat");
+        assertThat(courseRepository.search(null, null, null, "존재하지않는키워드")).isEmpty();
     }
 
     @Test
@@ -50,7 +73,7 @@ class CourseRepositoryTest {
                 .title("개인 코스").description("설명").ownerId(1L)
                 .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
 
-        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null))
+        assertThat(courseRepository.search(MemberType.ADULT, EnglishLevel.BEGINNER, null, null))
                 .extracting(Course::getTitle)
                 .containsExactly("공식 코스");
     }
@@ -70,7 +93,7 @@ class CourseRepositoryTest {
                 .courseId(readingCourse.getId()).orderNo(1).title("1과")
                 .content("내용").lessonType(LessonType.READING).build());
 
-        assertThat(courseRepository.search(null, null, LessonType.VOCAB))
+        assertThat(courseRepository.search(null, null, LessonType.VOCAB, null))
                 .extracting(Course::getTitle)
                 .containsExactly("어휘코스");
     }

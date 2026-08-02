@@ -160,7 +160,7 @@ public class LessonService {
      */
     public List<IconPair> collectIconPairs(MemberType targetType) {
         List<Course> courses = PICTURE_QUIZ_LEVELS.stream()
-                .flatMap(level -> courseRepository.search(targetType, level, null).stream())
+                .flatMap(level -> courseRepository.search(targetType, level, null, null).stream())
                 .toList();
         Map<Long, List<Lesson>> lessonsByCourseId = lessonRepository
                 .findByCourseIdIn(courses.stream().map(Course::getId).toList()).stream()
