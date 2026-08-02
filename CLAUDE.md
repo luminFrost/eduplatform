@@ -451,6 +451,33 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     `getLessonsDueForReview`/`markReviewed` 4개, `LearningProgressFlowTest`에 비로그인
     `/my/review` 리다이렉트 확인 1개.
 
+- 회원가입 시 레벨 배치 테스트 (dev 병합됨)
+  - PRODUCT.md 7 "열린 질문"("레벨 판정: 자가 선택 vs 간단한 레벨 테스트?")에 답함 — 자가 선택은
+    그대로 두고, 그 옆에 "레벨을 모르겠어요 → 간단 테스트" 선택지를 추가(양자택일 아님).
+  - 새 문항을 만들지 않음 — 진단 테스트용으로 이미 시딩된 80개 `Question`을 그대로 재사용,
+    `QuestionService.getLevelPlacementQuestions(targetType)`가 대상별로 레벨마다 앞의 2문항씩(영역
+    무관) 뽑아 총 8문항 배치 테스트를 만듦. `recommendLevel(targetType, answers)`는 BEGINNER부터
+    순서대로 레벨별 정답률을 확인해 과반 이상 맞힌 마지막 레벨을 추천 — 회원이 아직 존재하지 않는
+    시점(가입 전)이라 기존 `determineFocusAreas`(레벨이 이미 정해졌다고 가정)와 달리 레벨 자체를
+    추천하는 새 메서드로 분리. 미답변 문항은 오답 처리(진단 테스트처럼 전부 답해야 한다는 강제 없음 —
+    판돈이 낮은 "제안"이라는 포지셔닝).
+  - 화면: `/members/new/level-test`(대상 없이 접근하면 초등/성인 미니 선택 페이지, 대상 지정 시 8문항
+    테스트 — 기존 `course/diagnostic-test.html`과 똑같은 구조·CSS 재사용) 신규 `LevelPlacementViewController`
+    (`member` 패키지). 제출하면 `/members/new?target=X&recommendedLevel=Y`로 리다이렉트.
+  - `MemberViewController.signUpForm()`이 `target`/`recommendedLevel` 쿼리 파라미터를 받아 가입 폼에
+    "테스트 결과 추천 레벨: OOO" 배너를 보여주고, `memberType`/`level` select의 `th:selected` 조건에
+    `(form == null and recommendedTarget == type.name())` 분기를 추가해 최초 진입 시 추천값을 미리
+    선택해둠(검증 실패 재렌더링일 땐 기존처럼 `form` 값이 우선 — 조건 순서로 자연히 처리됨).
+  - 시큐리티: `/members/new/level-test`(GET+POST 둘 다) permitAll 추가 — 가입 전 접근이라 로그인 불필요,
+    `/members/new`처럼 정확한 경로 매칭이라 `/members/new/**`로 자동 커버 안 됨을 확인하고 명시적으로 추가.
+  - 테스트: `QuestionServiceTest`에 5개(레벨당 2문항 총 8개, 중간에 막히면 그 직전 레벨 추천, 전부
+    통과 시 ADVANCED, BEGINNER부터 막혀도 BEGINNER 유지, 미답변은 오답 처리), 신규
+    `LevelPlacementViewControllerTest`(비로그인 접근·대상 없을 때 미니 페이지·제출 후 리다이렉트).
+  - curl로 실서버 종단 검증: ADULT 대상으로 BEGINNER·ELEMENTARY는 정답, INTERMEDIATE는 일부러 오답
+    제출 → `recommendedLevel=ELEMENTARY`로 리다이렉트 확인 → 가입 폼에 배너 + ADULT/ELEMENTARY가
+    실제로 `selected` 속성과 함께 미리 선택된 것 확인 → 그대로 가입해 실제 ELEMENTARY 레벨 회원이
+    만들어지는 것까지 확인. 쿼리 파라미터 없는 기존 가입 폼도 그대로 잘 열리는지(하위 호환) 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
