@@ -48,4 +48,17 @@ public class Member extends BaseTimeEntity {
         this.level = level;
         this.password = password;
     }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void changeLevel(EnglishLevel level) {
+        this.level = level;
+    }
+
+    /** 인자는 반드시 이미 해시된 값이어야 한다 — 평문 비밀번호를 그대로 넘기지 않는다. */
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }
