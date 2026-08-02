@@ -525,6 +525,33 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     `keyword` 쿼리 파라미터가 그대로 붙어나오는 것 확인, 매칭 없는 검색어에 "조건에 맞는 코스가
     없습니다" 빈 상태 메시지 확인.
 
+- 실제 음성인식 SPEAKING (dev 병합됨)
+  - PRODUCT.md 7 "열린 질문"에 계속 미결정으로 남아있던 "말하기 평가: 발음 점수화 범위와 방식?"에 답함.
+    지금까지 SPEAKING 레슨은 TTS로 문장을 들려주고 "따라 말해보기" 문구로 유도만 할 뿐, 실제로 말했는지
+    확인할 방법이 전혀 없었음. 브라우저 내장 `SpeechRecognition`(Web Speech API)으로 실제 발화를 텍스트로
+    받아 목표 문장과 비교하는 "🎙️ 내 목소리로 확인하기" 버튼을 SPEAKING 레슨에 추가.
+  - **서버 변경 전혀 없음** — 이 프로젝트 유일한 클라이언트 JS `static/js/lesson-audio.js`(기존 TTS
+    재생 로직)에 같은 이벤트 위임 패턴으로 두 번째 리스너만 추가. 정답 판정은 인식된 텍스트와 목표
+    문장을 정규화(소문자·구두점 제거·공백 정리) 후 완전 일치로 비교 — 이 프로젝트 기존 퀴즈들과 같은
+    수준의 단순함, 새 채점 알고리즘 없음. 발음 점수화·음소 비교·녹음 저장은 과한 엔지니어링으로 판단해
+    범위 제외, 정답/오답 이분법만.
+  - "학습 완료" 처리와는 의도적으로 분리 — 음성 확인은 연습 보조 도구일 뿐 게이트가 아니라서, 마이크
+    미지원 브라우저나 권한 거부 사용자도 완료 버튼은 그대로 누를 수 있음.
+  - `window.SpeechRecognition || window.webkitSpeechRecognition`로 기존 `speechSynthesis` 지원 체크와
+    같은 패턴으로 미지원 브라우저를 조용히 처리(안내 문구만 표시). CSS는 기존 `--color-accent`(정답)/
+    `#dc2626`(오답, `.error-message`와 동일)를 재사용해 새 팔레트 검증 없이 결과 배지 스타일링.
+  - **claude-in-chrome 검증 중 발견**: 실제 Chrome은 `window.SpeechRecognition`(무접두사)과
+    `window.webkitSpeechRecognition`을 **둘 다** 노출한다 — 헤드리스 자동화 환경에서 마이크 목킹을 위해
+    `webkitSpeechRecognition`만 오버라이드했더니 코드가 `SpeechRecognition || webkitSpeechRecognition`
+    순서로 무접두사를 먼저 골라 실제 API(마이크 권한 없어 응답 없음)를 계속 타는 문제가 있었음 — 둘 다
+    같이 오버라이드해서 해결, 실제 프로덕션 코드는 문제 없음(정상적인 폴백 순서).
+  - JS 테스트 프레임워크가 이 프로젝트에 없음을 재확인(`lesson-audio.js` 최초 도입 때와 동일 결론) —
+    이번에도 자동 테스트 없이 claude-in-chrome으로 `recognition.onresult`/`onerror` 콜백을 모킹 이벤트로
+    강제 트리거해 정답("Good morning!" 그대로 인식 → ✅ 초록 배지)·오답("Good evening" 인식 → 빨간 안내+
+    인식된 문장 노출)·미지원 브라우저(둘 다 undefined 처리 → 안내 문구) 세 경로 전부 확인, LISTENING
+    레슨엔 마이크 버튼이 아예 렌더링 안 되는 것도 확인(`document.querySelectorAll('[data-check-text]')`
+    로 개수 0 검증), 콘솔 에러 없음 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

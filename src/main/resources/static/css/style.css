@@ -729,6 +729,22 @@ ul {
     color: #fff;
 }
 
+.speech-result {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.speech-result.correct {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
+.speech-result.incorrect {
+    color: #dc2626;
+}
+
 .lesson-note {
     font-size: 1.05rem;
     font-weight: 500;

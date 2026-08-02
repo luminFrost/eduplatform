@@ -37,6 +37,10 @@
                             th:attr="data-speak-text=${line.text}"
                             th:text="${lesson.lessonType.name() == 'SPEAKING'} ? '🎤 듣고 따라 말해보기' : '🔊 듣기'">
                     </button>
+                    <button type="button" class="listen-button"
+                            th:if="${lesson.lessonType.name() == 'SPEAKING'}"
+                            th:attr="data-check-text=${line.text}">🎙️ 내 목소리로 확인하기</button>
+                    <span class="speech-result" th:if="${lesson.lessonType.name() == 'SPEAKING'}" data-speech-result></span>
                 </div>
             </div>
             <div th:case="'NOTE'" class="lesson-note"
