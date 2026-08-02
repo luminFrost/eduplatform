@@ -21,6 +21,7 @@ public class MyPageController {
     public String dashboard(@CurrentMemberId Long memberId, Model model) {
         model.addAttribute("member", memberService.getMember(memberId));
         model.addAttribute("summary", progressService.getDashboardSummary(memberId));
+        model.addAttribute("weeklyActivity", progressService.getWeeklyActivity(memberId));
         model.addAttribute("skillAreaProgress", progressService.getSkillAreaProgress(memberId));
         model.addAttribute("courseProgress", progressService.getCourseProgress(memberId));
         model.addAttribute("personalCourses", courseService.listPersonalCourses(memberId));
