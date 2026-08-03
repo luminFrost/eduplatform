@@ -16,12 +16,19 @@ import com.edu.eduplatform.member.dto.MemberAdminResponse;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
 import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
+import com.edu.eduplatform.member.exception.CannotWithdrawAdminException;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
+import com.edu.eduplatform.course.domain.Course;
+import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.lesson.domain.Lesson;
+import com.edu.eduplatform.lesson.domain.LessonType;
+import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.security.EmailVerificationService;
 import com.edu.eduplatform.member.security.PasswordResetTokenService;
+import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +54,15 @@ class MemberServiceTest {
 
     @Mock
     private EmailVerificationService emailVerificationService;
+
+    @Mock
+    private CourseRepository courseRepository;
+
+    @Mock
+    private LessonRepository lessonRepository;
+
+    @Mock
+    private LearningProgressRepository learningProgressRepository;
 
     @InjectMocks
     private MemberService memberService;
@@ -222,6 +238,76 @@ class MemberServiceTest {
     }
 
     @Test
+    void withdraw_비밀번호가_맞으면_회원과_진행기록과_개인코스를_모두_삭제한다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("withdraw@example.com").nickname("탈퇴테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.USER).build(), 1L);
+        Course personalCourse = withCourseId(Course.builder()
+                .title("개인코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Lesson personalLesson = Lesson.builder()
+                .courseId(100L).orderNo(1).title("1과").content("내용").lessonType(LessonType.VOCAB).build();
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(passwordEncoder.matches("password1234", "hashed")).thenReturn(true);
+        when(courseRepository.findByOwnerIdOrderByIdDesc(1L)).thenReturn(List.of(personalCourse));
+        when(lessonRepository.findByCourseIdIn(List.of(100L))).thenReturn(List.of(personalLesson));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        memberService.withdraw(1L, "password1234");
+
+        verify(lessonRepository).deleteAll(List.of(personalLesson));
+        verify(courseRepository).deleteAll(List.of(personalCourse));
+        verify(learningProgressRepository).deleteAll(List.of());
+        verify(memberRepository).delete(member);
+    }
+
+    @Test
+    void withdraw_개인코스가_없어도_정상_탈퇴한다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("withdraw-nopersonal@example.com").nickname("탈퇴테스터2")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.USER).build(), 2L);
+        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
+        when(passwordEncoder.matches("password1234", "hashed")).thenReturn(true);
+        when(courseRepository.findByOwnerIdOrderByIdDesc(2L)).thenReturn(List.of());
+        when(learningProgressRepository.findByMemberId(2L)).thenReturn(List.of());
+
+        memberService.withdraw(2L, "password1234");
+
+        verify(lessonRepository, never()).deleteAll(any());
+        verify(memberRepository).delete(member);
+    }
+
+    @Test
+    void withdraw_비밀번호가_틀리면_예외를_던지고_아무것도_지우지_않는다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("withdraw-wrong@example.com").nickname("탈퇴테스터3")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.USER).build(), 3L);
+        when(memberRepository.findById(3L)).thenReturn(Optional.of(member));
+        when(passwordEncoder.matches("wrong-password", "hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> memberService.withdraw(3L, "wrong-password"))
+                .isInstanceOf(InvalidPasswordException.class);
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    void withdraw_관리자면_예외를_던지고_아무것도_지우지_않는다() throws Exception {
+        Member admin = withId(Member.builder()
+                .email("withdraw-admin@example.com").nickname("관리자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.ADMIN).build(), 4L);
+        when(memberRepository.findById(4L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> memberService.withdraw(4L, "password1234"))
+                .isInstanceOf(CannotWithdrawAdminException.class);
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
     void listMembers_키워드가_없으면_전체를_id_오름차순으로_반환한다() throws Exception {
         Member m2 = withId(Member.builder()
                 .email("b@example.com").nickname("두번째")
@@ -278,5 +364,12 @@ class MemberServiceTest {
         field.setAccessible(true);
         field.set(member, id);
         return member;
+    }
+
+    private static Course withCourseId(Course course, Long id) throws Exception {
+        Field field = course.getClass().getDeclaredField("id");
+        field.setAccessible(true);
+        field.set(course, id);
+        return course;
     }
 }
