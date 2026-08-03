@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class LoginViewController {
 
     @GetMapping("/login")
-    public String loginForm(@RequestParam(required = false) String error, Model model) {
+    public String loginForm(@RequestParam(required = false) String error,
+                             @RequestParam(required = false) String resetSuccess,
+                             Model model) {
         if (error != null) {
             model.addAttribute("errorMessage", "이메일 또는 비밀번호가 올바르지 않습니다.");
         }
+        model.addAttribute("resetSuccess", resetSuccess != null);
         return "member/login-form";
     }
 }
