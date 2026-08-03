@@ -1,8 +1,12 @@
 package com.edu.eduplatform.course.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.edu.eduplatform.course.domain.Course;
@@ -11,16 +15,23 @@ import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
+import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.domain.MemberType;
+import com.edu.eduplatform.member.repository.MemberRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class CourseViewControllerTest {
+
+    private static final String RAW_PASSWORD = "password1234";
 
     @Autowired
     private MockMvc mockMvc;
@@ -30,6 +41,12 @@ class CourseViewControllerTest {
 
     @Autowired
     private LessonRepository lessonRepository;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Test
     void 코스목록_잘못된_target값이면_500대신_필터없이_보여준다() throws Exception {
@@ -68,5 +85,49 @@ class CourseViewControllerTest {
         mockMvc.perform(get("/courses/{id}", course.getId()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("🔒 회원 전용")));
+    }
+
+    @Test
+    void 로그인_회원은_코스를_즐겨찾기하고_다시_토글하면_해제할_수_있다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("북마크테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession session = loginAs("bookmark-test@example.com", "북마크테스터");
+
+        mockMvc.perform(post("/courses/{id}/bookmark", course.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        assertThat(mockMvc.perform(get("/courses/{id}", course.getId()).session(session))
+                        .andReturn().getResponse().getContentAsString())
+                .contains("★ 즐겨찾기 해제");
+
+        mockMvc.perform(post("/courses/{id}/bookmark", course.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        assertThat(mockMvc.perform(get("/courses/{id}", course.getId()).session(session))
+                        .andReturn().getResponse().getContentAsString())
+                .contains("☆ 즐겨찾기");
+    }
+
+    @Test
+    void 비로그인이면_즐겨찾기_토글은_로그인으로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("북마크비로그인테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(post("/courses/{id}/bookmark", course.getId()).with(csrf()))
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    private MockHttpSession loginAs(String email, String nickname) throws Exception {
+        memberRepository.save(Member.builder()
+                .email(email).nickname(nickname)
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+
+        MvcResult loginResult = mockMvc.perform(post("/login").with(csrf())
+                        .param("email", email)
+                        .param("password", RAW_PASSWORD))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        return (MockHttpSession) loginResult.getRequest().getSession();
     }
 }

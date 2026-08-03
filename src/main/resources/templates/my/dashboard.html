@@ -89,6 +89,26 @@
         </a>
     </div>
 
+    <h2>즐겨찾기한 코스</h2>
+    <p class="empty-state" th:if="${#lists.isEmpty(bookmarkedCourses)}">
+        아직 즐겨찾기한 코스가 없어요.
+        <a th:href="@{/courses}">코스 목록에서 관심 있는 코스를 즐겨찾기 해보세요 →</a>
+    </p>
+    <div class="card-grid" th:unless="${#lists.isEmpty(bookmarkedCourses)}">
+        <a class="card course-card" th:each="c, cStat : ${bookmarkedCourses}"
+           th:href="@{/courses/{id}(id=${c.id})}"
+           th:classappend="'accent-' + (${cStat.index} % 4)">
+            <span class="course-card-icon" th:text="${c.emoji}"></span>
+            <div class="course-card-badges">
+                <span class="badge" th:text="${c.targetType}"></span>
+                <span class="badge" th:text="${c.level}"></span>
+            </div>
+            <h3 th:text="${c.title}"></h3>
+            <p th:text="${c.description}"></p>
+            <span class="card-cta">레슨 보기 <span class="lesson-chevron">›</span></span>
+        </a>
+    </div>
+
     <h2>내 개인 코스</h2>
     <p class="empty-state" th:if="${#lists.isEmpty(personalCourses)}">
         아직 만든 개인 코스가 없어요.

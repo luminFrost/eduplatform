@@ -8,9 +8,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.course.domain.Course;
+import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
+import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
+import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
@@ -53,6 +56,9 @@ class CourseServiceTest {
 
     @Mock
     private QuestionService questionService;
+
+    @Mock
+    private CourseBookmarkRepository courseBookmarkRepository;
 
     @InjectMocks
     private CourseService courseService;
@@ -338,6 +344,61 @@ class CourseServiceTest {
         var result = courseService.recommendNextCourse(1L, 200L);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void toggleBookmark_북마크가_없으면_추가하고_true를_반환한다() {
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(courseBookmarkRepository.existsByMemberIdAndCourseId(1L, 100L)).thenReturn(false);
+
+        boolean result = courseService.toggleBookmark(1L, 100L);
+
+        assertThat(result).isTrue();
+        verify(courseBookmarkRepository).save(any(CourseBookmark.class));
+    }
+
+    @Test
+    void toggleBookmark_북마크가_있으면_삭제하고_false를_반환한다() {
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(courseBookmarkRepository.existsByMemberIdAndCourseId(1L, 100L)).thenReturn(true);
+
+        boolean result = courseService.toggleBookmark(1L, 100L);
+
+        assertThat(result).isFalse();
+        verify(courseBookmarkRepository).deleteByMemberIdAndCourseId(1L, 100L);
+        verify(courseBookmarkRepository, never()).save(any());
+    }
+
+    @Test
+    void toggleBookmark_존재하지_않는_코스면_예외를_던진다() {
+        when(courseRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> courseService.toggleBookmark(1L, 999L))
+                .isInstanceOf(CourseNotFoundException.class);
+        verify(courseBookmarkRepository, never()).save(any());
+    }
+
+    @Test
+    void isBookmarked_존재여부를_그대로_반환한다() {
+        when(courseBookmarkRepository.existsByMemberIdAndCourseId(1L, 100L)).thenReturn(true);
+
+        assertThat(courseService.isBookmarked(1L, 100L)).isTrue();
+    }
+
+    @Test
+    void listBookmarkedCourses_북마크_최신순으로_반환하고_삭제된_코스는_걸러진다() throws Exception {
+        CourseBookmark bookmark1 = withId(CourseBookmark.builder().memberId(1L).courseId(100L).build(), 1L);
+        CourseBookmark bookmark2 = withId(CourseBookmark.builder().memberId(1L).courseId(200L).build(), 2L);
+        Course course200 = withId(Course.builder()
+                .title("최근 북마크").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        // course100(id=100)은 이미 삭제된 상태를 가정 — findAllById 결과에 없음.
+        when(courseBookmarkRepository.findByMemberIdOrderByIdDesc(1L)).thenReturn(List.of(bookmark2, bookmark1));
+        when(courseRepository.findAllById(List.of(200L, 100L))).thenReturn(List.of(course200));
+
+        List<com.edu.eduplatform.course.dto.CourseResponse> result = courseService.listBookmarkedCourses(1L);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseResponse::id).containsExactly(200L);
     }
 
     @Test

@@ -1118,6 +1118,34 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     확인(레슨까지 함께 삭제됐다는 증거) → 관리자 계정으로 탈퇴 시도 시 에러 메시지 확인(실제로 계정
     유지).
 
+- 코스 즐겨찾기/북마크 (dev 병합됨)
+  - 공식 코스가 58개로 늘어난 뒤 관심 있는 코스를 표시해두고 모아볼 방법이 없던 갭을 채움 — 코스
+    상세에 토글 버튼, 마이페이지에 "즐겨찾기한 코스" 섹션 추가.
+  - 신규 `CourseBookmark`(`memberId`/`courseId` 느슨한 id 참조)를 `course` 패키지 안에 둠 —
+    `LearningProgress`가 `progress`라는 독립 패키지를 쓴 건 그 기능 자체가 컸기 때문이고, 즐겨찾기는
+    엔티티+리포지토리 하나짜리라 새 패키지를 만들지 않고 기존 `course` 패키지 규모에 비례하게 배치.
+  - `CourseService.listPersonalCourses()`가 쓰던 "리포지토리 조회 → `CourseResponse::from` 매핑"
+    패턴을 그대로 재사용해 `toggleBookmark`/`isBookmarked`/`listBookmarkedCourses` 3개 추가.
+    `listBookmarkedCourses()`는 `courseRepository.findAllById()`가 **입력 순서를 보장하지 않는다**는
+    걸 미리 알고 있어서 Map으로 재정렬해 북마크 최신순을 유지 — 부수 효과로 혹시 삭제된 코스를
+    가리키는 오래된 북마크가 있어도 조용히 걸러짐(회원 탈퇴 때 개인 코스가 함께 삭제되는 것과
+    무관하게, 어떤 코스든 삭제되면 그 북마크 항목은 표시만 안 될 뿐 별도 정리 없이도 안전).
+  - **시큐리티 설정 변경 없음** — `SecurityConfig`의 코스 permitAll 규칙이 `HttpMethod.GET`으로
+    한정돼 있어(레슨 잠금 기능 때도 활용했던 특성) 신규 `POST /courses/{id}/bookmark`는 자동으로
+    맨 마지막 `anyRequest().authenticated()`에 걸려 로그인이 필요해짐 — 새 규칙 추가 없이 확인만 하고
+    끝남.
+  - 화면: 코스 상세(`course/detail.html`)의 헤더에 "☆ 즐겨찾기"/"★ 즐겨찾기 해제" 토글 버튼(비로그인은
+    "로그인 필요" 비활성 링크), 마이페이지(`my/dashboard.html`)에 "내 개인 코스"와 완전히 같은
+    카드 그리드 마크업으로 "즐겨찾기한 코스" 섹션 추가 — 새 CSS는 `.bookmark-form { display: inline; }`
+    한 줄만(기존 `.lesson-move-form`과 같은 목적).
+  - 테스트: 신규 `CourseBookmarkRepositoryTest`(`@DataJpaTest`, 존재확인·최신순 조회·삭제),
+    `CourseServiceTest`에 5개(토글 추가/삭제, 존재하지 않는 코스 예외, 존재여부 확인, 최신순+삭제된
+    코스 필터링), `CourseViewControllerTest`에 2개(로그인 회원 토글 두 번 왕복, 비로그인은 `/login`
+    리다이렉트).
+  - curl 실서버 종단 검증: 회원가입 → 코스 상세에서 "☆ 즐겨찾기" 클릭 → "★ 즐겨찾기 해제"로 바뀌는
+    것 확인 → 마이페이지 "즐겨찾기한 코스"에 실제로 뜨는 것(제목·링크 포함) 확인 → 다시 클릭해 해제 →
+    마이페이지에서 빈 상태 문구로 돌아가는 것 확인 → CSRF 없는 비인증 토글 요청은 403 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

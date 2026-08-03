@@ -21,6 +21,12 @@
         <span class="badge" th:text="${course.level}"></span>
         <h1 th:text="${course.title}"></h1>
         <p th:text="${course.description}"></p>
+        <form th:if="${currentMemberId != null}" th:action="@{/courses/{id}/bookmark(id=${course.id})}"
+              method="post" class="bookmark-form">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" th:text="${bookmarked} ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기'"></button>
+        </form>
+        <a th:if="${currentMemberId == null}" href="/login" class="btn-disabled" title="로그인 후 이용할 수 있어요">☆ 즐겨찾기 (로그인 필요)</a>
     </div>
 
     <div class="quiz-question" th:if="${courseCompleted}">

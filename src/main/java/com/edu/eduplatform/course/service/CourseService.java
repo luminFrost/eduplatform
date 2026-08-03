@@ -1,12 +1,14 @@
 package com.edu.eduplatform.course.service;
 
 import com.edu.eduplatform.course.domain.Course;
+import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
+import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
@@ -20,6 +22,7 @@ import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.service.QuestionService;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,6 +41,7 @@ public class CourseService {
     private final MemberService memberService;
     private final ProgressService progressService;
     private final QuestionService questionService;
+    private final CourseBookmarkRepository courseBookmarkRepository;
 
     public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType, String keyword) {
         return courseRepository.search(targetType, level, lessonType, keyword).stream()
@@ -47,6 +51,37 @@ public class CourseService {
 
     public List<CourseResponse> listPersonalCourses(Long memberId) {
         return courseRepository.findByOwnerIdOrderByIdDesc(memberId).stream()
+                .map(CourseResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public boolean toggleBookmark(Long memberId, Long courseId) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new CourseNotFoundException(courseId);
+        }
+        if (courseBookmarkRepository.existsByMemberIdAndCourseId(memberId, courseId)) {
+            courseBookmarkRepository.deleteByMemberIdAndCourseId(memberId, courseId);
+            return false;
+        }
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(memberId).courseId(courseId).build());
+        return true;
+    }
+
+    public boolean isBookmarked(Long memberId, Long courseId) {
+        return memberId != null && courseBookmarkRepository.existsByMemberIdAndCourseId(memberId, courseId);
+    }
+
+    /** courseRepository.findAllById()는 입력 순서를 보장하지 않아 북마크 최신순으로 직접 재정렬한다. */
+    public List<CourseResponse> listBookmarkedCourses(Long memberId) {
+        List<Long> orderedCourseIds = courseBookmarkRepository.findByMemberIdOrderByIdDesc(memberId).stream()
+                .map(CourseBookmark::getCourseId)
+                .toList();
+        Map<Long, Course> coursesById = courseRepository.findAllById(orderedCourseIds).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course));
+        return orderedCourseIds.stream()
+                .map(coursesById::get)
+                .filter(Objects::nonNull)
                 .map(CourseResponse::from)
                 .toList();
     }

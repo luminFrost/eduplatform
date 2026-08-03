@@ -262,6 +262,10 @@ ul {
     display: inline;
 }
 
+.bookmark-form {
+    display: inline;
+}
+
 .site-nav .link-button {
     padding: 8px 14px;
     border-radius: 999px;
