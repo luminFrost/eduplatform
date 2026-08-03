@@ -87,6 +87,7 @@ public class CourseViewController {
             model.addAttribute("lessonTypes", LessonType.values());
             model.addAttribute("lessonCounts", lessonCounts);
             model.addAttribute("selectedType", type);
+            model.addAttribute("currentMemberId", memberId);
 
             if (memberId != null && !course.isPersonal()) {
                 boolean courseCompleted = progressService.isCourseFullyCompleted(memberId, id);

@@ -20,6 +20,7 @@ import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
+import com.edu.eduplatform.member.security.EmailVerificationService;
 import com.edu.eduplatform.member.security.PasswordResetTokenService;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -43,6 +44,9 @@ class MemberServiceTest {
 
     @Mock
     private PasswordResetTokenService passwordResetTokenService;
+
+    @Mock
+    private EmailVerificationService emailVerificationService;
 
     @InjectMocks
     private MemberService memberService;
@@ -180,6 +184,41 @@ class MemberServiceTest {
 
         assertThat(result).isFalse();
         verify(memberRepository, never()).save(any());
+    }
+
+    @Test
+    void ensureEmailAvailable_이미_가입된_이메일이면_예외를_던진다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("taken@example.com").nickname("테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").build(), 1L);
+        when(memberRepository.findByEmail("taken@example.com")).thenReturn(Optional.of(member));
+
+        assertThatThrownBy(() -> memberService.ensureEmailAvailable("taken@example.com"))
+                .isInstanceOf(DuplicateEmailException.class);
+    }
+
+    @Test
+    void ensureEmailAvailable_가입되지_않은_이메일이면_예외를_던지지_않는다() {
+        when(memberRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+
+        memberService.ensureEmailAvailable("new@example.com");
+    }
+
+    @Test
+    void requestSignupVerification_인증번호를_발급한다() {
+        when(emailVerificationService.issueCode("new@example.com")).thenReturn("123456");
+
+        memberService.requestSignupVerification("new@example.com");
+
+        verify(emailVerificationService).issueCode("new@example.com");
+    }
+
+    @Test
+    void verifySignupCode_인증서비스에_위임한다() {
+        when(emailVerificationService.verify("new@example.com", "123456")).thenReturn(true);
+
+        assertThat(memberService.verifySignupCode("new@example.com", "123456")).isTrue();
     }
 
     @Test
