@@ -1146,6 +1146,50 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     것 확인 → 마이페이지 "즐겨찾기한 코스"에 실제로 뜨는 것(제목·링크 포함) 확인 → 다시 클릭해 해제 →
     마이페이지에서 빈 상태 문구로 돌아가는 것 확인 → CSRF 없는 비인증 토글 요청은 403 확인.
 
+- 보안 헤더 추가 (CSP/HSTS/Referrer-Policy/Permissions-Policy) (dev 병합됨)
+  - 지금까지 응답 헤더는 Spring Security 기본값(`X-Content-Type-Options`/`X-XSS-Protection: 0`/
+    `X-Frame-Options: SAMEORIGIN`)뿐이었고 Content-Security-Policy/Referrer-Policy/Permissions-Policy는
+    전혀 없었음(curl로 확인) — `SecurityConfig.webSecurityFilterChain()`의 기존 `.headers(...)`를
+    확장해 4종을 추가.
+  - **CSP가 두 곳과 충돌할 뻔함**: (1) `/h2-console/**` — H2 콘솔 UI가 인라인 스크립트를 광범위하게
+    써서 `script-src 'self'`를 걸면 콘솔이 망가짐. (2) `my/dashboard.html`의 진도 막대 2곳이 서버가
+    계산한 퍼센트를 `th:style="'width: '..."`로 인라인 렌더링 — `style-src`에 `'unsafe-inline'`이
+    필요(너비값을 CSS 클래스 101개로 나열하는 건 비현실적, nonce는 Thymeleaf에 새 배관이 필요해 범위
+    밖). **script-src는 타협 없이 `'self'`만 허용** — 인라인 `<script>` 블록이 템플릿에 하나도 없음을
+    미리 grep으로 확인(`lesson-audio.js`/`theme-toggle.js` 전부 외부 파일), 실질적 XSS 방어의 핵심은
+    style이 아니라 script라 여기서 타협하지 않음. Google Fonts(`style.css`의 `@import url(...
+    fonts.googleapis.com...)`)를 위해 `style-src`/`font-src`에 각각 googleapis.com/gstatic.com만 추가.
+  - h2-console만 CSP에서 빼는 방법 — `HeadersConfigurer.contentSecurityPolicy(...)` DSL엔 경로 제한이
+    없어서, `addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(NegatedRequestMatcher(...),
+    ContentSecurityPolicyHeaderWriter(...)))`로 "h2-console이 아닌 모든 요청"에만 CSP를 걸었다 — 새
+    필터체인 없이 기존 `webSecurityFilterChain` 안에서 해결. **Spring Security 7.1.0에서
+    `AntPathRequestMatcher`가 실제로 사라졌다는 걸 컴파일 에러로 처음 발견** — 로컬 jar를 직접 열어
+    확인해보니 `org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher`로
+    교체돼 있었음(`PathPatternRequestMatcher.pathPattern("/h2-console/**")` 정적 팩토리로 대체).
+    `permissionsPolicy(...)`도 반환 타입이 체이닝용이 아니라(`PermissionsPolicyConfig`를 반환) 이어서
+    `.httpStrictTransportSecurity(...)`를 못 붙임 — 같은 역할을 하면서 `HeadersConfigurer<H>`를
+    반환하는 `permissionsPolicyHeader(...)`로 교체해 해결. (교훈: Spring Security 마이너/메이저
+    업그레이드마다 DSL 메서드의 존재·반환 타입이 바뀔 수 있어, 새 API를 쓸 땐 실제 jar를
+    javap로 열어 시그니처를 먼저 확인하는 게 안전 — 이번에 실제로 그렇게 해서 두 번의 컴파일 에러를
+    빠르게 잡음.)
+  - **마이크 권한 주의** — SPEAKING 레슨이 실제로 `SpeechRecognition`(마이크)을 쓰므로
+    `Permissions-Policy`에서 `microphone=()`으로 전부 막지 않고 `microphone=(self)`로 자기 출처만
+    허용, 안 쓰는 camera/geolocation/payment만 `()`로 막음.
+  - HSTS는 `isSecure()`(HTTPS)일 때만 실제로 헤더가 나가 지금의 로컬 HTTP 개발 환경엔 아무 영향이
+    없음(Spring Security 기본값과 동일한 값) — 나중에 실제 HTTPS로 배포하면 바로 의미를 갖도록
+    의도를 코드에 미리 남겨둠.
+  - 범위는 브라우저 렌더링 경로(`webSecurityFilterChain`)로 한정, `/api/**`(JSON 응답이라 CSP가
+    실질적 의미가 적음)는 이번에도 제외 — 이 프로젝트에서 반복된 "API는 범위 제외" 패턴과 동일.
+  - 테스트: 신규 `SecurityHeadersTest`(MockMvc) — `GET /`에 CSP(`default-src 'self'`/
+    `script-src 'self'` 포함)·Referrer-Policy·Permissions-Policy(`microphone=(self)` 포함)·
+    X-Frame-Options가 다 있는지, `GET /h2-console`엔 CSP가 없는지 확인.
+  - curl+claude-in-chrome 실서버 검증: `/`, `/courses` 응답에 4종 헤더 전부 확인, `/h2-console/`엔
+    CSP 없이 콘솔 자체는 정상 로드되는 것 확인. 브라우저로 실제 회원가입→로그인→마이페이지 진입 후
+    콘솔에 CSP 위반 에러가 없는지 확인, 진도 막대의 인라인 `style="width: 0%"`가 `getComputedStyle`
+    상으로도 그대로 반영돼(0px, 클래스 기본값으로 안 밀림) `style-src`의 `unsafe-inline`이 실제로
+    작동함을 확인. SPEAKING 레슨 페이지에서도 콘솔 에러 없이 마이크/듣기 버튼이 정상 렌더링되는 것
+    확인(외부 JS 파일이 `script-src 'self'`에서 문제없이 로드됨).
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
