@@ -129,6 +129,25 @@ public class LessonService {
         lessonRepository.deleteById(lessonId);
     }
 
+    @Transactional
+    public void moveLesson(Long lessonId, String direction) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new LessonNotFoundException(lessonId));
+        List<Lesson> siblings = lessonRepository.findByCourseIdOrderByOrderNoAsc(lesson.getCourseId());
+        int index = IntStream.range(0, siblings.size())
+                .filter(i -> siblings.get(i).getId().equals(lessonId))
+                .findFirst()
+                .orElseThrow();
+        int targetIndex = "up".equals(direction) ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= siblings.size()) {
+            return;
+        }
+        Lesson target = siblings.get(targetIndex);
+        int temp = lesson.getOrderNo();
+        lesson.changeOrderNo(target.getOrderNo());
+        target.changeOrderNo(temp);
+    }
+
     public LessonDetailResponse getDetail(Long id) {
         Lesson lesson = lessonRepository.findById(id)
                 .orElseThrow(() -> new LessonNotFoundException(id));

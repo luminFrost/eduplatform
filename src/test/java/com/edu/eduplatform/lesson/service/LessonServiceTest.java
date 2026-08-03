@@ -253,6 +253,78 @@ class LessonServiceTest {
     }
 
     @Test
+    void moveLesson_위로_이동하면_인접한_레슨과_orderNo가_바뀐다() throws Exception {
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson lesson3 = withLessonId(Lesson.builder().courseId(1L).orderNo(3).title("3과").content("내용3").lessonType(LessonType.VOCAB).build(), 12L);
+        List<Lesson> siblings = List.of(lesson1, lesson2, lesson3);
+
+        when(lessonRepository.findById(11L)).thenReturn(Optional.of(lesson2));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        lessonService.moveLesson(11L, "up");
+
+        assertThat(lesson2.getOrderNo()).isEqualTo(1);
+        assertThat(lesson1.getOrderNo()).isEqualTo(2);
+        assertThat(lesson3.getOrderNo()).isEqualTo(3);
+    }
+
+    @Test
+    void moveLesson_아래로_이동하면_인접한_레슨과_orderNo가_바뀐다() throws Exception {
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson lesson3 = withLessonId(Lesson.builder().courseId(1L).orderNo(3).title("3과").content("내용3").lessonType(LessonType.VOCAB).build(), 12L);
+        List<Lesson> siblings = List.of(lesson1, lesson2, lesson3);
+
+        when(lessonRepository.findById(11L)).thenReturn(Optional.of(lesson2));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        lessonService.moveLesson(11L, "down");
+
+        assertThat(lesson2.getOrderNo()).isEqualTo(3);
+        assertThat(lesson3.getOrderNo()).isEqualTo(2);
+        assertThat(lesson1.getOrderNo()).isEqualTo(1);
+    }
+
+    @Test
+    void moveLesson_맨_위에서_위로_이동하면_아무것도_바뀌지_않는다() throws Exception {
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
+        List<Lesson> siblings = List.of(lesson1, lesson2);
+
+        when(lessonRepository.findById(10L)).thenReturn(Optional.of(lesson1));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        lessonService.moveLesson(10L, "up");
+
+        assertThat(lesson1.getOrderNo()).isEqualTo(1);
+        assertThat(lesson2.getOrderNo()).isEqualTo(2);
+    }
+
+    @Test
+    void moveLesson_맨_아래에서_아래로_이동하면_아무것도_바뀌지_않는다() throws Exception {
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(1L).orderNo(1).title("1과").content("내용1").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(1L).orderNo(2).title("2과").content("내용2").lessonType(LessonType.VOCAB).build(), 11L);
+        List<Lesson> siblings = List.of(lesson1, lesson2);
+
+        when(lessonRepository.findById(11L)).thenReturn(Optional.of(lesson2));
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(1L)).thenReturn(siblings);
+
+        lessonService.moveLesson(11L, "down");
+
+        assertThat(lesson1.getOrderNo()).isEqualTo(1);
+        assertThat(lesson2.getOrderNo()).isEqualTo(2);
+    }
+
+    @Test
+    void moveLesson_존재하지_않는_레슨이면_예외를_던진다() {
+        when(lessonRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lessonService.moveLesson(999L, "up"))
+                .isInstanceOf(com.edu.eduplatform.lesson.exception.LessonNotFoundException.class);
+    }
+
+    @Test
     void searchLessons_매칭된_레슨을_코스_정보와_스니펫과_함께_반환한다() throws Exception {
         Course course = withId(Course.builder()
                 .title("여행 영어").description("설명")

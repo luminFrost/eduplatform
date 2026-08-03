@@ -16,6 +16,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /** 관리자 전용 레슨 관리 화면 — SecurityConfig가 /admin/** 을 ROLE_ADMIN으로 이미 막아둔다. */
 @Controller
@@ -87,6 +88,17 @@ public class LessonAdminController {
         Long courseId = resolveCourseId(id);
         try {
             lessonService.deleteLesson(id);
+        } catch (LessonNotFoundException e) {
+            // 이미 없는 레슨 — 그대로 코스로 돌아간다.
+        }
+        return courseId != null ? "redirect:/admin/courses/" + courseId : "redirect:/admin/courses";
+    }
+
+    @PostMapping("/admin/lessons/{id}/move")
+    public String move(@PathVariable Long id, @RequestParam String direction) {
+        Long courseId = resolveCourseId(id);
+        try {
+            lessonService.moveLesson(id, direction);
         } catch (LessonNotFoundException e) {
             // 이미 없는 레슨 — 그대로 코스로 돌아간다.
         }

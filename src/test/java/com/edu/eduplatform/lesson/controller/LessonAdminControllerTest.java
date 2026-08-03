@@ -92,6 +92,41 @@ class LessonAdminControllerTest {
         assertThat(lessonRepository.findById(created.getId())).isEmpty();
     }
 
+    @Test
+    void 일반_회원은_레슨_순서_이동에_접근하면_403이다() throws Exception {
+        MockHttpSession session = loginAs("lesson-move-member@example.com", "일반회원", MemberRole.USER);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).title("1과").orderNo(1).content("내용").lessonType(LessonType.VOCAB).build());
+
+        mockMvc.perform(post("/admin/lessons/" + lesson.getId() + "/move").session(session).with(csrf())
+                        .param("direction", "up"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 관리자는_레슨_순서를_위아래로_이동할_수_있다() throws Exception {
+        MockHttpSession session = loginAs("lesson-move-admin@example.com", "관리자", MemberRole.ADMIN);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson1 = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).title("1과").orderNo(1).content("내용1").lessonType(LessonType.VOCAB).build());
+        Lesson lesson2 = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).title("2과").orderNo(2).content("내용2").lessonType(LessonType.VOCAB).build());
+
+        MvcResult moveResult = mockMvc.perform(post("/admin/lessons/" + lesson2.getId() + "/move").session(session).with(csrf())
+                        .param("direction", "up"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        assertThat(moveResult.getResponse().getRedirectedUrl()).contains("/admin/courses/" + course.getId());
+        assertThat(lessonRepository.findById(lesson2.getId()).orElseThrow().getOrderNo()).isEqualTo(1);
+        assertThat(lessonRepository.findById(lesson1.getId()).orElseThrow().getOrderNo()).isEqualTo(2);
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)
