@@ -3,6 +3,8 @@ package com.edu.eduplatform.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.edu.eduplatform.member.domain.EnglishLevel;
@@ -18,6 +20,7 @@ import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
+import com.edu.eduplatform.member.security.PasswordResetTokenService;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +40,9 @@ class MemberServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private PasswordResetTokenService passwordResetTokenService;
 
     @InjectMocks
     private MemberService memberService;
@@ -112,6 +118,68 @@ class MemberServiceTest {
 
         assertThatThrownBy(() -> memberService.changePassword(999L, new PasswordChangeRequest("a", "newPassword1")))
                 .isInstanceOf(MemberNotFoundException.class);
+    }
+
+    @Test
+    void requestPasswordReset_존재하는_이메일이면_토큰을_발급한다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("a@example.com").nickname("테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").build(), 1L);
+        when(memberRepository.findByEmail("a@example.com")).thenReturn(Optional.of(member));
+
+        memberService.requestPasswordReset("a@example.com");
+
+        verify(passwordResetTokenService).issueToken(1L);
+    }
+
+    @Test
+    void requestPasswordReset_존재하지_않는_이메일이면_조용히_무시한다() {
+        when(memberRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        memberService.requestPasswordReset("nobody@example.com");
+
+        verify(passwordResetTokenService, never()).issueToken(any());
+    }
+
+    @Test
+    void isValidResetToken_유효한_토큰이면_true를_반환한다() {
+        when(passwordResetTokenService.peek("valid-token")).thenReturn(Optional.of(1L));
+
+        assertThat(memberService.isValidResetToken("valid-token")).isTrue();
+    }
+
+    @Test
+    void isValidResetToken_무효한_토큰이면_false를_반환한다() {
+        when(passwordResetTokenService.peek("invalid-token")).thenReturn(Optional.empty());
+
+        assertThat(memberService.isValidResetToken("invalid-token")).isFalse();
+    }
+
+    @Test
+    void resetPassword_유효한_토큰이면_비밀번호를_바꾸고_true를_반환한다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("a@example.com").nickname("테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("old-hashed").build(), 1L);
+        when(passwordResetTokenService.consume("valid-token")).thenReturn(Optional.of(1L));
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(passwordEncoder.encode("newPassword1")).thenReturn("new-hashed");
+
+        boolean result = memberService.resetPassword("valid-token", "newPassword1");
+
+        assertThat(result).isTrue();
+        assertThat(member.getPassword()).isEqualTo("new-hashed");
+    }
+
+    @Test
+    void resetPassword_무효하거나_만료된_토큰이면_false를_반환하고_바꾸지_않는다() {
+        when(passwordResetTokenService.consume("invalid-token")).thenReturn(Optional.empty());
+
+        boolean result = memberService.resetPassword("invalid-token", "newPassword1");
+
+        assertThat(result).isFalse();
+        verify(memberRepository, never()).save(any());
     }
 
     @Test
