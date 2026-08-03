@@ -24,7 +24,7 @@
     <p class="empty-state" th:if="${#lists.isEmpty(lessons)}">아직 등록된 레슨이 없습니다.</p>
 
     <ul class="lesson-list" th:unless="${#lists.isEmpty(lessons)}">
-        <li th:each="lesson : ${lessons}" th:classappend="'type-' + ${#strings.toLowerCase(lesson.lessonType.name())}">
+        <li th:each="lesson, lessonStat : ${lessons}" th:classappend="'type-' + ${#strings.toLowerCase(lesson.lessonType.name())}">
             <div class="lesson-row">
                 <span class="lesson-text">
                     <span class="lesson-eyebrow" th:text="${lesson.orderNo} + '과'"></span>
@@ -37,6 +37,16 @@
                     <span th:case="'LISTENING'">듣기</span>
                     <span th:case="'SPEAKING'">말하기</span>
                 </span>
+                <form th:unless="${lessonStat.first}" th:action="@{/admin/lessons/{id}/move(id=${lesson.id})}" method="post" class="lesson-move-form">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="direction" value="up"/>
+                    <button type="submit" aria-label="위로 이동">▲</button>
+                </form>
+                <form th:unless="${lessonStat.last}" th:action="@{/admin/lessons/{id}/move(id=${lesson.id})}" method="post" class="lesson-move-form">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="direction" value="down"/>
+                    <button type="submit" aria-label="아래로 이동">▼</button>
+                </form>
                 <a th:href="@{/admin/lessons/{id}/edit(id=${lesson.id})}">수정</a>
                 <form th:action="@{/admin/lessons/{id}/delete(id=${lesson.id})}" method="post" class="lesson-delete-form">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

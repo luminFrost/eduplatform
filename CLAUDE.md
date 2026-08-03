@@ -981,6 +981,32 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     이 방식으로만 잠금 여부를 확인할 수 있음) → 완전히 다른 계정(`admin@eduplatform.com`)은 영향
     없이 정상 로그인되는 것 확인(잠금이 계정별로 격리됨을 증명).
 
+- 관리자 레슨 순서 재배치 UI (dev 병합됨)
+  - 관리자 코스 상세 화면에서 레슨의 `orderNo`(몇 과)를 바꾸려면 지금까지 레슨 수정 폼에 숫자를 직접
+    타이핑해야 했음 — 순서를 하나 옮기려면 관련 레슨들의 orderNo를 손으로 계산해 각각 고쳐야 해 실수하기
+    쉬웠던 갭을 채움. 목록에서 바로 위/아래로 옮기는 ▲/▼ 버튼 추가.
+  - `Lesson`에 `changeOrderNo(int)` 신규 상태 변경 메서드 추가(세터 없이 의미 있는 메서드로 상태를
+    바꾸는 프로젝트 컨벤션 그대로 — 이번엔 다른 필드는 안 건드리니 `updateDetails()`를 재사용하지 않고
+    전용 메서드를 새로 둠). `LessonService.moveLesson(lessonId, direction)`은 `getDetail()`이 이전/다음
+    레슨 계산에 이미 쓰던 "형제 레슨을 orderNo 순으로 조회 → `IntStream`으로 현재 레슨의 인덱스 찾기"
+    패턴을 그대로 재사용해 인접한 레슨과 orderNo를 맞바꿈. 맨 위에서 위로, 맨 아래에서 아래로 요청하면
+    조용히 무시(no-op) — 버튼이 화면엔 없어도 URL을 직접 호출하는 경우를 대비한 안전장치.
+  - `LessonAdminController`에 `POST /admin/lessons/{id}/move`(`direction` 파라미터) 추가 — 기존
+    `delete()`가 쓰던 private 헬퍼 `resolveCourseId()`를 그대로 재사용해 코스 상세로 리다이렉트.
+    SecurityConfig 변경 없음(`/admin/**` → `hasRole("ADMIN")` 규칙이 이미 덮음, 이번 세션 admin 기능
+    전부에서 반복 확인된 패턴).
+  - `admin/course-detail.html`의 레슨 목록 `th:each`에 상태 변수(`lessonStat`)를 추가해 `.first`/`.last`로
+    맨 위 레슨엔 ▲, 맨 아래 레슨엔 ▼ 버튼을 숨김. 기존 삭제 폼과 같은 인라인 `<form>` + CSRF hidden
+    input 패턴 재사용, CSS는 `.lesson-delete-form` 옆에 `.lesson-move-form { display: inline; }` 한 줄만
+    추가.
+  - 테스트: `LessonServiceTest`에 `moveLesson` 5개(위/아래 이동, 맨 위/맨 아래 경계 no-op, 존재하지
+    않는 레슨 예외), `LessonAdminControllerTest`에 2개(일반 회원 403, 관리자는 이동 후 orderNo가 실제로
+    바뀌는지 리포지토리로 확인).
+  - curl 실서버 종단 검증: 관리자로 로그인해 레슨 7개짜리 코스(`/admin/courses/25`)에서 2과를 위로
+    이동 → 1과로 바뀌고 기존 1과가 2과로 밀리는 것 확인 → 공개 코스 상세(`/courses/25`)에도 바뀐 순서가
+    그대로 반영되는 것 확인 → 다시 아래로 이동시켜 원래 순서로 복원 → 일반 회원 계정으로 같은 이동
+    요청을 보내면 403이 나는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

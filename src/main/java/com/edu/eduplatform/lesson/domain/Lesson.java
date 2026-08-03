@@ -59,4 +59,8 @@ public class Lesson extends BaseTimeEntity {
         this.content = content;
         this.lessonType = lessonType;
     }
+
+    public void changeOrderNo(int orderNo) {
+        this.orderNo = orderNo;
+    }
 }
