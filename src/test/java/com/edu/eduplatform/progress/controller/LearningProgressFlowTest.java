@@ -16,6 +16,7 @@ import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
+import com.edu.eduplatform.member.security.EmailVerificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,20 +38,12 @@ class LearningProgressFlowTest {
     @Autowired
     private LessonRepository lessonRepository;
 
+    @Autowired
+    private EmailVerificationService emailVerificationService;
+
     @Test
     void 회원가입하면_세션에_기록되어_로그인없이_마이페이지와_학습완료를_쓸_수_있다() throws Exception {
-        MvcResult signUpResult = mockMvc.perform(post("/members")
-                        .with(csrf())
-                        .param("email", "flow-test@example.com")
-                        .param("nickname", "플로우테스터")
-                        .param("memberType", "ADULT")
-                        .param("level", "BEGINNER")
-                        .param("password", "password1234"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/my"))
-                .andReturn();
-
-        MockHttpSession session = (MockHttpSession) signUpResult.getRequest().getSession();
+        MockHttpSession session = signUp("flow-test@example.com", "플로우테스터");
         assertThat(session).isNotNull();
 
         Course course = courseRepository.save(Course.builder()
@@ -81,16 +74,7 @@ class LearningProgressFlowTest {
 
     @Test
     void PHRASE_문장이_있는_레슨은_퀴즈에_틀리면_완료되지_않고_맞으면_완료된다() throws Exception {
-        MvcResult signUpResult = mockMvc.perform(post("/members")
-                        .with(csrf())
-                        .param("email", "quiz-flow-test@example.com")
-                        .param("nickname", "퀴즈플로우테스터")
-                        .param("memberType", "ADULT")
-                        .param("level", "BEGINNER")
-                        .param("password", "password1234"))
-                .andExpect(status().is3xxRedirection())
-                .andReturn();
-        MockHttpSession session = (MockHttpSession) signUpResult.getRequest().getSession();
+        MockHttpSession session = signUp("quiz-flow-test@example.com", "퀴즈플로우테스터");
 
         Course course = courseRepository.save(Course.builder()
                 .title("퀴즈플로우코스").description("설명").emoji("📘")
@@ -123,16 +107,7 @@ class LearningProgressFlowTest {
 
     @Test
     void 코스를_다_완료하면_상세_페이지에_다음_코스_안내가_보인다() throws Exception {
-        MvcResult signUpResult = mockMvc.perform(post("/members")
-                        .with(csrf())
-                        .param("email", "next-course-test@example.com")
-                        .param("nickname", "다음코스테스터")
-                        .param("memberType", "ADULT")
-                        .param("level", "BEGINNER")
-                        .param("password", "password1234"))
-                .andExpect(status().is3xxRedirection())
-                .andReturn();
-        MockHttpSession session = (MockHttpSession) signUpResult.getRequest().getSession();
+        MockHttpSession session = signUp("next-course-test@example.com", "다음코스테스터");
 
         Course courseA = courseRepository.save(Course.builder()
                 .title("완료용코스").description("설명").emoji("📘")
@@ -178,5 +153,26 @@ class LearningProgressFlowTest {
     void 세션이_없으면_복습_페이지는_로그인으로_리다이렉트된다() throws Exception {
         mockMvc.perform(get("/my/review"))
                 .andExpect(redirectedUrl("/login"));
+    }
+
+    private MockHttpSession signUp(String email, String nickname) throws Exception {
+        MvcResult requestResult = mockMvc.perform(post("/members/new")
+                        .with(csrf())
+                        .param("email", email)
+                        .param("nickname", nickname)
+                        .param("memberType", "ADULT")
+                        .param("level", "BEGINNER")
+                        .param("password", "password1234"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/members/new/verify"))
+                .andReturn();
+        MockHttpSession session = (MockHttpSession) requestResult.getRequest().getSession();
+
+        String code = emailVerificationService.issueCode(email);
+        mockMvc.perform(post("/members/new/verify").session(session).with(csrf())
+                        .param("code", code))
+                .andExpect(redirectedUrl("/my"));
+
+        return session;
     }
 }

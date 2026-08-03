@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.edu.eduplatform.member.security.EmailVerificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +24,9 @@ class DailyQuizViewControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private EmailVerificationService emailVerificationService;
+
     @Test
     void 비로그인이면_로그인으로_리다이렉트된다() throws Exception {
         mockMvc.perform(get("/my/daily"))
@@ -31,7 +35,7 @@ class DailyQuizViewControllerTest {
 
     @Test
     void 로그인하면_오늘의_단어_페이지가_보인다() throws Exception {
-        MvcResult signUp = mockMvc.perform(post("/members").with(csrf())
+        MvcResult signUpRequest = mockMvc.perform(post("/members/new").with(csrf())
                         .param("email", "daily-test@example.com")
                         .param("nickname", "데일리테스터")
                         .param("memberType", "ADULT")
@@ -39,7 +43,12 @@ class DailyQuizViewControllerTest {
                         .param("password", "password1234"))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();
-        MockHttpSession session = (MockHttpSession) signUp.getRequest().getSession();
+        MockHttpSession session = (MockHttpSession) signUpRequest.getRequest().getSession();
+
+        String code = emailVerificationService.issueCode("daily-test@example.com");
+        mockMvc.perform(post("/members/new/verify").session(session).with(csrf())
+                        .param("code", code))
+                .andExpect(redirectedUrl("/my"));
 
         mockMvc.perform(get("/my/daily").session(session))
                 .andExpect(status().isOk())

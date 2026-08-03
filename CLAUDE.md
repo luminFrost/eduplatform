@@ -1040,6 +1040,50 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     페이지 접근 시 에러 메시지 확인 → 이미 쓴 토큰 재사용 시도 시 에러 메시지 확인 → 로그인 폼에 링크
     노출 확인.
 
+- 회원가입 이메일 인증 + 비회원 첫 강의만 미리보기 (dev 병합됨)
+  - 아이디가 이메일 주소인 것은 이미 그랬음(`Member.email` unique, 로그인도 `email` 파라미터) — 이번엔
+    "가입 시 이메일 인증번호 확인"과 "비로그인 사용자는 각 코스 첫 레슨만 열람"두 가지를 함께 추가.
+  - **회원가입 인증**: `POST /members`(루트, 즉시 가입+로그인)를 완전히 제거하고 2단계로 교체 —
+    `POST /members/new`(폼 검증 + 중복이메일 선확인 + `HttpSession`에 `MemberCreateRequest`를 그대로
+    보관 + 인증번호 발급) → `GET/POST /members/new/verify`(6자리 코드 입력, 맞으면 그제서야
+    `MemberService.signUp()` 호출 + 자동 로그인). **즉시 가입 경로를 남겨두면 그 URL을 직접 호출해
+    인증을 통째로 우회할 수 있어 기능이 무의미해진다고 판단해 아예 제거** — 대신 REST API
+    (`POST /api/members`)는 계약을 새로 설계해야 해 이번 범위에서 제외, 웹 화면만 인증을 거침.
+    `HttpSession`에 검증된 폼 데이터를 그대로 담아두는 방식이라(Redis 등 외부 세션 저장소가 아니라
+    Tomcat 기본 인메모리 세션) 새 pending-signup 저장소나 DTO를 따로 안 만들어도 됨.
+  - 비밀번호 재설정 때처럼 **실제 SMTP가 없어 인증번호를 서버 로그에 출력**(같은 이미 합의된 패턴,
+    나중에 메일 발송을 붙이면 로그 한 줄만 교체). 신규 `member/security/EmailVerificationService`가
+    `PasswordResetTokenService`와 정확히 같은 인메모리 `ConcurrentHashMap` 패턴(이메일 → 6자리 코드 +
+    만료시각 10분). 틀린 코드는 소모되지 않아(성공한 코드만 1회용 소모) 만료 전까지 재시도 가능.
+    `MemberService`에 `ensureEmailAvailable`/`requestSignupVerification`(코드 발급+로깅)/
+    `verifySignupCode` 3개 위임 메서드 추가 — 컨트롤러는 세션만 다루고 비즈니스 규칙·로깅은 서비스
+    레이어라는 기존 분리를 그대로 따름.
+  - **부작용**: 기존 테스트 5곳이 `POST /members`를 직접 호출해 테스트 계정을 만들고 있어서 전부
+    2단계 플로우를 거치도록 고침 — `EmailVerificationService`를 테스트에 직접 autowire해 컨트롤러가
+    로그로 내보낸 코드를 다시 조회하는 대신 `issueCode()`를 테스트에서 한 번 더 호출해 알려진 값으로
+    받는 방식(`PasswordResetViewControllerTest`가 이미 쓴 패턴과 동일). `LearningProgressFlowTest`는
+    3곳에 중복돼 있던 인라인 가입 블록을 공용 `signUp()` 헬퍼로 통합하면서 교체(리팩터링 겸함).
+  - **비회원 첫 레슨만 미리보기**: `LessonViewController.detail()`이 이미 받고 있던
+    `@CurrentMemberId Long memberId`로 `memberId == null && lesson.orderNo() != 1`이면 `locked`
+    플래그를 모델에 담아 `lesson/detail.html`의 실제 콘텐츠(`lesson-content`)와 학습 네비게이션
+    (`lesson-nav`)을 감추고 "회원가입 유도" 안내 카드만 보여줌(기존 `.quiz-question` 카드 스타일 재사용,
+    새 CSS 없음). REST API 쪽엔 레슨 본문 전체를 주는 엔드포인트가 없어(`GET /api/courses/{id}/lessons`는
+    제목 등 요약만 반환) 이 웹 라우트 하나만 막으면 충분함을 확인.
+  - `CourseViewController.detail()`도 이미 받던 `memberId`를 모델에 `currentMemberId`로 그대로 노출해
+    `course/detail.html`의 레슨 목록에서 `memberId == null and lesson.orderNo != 1`인 행에 🔒 배지
+    (기존 `.badge` 클래스 재사용)를 붙임 — 링크 자체는 그대로 둬서 클릭하면 서버가 최종 방어선인 잠금
+    화면으로 이어짐(목록의 배지는 UX 힌트일 뿐).
+  - 테스트: 신규 `EmailVerificationServiceTest`(5개, `PasswordResetTokenServiceTest`와 같은 스타일 —
+    성공/실패/재사용불가/만료), `MemberServiceTest`에 4개 신규, 신규 `MemberViewControllerTest`(5개 —
+    유효 제출→인증페이지, 중복이메일 1단계 차단, 세션없이 인증페이지 접근시 리다이렉트, 올바른 코드→
+    계정생성+로그인, 틀린 코드→에러), 신규 `LessonViewControllerTest`(3개 — 비로그인 1과 열람,
+    비로그인 2과 잠금, 로그인 회원 2과 열람), `CourseViewControllerTest`에 배지 노출 케이스 1개 추가.
+  - curl 실서버 종단 검증: 회원가입 폼 제출 → `build/bootRun.log`에서 6자리 인증번호 확인 → 틀린 코드
+    제출 시 에러 확인 → 올바른 코드 제출 시 실제 계정 생성 + `/my` 접근 가능 확인 → **`POST /members`
+    직접 호출 시 403(구 즉시가입 경로가 실제로 막혀 있음을 확인)** → 중복 이메일이면 1단계에서 바로
+    에러 확인 → 비로그인으로 레슨 여러 개짜리 코스 상세 진입 → 1과는 링크로 정상 열람, 2과부터 🔒 배지
+    확인 → 2과 URL 직접 접근 시 콘텐츠 대신 잠금 안내 확인 → 로그인 후 같은 2과 접근 시 정상 열람 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

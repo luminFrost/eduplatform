@@ -1,6 +1,7 @@
 package com.edu.eduplatform.lesson.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
+import com.edu.eduplatform.lesson.dto.LessonDetailResponse;
 import com.edu.eduplatform.lesson.exception.LessonNotFoundException;
 import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.progress.service.ProgressService;
@@ -25,7 +26,10 @@ public class LessonViewController {
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id, @CurrentMemberId Long memberId, Model model) {
         try {
-            model.addAttribute("lesson", lessonService.getDetail(id));
+            LessonDetailResponse lesson = lessonService.getDetail(id);
+            boolean locked = memberId == null && lesson.orderNo() != 1;
+            model.addAttribute("lesson", lesson);
+            model.addAttribute("locked", locked);
             model.addAttribute("currentMemberId", memberId);
             model.addAttribute("completed", memberId != null && progressService.isCompleted(memberId, id));
             return "lesson/detail";

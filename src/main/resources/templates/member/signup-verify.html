@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>이메일 인증 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main id="main-content" class="page">
+    <h1>이메일 인증</h1>
+
+    <p><span th:text="${email}"></span>로 인증번호를 보냈습니다(10분간 유효).</p>
+    <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+
+    <form th:action="@{/members/new/verify}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div>
+            <label>인증번호 <input type="text" name="code" inputmode="numeric" maxlength="6"/></label>
+        </div>
+        <button type="submit">인증하고 가입 완료</button>
+    </form>
+
+    <p><a th:href="@{/members/new}">처음부터 다시 하기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

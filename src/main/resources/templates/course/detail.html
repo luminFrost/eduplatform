@@ -70,6 +70,7 @@
                     <span th:case="'LISTENING'">듣기</span>
                     <span th:case="'SPEAKING'">말하기</span>
                 </span>
+                <span class="badge" th:if="${currentMemberId == null and lesson.orderNo != 1}">🔒 회원 전용</span>
                 <span class="lesson-chevron">›</span>
             </a>
         </li>

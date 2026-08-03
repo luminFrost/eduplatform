@@ -12,6 +12,7 @@ import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
+import com.edu.eduplatform.member.security.EmailVerificationService;
 import com.edu.eduplatform.member.security.PasswordResetTokenService;
 import java.util.Comparator;
 import java.util.List;
@@ -33,6 +34,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetTokenService passwordResetTokenService;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public MemberResponse signUp(MemberCreateRequest request) {
@@ -54,6 +56,26 @@ public class MemberService {
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateEmailException(request.email());
         }
+    }
+
+    /** 인증번호 발급 전에 이미 가입된 이메일인지 미리 확인 — 헛되이 코드를 발급하지 않는다. */
+    public void ensureEmailAvailable(String email) {
+        memberRepository.findByEmail(email).ifPresent(member -> {
+            throw new DuplicateEmailException(email);
+        });
+    }
+
+    /**
+     * 회원가입 인증번호를 발급해 로그에 출력한다(실제 SMTP 미연동 — 로그가 메일 발송 자리를 대신함,
+     * 비밀번호 재설정과 같은 패턴).
+     */
+    public void requestSignupVerification(String email) {
+        String code = emailVerificationService.issueCode(email);
+        log.info("[회원가입 인증] {} 요청 — 인증번호: {}", email, code);
+    }
+
+    public boolean verifySignupCode(String email, String code) {
+        return emailVerificationService.verify(email, code);
     }
 
     public MemberResponse getMember(Long id) {
