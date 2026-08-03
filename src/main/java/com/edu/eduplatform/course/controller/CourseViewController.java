@@ -88,6 +88,7 @@ public class CourseViewController {
             model.addAttribute("lessonCounts", lessonCounts);
             model.addAttribute("selectedType", type);
             model.addAttribute("currentMemberId", memberId);
+            model.addAttribute("bookmarked", courseService.isBookmarked(memberId, id));
 
             if (memberId != null && !course.isPersonal()) {
                 boolean courseCompleted = progressService.isCourseFullyCompleted(memberId, id);
@@ -100,6 +101,16 @@ public class CourseViewController {
         } catch (CourseNotFoundException e) {
             return "redirect:/courses";
         }
+    }
+
+    @PostMapping("/{id}/bookmark")
+    public String toggleBookmark(@PathVariable Long id, @CurrentMemberId Long memberId) {
+        try {
+            courseService.toggleBookmark(memberId, id);
+        } catch (CourseNotFoundException e) {
+            return "redirect:/courses";
+        }
+        return "redirect:/courses/" + id;
     }
 
     @GetMapping("/personal/new")

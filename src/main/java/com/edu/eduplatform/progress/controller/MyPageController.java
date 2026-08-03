@@ -27,6 +27,7 @@ public class MyPageController {
         model.addAttribute("skillAreaProgress", progressService.getSkillAreaProgress(memberId));
         model.addAttribute("courseProgress", progressService.getCourseProgress(memberId));
         model.addAttribute("personalCourses", courseService.listPersonalCourses(memberId));
+        model.addAttribute("bookmarkedCourses", courseService.listBookmarkedCourses(memberId));
 
         List<DailyActivityResponse> monthlyActivity = progressService.getMonthlyActivity(memberId);
         model.addAttribute("monthlyActivity", monthlyActivity);
