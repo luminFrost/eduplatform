@@ -13,6 +13,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.header.writers.ContentSecurityPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 
 /**
  * 두 개의 필터체인으로 나눈다. formLogin과 httpBasic을 같은 체인에 같이 두면 Spring Security가
@@ -101,7 +106,33 @@ public class SecurityConfig {
                         .permitAll()
                 )
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin())
+                        // h2-console은 인라인 스크립트를 광범위하게 써서 CSP를 걸면 콘솔 자체가 망가진다 —
+                        // 개발용 도구는 permitAll/CSRF 제외와 같은 원칙으로 CSP에서도 뺀다.
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                                new NegatedRequestMatcher(PathPatternRequestMatcher.pathPattern("/h2-console/**")),
+                                new ContentSecurityPolicyHeaderWriter(
+                                        "default-src 'self'; "
+                                        + "script-src 'self'; "
+                                        // style-src의 unsafe-inline은 my/dashboard.html 진도 막대의 th:style(서버가
+                                        // 계산한 퍼센트)을 위해 필요 — script-src는 타협 없이 'self'만 허용.
+                                        + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                                        + "font-src 'self' https://fonts.gstatic.com; "
+                                        + "img-src 'self'; "
+                                        + "object-src 'none'; "
+                                        + "base-uri 'self'; "
+                                        + "form-action 'self'; "
+                                        + "frame-ancestors 'self'")))
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        // SPEAKING 레슨이 실제로 마이크(SpeechRecognition)를 쓰므로 microphone은 self로 열어둔다.
+                        // permissionsPolicy()는 체이닝용 반환 타입이 아니라 permissionsPolicyHeader()를 쓴다.
+                        .permissionsPolicyHeader(permissions -> permissions.policy(
+                                "camera=(), microphone=(self), geolocation=(), payment=()"))
+                        // isSecure()(HTTPS)일 때만 실제로 헤더가 나가 지금의 로컬 HTTP 환경엔 영향 없음 —
+                        // 나중에 HTTPS로 배포하면 바로 의미를 갖도록 의도를 코드에 명시해둔다.
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+                );
 
         return http.build();
     }
