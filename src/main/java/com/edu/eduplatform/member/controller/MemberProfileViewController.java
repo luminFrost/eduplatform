@@ -4,11 +4,16 @@ import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
+import com.edu.eduplatform.member.exception.CannotWithdrawAdminException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.service.MemberService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -64,6 +69,23 @@ public class MemberProfileViewController {
         }
 
         return "redirect:/my/profile?passwordChanged";
+    }
+
+    @PostMapping("/withdraw")
+    public String withdraw(@CurrentMemberId Long memberId, @RequestParam String password,
+                            HttpServletRequest httpRequest, HttpServletResponse httpResponse, Model model) {
+        try {
+            memberService.withdraw(memberId, password);
+        } catch (InvalidPasswordException | CannotWithdrawAdminException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("member", memberService.getMember(memberId));
+            model.addAttribute("levels", EnglishLevel.values());
+            return "my/profile";
+        }
+
+        new SecurityContextLogoutHandler().logout(httpRequest, httpResponse,
+                SecurityContextHolder.getContext().getAuthentication());
+        return "redirect:/login?withdrawn";
     }
 
     private String withErrors(Long memberId, Model model, BindingResult bindingResult) {

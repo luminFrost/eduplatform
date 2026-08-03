@@ -1084,6 +1084,40 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     에러 확인 → 비로그인으로 레슨 여러 개짜리 코스 상세 진입 → 1과는 링크로 정상 열람, 2과부터 🔒 배지
     확인 → 2과 URL 직접 접근 시 콘텐츠 대신 잠금 안내 확인 → 로그인 후 같은 2과 접근 시 정상 열람 확인.
 
+- 회원 탈퇴(계정 삭제) 기능 (dev 병합됨)
+  - 프로필 수정·비밀번호 변경·역할 관리는 있었지만 정작 회원이 스스로 계정을 지울 방법이 없었던
+    갭을 채움 — `/my/profile`에 세 번째 섹션으로 추가, 기존 "비밀번호 변경"과 같은 확인 방식(현재
+    비밀번호 재입력)을 재사용.
+  - **연관 데이터 정리**: `LearningProgress`(memberId 참조)와 개인 코스(`Course.ownerId`, 전용으로
+    복사된 `Lesson`들)를 함께 삭제. 개인 코스는 다른 회원과 절대 공유되지 않아(레슨도 복사본,
+    PRODUCT.md 3-2 그대로) 완전히 지워도 안전 — 관리자 코스 삭제 기능을 "고아 레코드 위험"으로 범위
+    제외했던 것과 반대로, 이번엔 정확히 그 고아를 없애는 게 목적이라 전부 지움. 기존
+    `findByOwnerIdOrderByIdDesc`/`findByCourseIdIn`/`findByMemberId` 파생 쿼리로 조회 후
+    `deleteAll`만 호출 — 새 쿼리 메서드 없음.
+  - **순환 Bean 의존성을 피하려고 리포지토리를 직접 주입**: `ProgressService`/`CourseService`가 이미
+    `MemberService`를 주입받고 있어서(회원 존재 검증용) `MemberService`가 거꾸로 그 서비스들을
+    주입받으면 `BeanCurrentlyInCreationException`이 남. `ProgressService`가 이미 하던 대로
+    `MemberService`도 `CourseRepository`/`LessonRepository`/`LearningProgressRepository`를 직접
+    주입받는 방식으로 우회 — 이 프로젝트에서 검증된 서비스 간 순환 회피 패턴.
+  - **관리자 자기 탈퇴 방지**: `changeRole()`의 `CannotChangeSelfRoleException`(자기 역할 변경 방지)과
+    같은 이유 — 승격된 관리자가 자기 계정을 탈퇴시키면 서버 재시작(고정 시드 관리자 재생성) 전까지
+    관리자가 아예 없어질 수 있음. 신규 `CannotWithdrawAdminException`으로 관리자 역할이면 탈퇴 자체를
+    막음(비밀번호 확인보다 먼저 검사).
+  - 탈퇴 완료 후 `SecurityContextLogoutHandler`(Spring Security 제공, `/logout`이 내부적으로 쓰는
+    것과 같은 클래스)로 세션 무효화 + 컨텍스트 초기화 — 새 로그아웃 로직 없이 재사용. 비밀번호
+    재설정 때 추가한 `resetSuccess` 패턴과 똑같이 `LoginViewController`에 `withdrawn` 파라미터를
+    추가해 로그인 화면에 안내 문구만 표시.
+  - 테스트: `MemberServiceTest`에 `withdraw` 4개(정상 탈퇴 시 회원·진행기록·개인코스·레슨 전부 삭제,
+    개인 코스 없어도 정상 탈퇴, 비밀번호 틀리면 예외+아무것도 안 지워짐, 관리자면 예외+아무것도 안
+    지워짐), `MemberProfileViewControllerTest`에 2개(정상 탈퇴 후 리다이렉트+계정 삭제 확인+같은
+    세션으로 `/my` 접근 시 로그인 리다이렉트로 로그아웃 확인, 틀린 비밀번호는 에러+계정 유지).
+  - curl 실서버 종단 검증: 회원가입 → 레슨 완료(진행기록 생성) → 개인 코스 생성 → 틀린 비밀번호로
+    탈퇴 시도 시 에러 확인(계정 유지) → 올바른 비밀번호로 탈퇴 → `/login?withdrawn` 리다이렉트 +
+    안내 문구 확인 → 같은 세션으로 `/my` 접근 시 로그인으로 리다이렉트(로그아웃 확인) → 방금 만든
+    개인 코스(`/courses/50`) 직접 접근 시 더 이상 존재하지 않아 코스 목록으로 리다이렉트되는 것
+    확인(레슨까지 함께 삭제됐다는 증거) → 관리자 계정으로 탈퇴 시도 시 에러 메시지 확인(실제로 계정
+    유지).
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

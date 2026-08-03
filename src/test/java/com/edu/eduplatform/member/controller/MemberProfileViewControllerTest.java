@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.edu.eduplatform.member.repository.MemberRepository;
 import com.edu.eduplatform.member.security.EmailVerificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ class MemberProfileViewControllerTest {
 
     @Autowired
     private EmailVerificationService emailVerificationService;
+
+    @Autowired
+    private MemberRepository memberRepository;
 
     @Test
     void 비로그인이면_로그인으로_리다이렉트된다() throws Exception {
@@ -67,6 +71,34 @@ class MemberProfileViewControllerTest {
                         .param("currentPassword", "password1234")
                         .param("newPassword", "newPassword1"))
                 .andExpect(redirectedUrl("/my/profile?passwordChanged"));
+    }
+
+    @Test
+    void 올바른_비밀번호로_탈퇴하면_계정이_삭제되고_로그아웃된다() throws Exception {
+        String email = "withdraw-flow@example.com";
+        MockHttpSession session = signUp(email, "탈퇴플로우테스터");
+
+        mockMvc.perform(post("/my/profile/withdraw").session(session).with(csrf())
+                        .param("password", "password1234"))
+                .andExpect(redirectedUrl("/login?withdrawn"));
+
+        assertThat(memberRepository.findByEmail(email)).isEmpty();
+
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void 틀린_비밀번호로_탈퇴하면_에러_메시지와_함께_계정이_남아있다() throws Exception {
+        String email = "withdraw-wrong-flow@example.com";
+        MockHttpSession session = signUp(email, "탈퇴실패테스터");
+
+        mockMvc.perform(post("/my/profile/withdraw").session(session).with(csrf())
+                        .param("password", "wrong-password"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("현재 비밀번호가 올바르지 않습니다")));
+
+        assertThat(memberRepository.findByEmail(email)).isPresent();
     }
 
     private MockHttpSession signUp(String email, String nickname) throws Exception {

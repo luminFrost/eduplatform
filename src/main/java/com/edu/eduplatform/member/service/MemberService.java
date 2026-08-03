@@ -1,5 +1,8 @@
 package com.edu.eduplatform.member.service;
 
+import com.edu.eduplatform.course.domain.Course;
+import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.domain.MemberRole;
 import com.edu.eduplatform.member.dto.MemberAdminResponse;
@@ -8,12 +11,14 @@ import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
 import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
+import com.edu.eduplatform.member.exception.CannotWithdrawAdminException;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.repository.MemberRepository;
 import com.edu.eduplatform.member.security.EmailVerificationService;
 import com.edu.eduplatform.member.security.PasswordResetTokenService;
+import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +40,9 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetTokenService passwordResetTokenService;
     private final EmailVerificationService emailVerificationService;
+    private final CourseRepository courseRepository;
+    private final LessonRepository lessonRepository;
+    private final LearningProgressRepository learningProgressRepository;
 
     @Transactional
     public MemberResponse signUp(MemberCreateRequest request) {
@@ -109,6 +117,32 @@ public class MemberService {
 
         member.changePassword(passwordEncoder.encode(request.newPassword()));
         memberRepository.save(member);
+    }
+
+    /**
+     * 회원 스스로 계정을 삭제한다 — 진행 기록과 개인 코스(전용으로 복사된 레슨 포함)를 함께 지운다.
+     * 개인 코스는 다른 회원과 공유되지 않아(레슨도 복사본) 지워도 다른 회원에게 영향이 없다.
+     * 관리자 계정은 잠금 사고 방지를 위해 자기 자신을 탈퇴시킬 수 없다.
+     */
+    @Transactional
+    public void withdraw(Long memberId, String password) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        if (member.getRole() == MemberRole.ADMIN) {
+            throw new CannotWithdrawAdminException();
+        }
+        if (!passwordEncoder.matches(password, member.getPassword())) {
+            throw new InvalidPasswordException();
+        }
+
+        List<Course> personalCourses = courseRepository.findByOwnerIdOrderByIdDesc(memberId);
+        if (!personalCourses.isEmpty()) {
+            List<Long> personalCourseIds = personalCourses.stream().map(Course::getId).toList();
+            lessonRepository.deleteAll(lessonRepository.findByCourseIdIn(personalCourseIds));
+            courseRepository.deleteAll(personalCourses);
+        }
+        learningProgressRepository.deleteAll(learningProgressRepository.findByMemberId(memberId));
+        memberRepository.delete(member);
     }
 
     /**
