@@ -5,6 +5,7 @@ import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
+import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.dto.LessonSummaryResponse;
@@ -52,7 +53,9 @@ public class CourseViewController {
         LessonType typeFilter = parseEnum(LessonType.class, type);
         String keywordFilter = StringUtils.hasText(keyword) ? keyword.strip() : null;
 
-        model.addAttribute("courses", courseService.list(targetType, levelFilter, typeFilter, keywordFilter));
+        List<CourseResponse> courses = courseService.list(targetType, levelFilter, typeFilter, keywordFilter);
+        model.addAttribute("courses", courses);
+        model.addAttribute("ratingSummaries", courseService.getRatingSummaries(courses.stream().map(CourseResponse::id).toList()));
         model.addAttribute("lessonResults", lessonService.searchLessons(keywordFilter));
         model.addAttribute("memberTypes", MemberType.values());
         model.addAttribute("lessonTypes", LessonType.values());
@@ -67,6 +70,7 @@ public class CourseViewController {
     public String detail(
             @PathVariable Long id,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) String reviewError,
             @CurrentMemberId Long memberId,
             Model model
     ) {
@@ -90,6 +94,11 @@ public class CourseViewController {
             model.addAttribute("currentMemberId", memberId);
             model.addAttribute("bookmarked", courseService.isBookmarked(memberId, id));
 
+            model.addAttribute("reviews", courseService.listReviews(id));
+            model.addAttribute("ratingSummary", courseService.getRatingSummary(id));
+            model.addAttribute("myReview", memberId != null ? courseService.getMyReview(memberId, id).orElse(null) : null);
+            model.addAttribute("reviewError", reviewError != null);
+
             if (memberId != null && !course.isPersonal()) {
                 boolean courseCompleted = progressService.isCourseFullyCompleted(memberId, id);
                 model.addAttribute("courseCompleted", courseCompleted);
@@ -110,6 +119,25 @@ public class CourseViewController {
         } catch (CourseNotFoundException e) {
             return "redirect:/courses";
         }
+        return "redirect:/courses/" + id;
+    }
+
+    @PostMapping("/{id}/reviews")
+    public String submitReview(@PathVariable Long id, @CurrentMemberId Long memberId,
+                                @RequestParam int rating, @RequestParam(required = false) String comment) {
+        try {
+            courseService.submitReview(memberId, id, rating, comment);
+        } catch (CourseNotFoundException e) {
+            return "redirect:/courses";
+        } catch (InvalidReviewException e) {
+            return "redirect:/courses/" + id + "?reviewError";
+        }
+        return "redirect:/courses/" + id;
+    }
+
+    @PostMapping("/{id}/reviews/delete")
+    public String deleteReview(@PathVariable Long id, @CurrentMemberId Long memberId) {
+        courseService.deleteReview(memberId, id);
         return "redirect:/courses/" + id;
     }
 

@@ -3,23 +3,32 @@ package com.edu.eduplatform.course.service;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
+import com.edu.eduplatform.course.domain.CourseReview;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
+import com.edu.eduplatform.course.dto.CourseRatingSummary;
 import com.edu.eduplatform.course.dto.CourseResponse;
+import com.edu.eduplatform.course.dto.CourseReviewResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
+import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.course.repository.CourseReviewRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
+import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberResponse;
+import com.edu.eduplatform.member.exception.MemberNotFoundException;
+import com.edu.eduplatform.member.repository.MemberRepository;
 import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.service.ProgressService;
 import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.service.QuestionService;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,6 +49,8 @@ public class CourseService {
     private final LessonRepository lessonRepository;
     private final MemberService memberService;
     private final ProgressService progressService;
+    private final CourseReviewRepository courseReviewRepository;
+    private final MemberRepository memberRepository;
     private final QuestionService questionService;
     private final CourseBookmarkRepository courseBookmarkRepository;
 
@@ -84,6 +95,68 @@ public class CourseService {
                 .filter(Objects::nonNull)
                 .map(CourseResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public CourseReviewResponse submitReview(Long memberId, Long courseId, int rating, String comment) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new CourseNotFoundException(courseId);
+        }
+        if (rating < 1 || rating > 5) {
+            throw new InvalidReviewException("별점은 1~5 사이여야 합니다.");
+        }
+        if (comment != null && comment.length() > 500) {
+            throw new InvalidReviewException("후기는 500자 이내로 입력해 주세요.");
+        }
+
+        CourseReview review = courseReviewRepository.findByMemberIdAndCourseId(memberId, courseId)
+                .orElseGet(() -> CourseReview.builder().memberId(memberId).courseId(courseId).rating(rating).comment(comment).build());
+        review.update(rating, comment);
+        CourseReview saved = courseReviewRepository.save(review);
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        return toReviewResponse(saved, member.getNickname());
+    }
+
+    @Transactional
+    public void deleteReview(Long memberId, Long courseId) {
+        courseReviewRepository.deleteByMemberIdAndCourseId(memberId, courseId);
+    }
+
+    /** 리뷰마다 회원을 따로 조회하지 않도록 닉네임을 배치 조회해 매칭한다. */
+    public List<CourseReviewResponse> listReviews(Long courseId) {
+        List<CourseReview> reviews = courseReviewRepository.findByCourseIdOrderByIdDesc(courseId);
+        Map<Long, String> nicknamesById = memberRepository.findAllById(
+                        reviews.stream().map(CourseReview::getMemberId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Member::getId, Member::getNickname));
+        return reviews.stream()
+                .map(r -> toReviewResponse(r, nicknamesById.getOrDefault(r.getMemberId(), "알 수 없음")))
+                .toList();
+    }
+
+    public Optional<CourseReviewResponse> getMyReview(Long memberId, Long courseId) {
+        return courseReviewRepository.findByMemberIdAndCourseId(memberId, courseId)
+                .map(r -> toReviewResponse(r, null));
+    }
+
+    public CourseRatingSummary getRatingSummary(Long courseId) {
+        Double average = courseReviewRepository.findAverageRatingByCourseId(courseId);
+        return new CourseRatingSummary(average != null ? average : 0.0, courseReviewRepository.countByCourseId(courseId));
+    }
+
+    /** 코스 목록 화면에서 카드마다 따로 집계 쿼리를 날리지 않도록 courseId 여러 개를 한 번에 집계한다. */
+    public Map<Long, CourseRatingSummary> getRatingSummaries(Collection<Long> courseIds) {
+        return courseReviewRepository.findRatingSummaries(courseIds).stream()
+                .collect(Collectors.toMap(
+                        CourseReviewRepository.CourseRatingProjection::getCourseId,
+                        p -> new CourseRatingSummary(p.getAverageRating(), p.getReviewCount())));
+    }
+
+    private static CourseReviewResponse toReviewResponse(CourseReview review, String nickname) {
+        return new CourseReviewResponse(review.getId(), review.getMemberId(), nickname,
+                review.getRating(), review.getComment(), review.getCreatedAt());
     }
 
     public CourseResponse getCourse(Long id) {
