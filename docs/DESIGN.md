@@ -1,7 +1,9 @@
-# eduplatform 개발 설계
+# eduplatform 개발기획서
 
-초등학생·성인 대상 영어 학습 플랫폼의 개발 설계 문서.
-Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 구현한다.
+초등학생·성인 대상 영어 학습 플랫폼의 기술 설계 문서. 무엇을 만드는지는
+[PRODUCT.md](PRODUCT.md), 실제 완성된 산출물 전체 목록은 [DELIVERABLE.md](DELIVERABLE.md) 참고.
+이 문서는 Phase 1(회원 기반)부터 Phase 6(인증)까지의 최초 로드맵과, 그 이후 실제로 이어진 확장
+개발 전체를 최종 아키텍처 기준으로 정리했다.
 
 ---
 
@@ -9,152 +11,348 @@ Claude Code로 개발을 이어갈 때 이 문서를 기준으로 단계별로 �
 
 - 초등학생과 성인 모두 사용하는 영어 학습 사이트.
 - 영어 **입문(BEGINNER)** 단계부터 시작해 단계별로 학습을 제공.
-- 회원의 유형(초등/성인)과 레벨에 맞는 코스를 추천·제공.
-- 학습 진행 상황을 기록하고 진도율을 보여준다.
+- 회원의 유형(초등/성인)과 레벨에 맞는 코스를 추천·제공하고, 약점 영역 기반 개인 코스로 보완한다.
+- 학습 진행 상황을 기록하고 진도율·스트릭·복습 주기를 관리한다.
 
-## 2. 사용자 유형
+## 2. 기술 스택
+
+| 항목 | 버전/선택 |
+|------|-----------|
+| Java | 21 (LTS) |
+| Spring Boot | 4.1.0 |
+| Spring Framework | 7.x |
+| Spring Security | 7.1.0 (폼 로그인 + BCrypt + 역할 기반 인가) |
+| 빌드 도구 | Gradle 9.5.1 (Groovy DSL) |
+| ORM | Spring Data JPA / Hibernate 7.4 |
+| View | Thymeleaf 서버 렌더링 + `thymeleaf-extras-springsecurity6`(`sec:authorize`) |
+| DB | H2 인메모리(`ddl-auto: create`, 재시작마다 샘플 데이터 재시딩) |
+| 클라이언트 JS | 순수 바닐라 JS 2개 파일(`lesson-audio.js`: TTS·음성인식, `theme-toggle.js`: 다크모드) — 프레임워크·번들러 없음, AJAX 미사용(모든 폼은 서버 렌더링 POST-Redirect-GET) |
+| 기타 | Lombok |
+
+## 3. 사용자 유형
 
 | 유형 | 설명 | 특징 |
 |------|------|------|
-| 초등학생(CHILD) | 어린이 학습자 | 쉬운 UI, 그림/음성 중심, 짧은 레슨 |
+| 초등학생(CHILD) | 어린이 학습자 | 쉬운 UI, 마스코트 인사말, 짧은 레슨 |
 | 성인(ADULT) | 성인 학습자 | 실용 회화·문법 중심, 밀도 있는 레슨 |
 
 레벨: `BEGINNER`(입문) → `ELEMENTARY`(초급) → `INTERMEDIATE`(중급) → `ADVANCED`(고급)
 
-## 3. 도메인 모델
+## 4. 패키지 구조 (package-by-feature)
+
+```
+com.edu.eduplatform
+├── common/     JPA Auditing, WebMvc 설정, SecurityConfig, 샘플 데이터 시더, 관리자 대시보드, 랜딩 페이지
+├── member/     회원, 인증(로그인/가입/탈퇴/비밀번호), 이메일 인증·재설정 토큰, 관리자 회원 관리
+├── course/     코스(공식/개인), 즐겨찾기, 평점/리뷰, 관리자 코스 관리
+├── lesson/     레슨, 콘텐츠 파싱·아이콘 매핑, 이해도 퀴즈, 관리자 레슨 관리
+├── progress/   학습 진행, 대시보드 집계, 스트릭·캘린더, 간격 반복 복습(+헤더 배지)
+├── question/   진단 테스트/레벨 배치 문항, 관리자 문항 관리
+└── quiz/       그림 퀴즈, 매일 단어장/단어 퀴즈 (모두 저장 없이 그때그때 생성하는 stateless 설계)
+```
+
+각 패키지 안에 `domain / repository / service / controller`(+ 필요 시 `dto`, `exception`, `security`)를
+둔다. 연관관계는 `@ManyToOne` 없이 **id 참조(Long)** 로 느슨하게 둔다 — 다만 `progress`/`course` 등
+다른 패키지의 리포지토리를 서비스에서 직접 주입해 N+1을 피하는 배치 조회는 여러 곳에서 씀
+(`LessonRepository.findByCourseIdIn`, `MemberRepository.findAllById` 등). 서비스 간 순환 의존을
+피하려고, "회원 존재를 검증해야 하는 서비스(`CourseService`, `ProgressService`)는 `MemberService`를
+주입받고, 반대로 `MemberService`는 다른 도메인 서비스 대신 그 리포지토리를 직접 주입받는다"는 방향
+규칙을 지킨다(예: 회원 탈퇴 시 개인 코스·진행기록을 지우는 `MemberService.withdraw()`).
+
+### 4-1. 시스템 구조
+
+브라우저 요청이 인증 방식이 다른 두 개의 `SecurityFilterChain`(6절) 중 하나를 거쳐 컨트롤러 →
+서비스 → 리포지토리로 내려가는 단순 계층형 구조다. 프론트엔드 빌드·API 게이트웨이·메시지 큐 같은
+별도 인프라 없이 하나의 Spring Boot 프로세스 + H2 인메모리 DB로 전체를 서빙한다.
+
+```mermaid
+flowchart TB
+    Browser["브라우저<br/>Thymeleaf 렌더링 HTML + 바닐라 JS 2개"]
+
+    subgraph Security["Spring Security (SecurityConfig)"]
+        direction LR
+        ApiChain["apiSecurityFilterChain<br/>/api/** · HTTP Basic · STATELESS"]
+        WebChain["webSecurityFilterChain<br/>그 외 전부 · 폼 로그인 · 세션 · CSRF"]
+    end
+
+    subgraph App["애플리케이션 계층"]
+        direction TB
+        Controller["Controller<br/>@Controller(HTML) / @RestController(JSON)"]
+        Service["Service<br/>@Transactional 비즈니스 로직"]
+        Repository["Repository<br/>Spring Data JPA"]
+        Controller --> Service --> Repository
+    end
+
+    DB[("H2 인메모리 DB<br/>jdbc:h2:mem:eduplatform")]
+
+    Browser -->|"/api/**"| ApiChain --> Controller
+    Browser -->|그 외 전부| WebChain --> Controller
+    Repository --> DB
+```
+
+## 5. 도메인 모델
+
+전체 엔티티와 관계는 아래 다이어그램 하나로 요약된다. 화살표는 "느슨한 id 참조" 방향이며(외래키
+제약은 실제로 걸지 않음, 4절 참고), `Question`은 다른 엔티티를 참조하지 않는 독립 카탈로그라 연결선이
+없다.
+
+```mermaid
+erDiagram
+    MEMBER ||--o{ COURSE : "소유 (개인 코스, ownerId)"
+    MEMBER ||--o{ COURSE_BOOKMARK : 즐겨찾기
+    MEMBER ||--o{ COURSE_REVIEW : 작성
+    MEMBER ||--o{ LEARNING_PROGRESS : 완료기록
+    COURSE ||--o{ LESSON : 포함
+    COURSE ||--o{ COURSE_BOOKMARK : "즐겨찾기 대상"
+    COURSE ||--o{ COURSE_REVIEW : "리뷰 대상"
+    LESSON ||--o{ LEARNING_PROGRESS : "진행 추적"
+
+    MEMBER {
+        Long id PK
+        String email UK
+        String nickname
+        MemberType memberType
+        EnglishLevel level
+        String password "BCrypt"
+        MemberRole role
+    }
+    COURSE {
+        Long id PK
+        String title
+        String description
+        MemberType targetType
+        EnglishLevel level
+        Long ownerId "nullable, null=공식 코스"
+        CourseCriteriaSource criteriaSource "nullable"
+    }
+    LESSON {
+        Long id PK
+        Long courseId
+        String title
+        int orderNo
+        Text content
+        LessonType lessonType
+    }
+    LEARNING_PROGRESS {
+        Long id PK
+        Long memberId
+        Long lessonId
+        boolean completed
+        DateTime completedAt
+    }
+    COURSE_BOOKMARK {
+        Long id PK
+        Long memberId
+        Long courseId
+    }
+    COURSE_REVIEW {
+        Long id PK
+        Long memberId
+        Long courseId
+        int rating "1~5"
+        String comment
+    }
+    QUESTION {
+        Long id PK
+        MemberType targetType
+        EnglishLevel level
+        LessonType lessonType
+        String prompt
+        String audioText "nullable, LISTENING만"
+        int correctOptionIndex
+    }
+```
 
 ### Member (회원)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | Long | PK |
-| email | String | 로그인 ID, 유니크 |
+| email | String | 로그인 ID, unique |
 | nickname | String | 표시 이름 |
 | memberType | Enum | CHILD / ADULT |
 | level | Enum | 현재 학습 레벨 |
-| (추후) password | String | 인증 도입 시 |
+| password | String | BCrypt 해시(평문 저장 안 함) |
+| role | Enum | USER / ADMIN |
+
+세터 없음 — `changeNickname`/`changeLevel`/`changePassword`/`changeRole` 등 의미 있는 메서드로만
+상태를 바꾼다.
 
 ### Course (코스)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | Long | PK |
-| title | String | 코스명 |
-| description | String | 설명 |
-| targetType | Enum | 대상(CHILD/ADULT) |
-| level | Enum | 난이도 |
-| ownerId | Long (nullable) | 개인 코스 소유 회원. **null이면 공식 코스**, 값이 있으면 그 회원의 개인 코스 |
-| focusAreas | Set\<SkillArea\> (nullable) | 개인 코스가 비중을 두는 영역(복수 가능). 공식 코스는 비움 |
-| criteriaSource | Enum (nullable) | 개인 코스 기준 판단 방식: `SELF_SELECTED` / `HISTORY_BASED` / `DIAGNOSTIC_TEST`. 공식 코스는 null |
+| title, description, emoji | String | 표시 정보 |
+| targetType, level | Enum | 대상·난이도 |
+| ownerId | Long (nullable) | null=공식 코스, 값 있으면 그 회원의 개인 코스 |
+| focusAreas | Set\<LessonType\> | 개인 코스가 비중을 두는 영역(복수), 공식 코스는 비움 |
+| criteriaSource | Enum (nullable) | SELF_SELECTED / HISTORY_BASED / DIAGNOSTIC_TEST |
 
-> **공식 코스 vs 개인 코스**: 이 플랫폼은 불특정 다수 대상 오픈 서비스가 아니라 개개인의 약점 영역에 맞춘 학습을 지향한다.
-> 공식 코스(레벨 기준)와 개인 코스(약점 영역 기준)는 동일한 Course/Lesson 구조를 그대로 쓰며, 화면·진도 추적 로직도 공유한다.
-> 레슨은 여러 코스가 공유하지 않는다 — 개인 코스의 레슨은 새로 만들거나 기존 레슨을 복사해서 구성한다 (다대다 공유 구조 없음).
->
-> `criteriaSource`(비중 기준 판단 방식) 세 가지 모두 구현 완료: ① `SELF_SELECTED`(자가 선택) → ② `HISTORY_BASED`(학습 이력 기반) → ③ `DIAGNOSTIC_TEST`(진단 테스트, `Question` 도메인 참고). 셋 다 결과는 동일하게 "이 코스는 어떤 영역에 비중을 두는지"로 저장되므로, `CourseService.buildPersonalCourse()` 하나를 공유한다.
+공식 코스와 개인 코스는 같은 테이블·같은 화면·같은 진도 추적 로직을 공유한다. 개인 코스의 레슨은
+공식 코스 레슨을 **복사**해서 만든다(다대다 공유 없음) — `CourseService.buildPersonalCourse()`가
+자가선택/이력기반/진단테스트 세 진입점의 공통 로직.
 
-### SkillArea (영역, 개인 코스 focusAreas / 레슨 활동 유형에 공용)
-`VOCAB`(어휘) / `READING`(읽기) / `WRITING`(쓰기) / `LISTENING`(듣기) / `SPEAKING`(말하기) — PRODUCT.md 3-1의 활동 유형과 동일한 5종을 재사용한다.
+### CourseBookmark / CourseReview (참여 기능)
+| 엔티티 | 필드 | 설명 |
+|--------|------|------|
+| CourseBookmark | memberId, courseId | 회원이 즐겨찾기한 코스, 존재 여부로 토글 |
+| CourseReview | memberId, courseId, rating(1~5), comment | 회원당 코스 하나에 리뷰 하나(재작성 시 upsert) |
 
-### Lesson (레슨 — 코스 하위 학습 단위)
+### Lesson (레슨)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | Long | PK |
 | courseId | Long | 소속 코스 |
-| title | String | 레슨명 |
-| orderNo | int | 코스 내 순서 |
-| content | Text | 본문/스크립트. `INTRO:`/`"영어 — 한국어"` 줄 컨벤션으로 파싱(`LessonService.parseContent`) |
-| lessonType | Enum | 위 SkillArea 5종(VOCAB/READING/WRITING/LISTENING/SPEAKING) |
+| title, orderNo | String, int | 레슨명, 코스 내 순서(관리자 화면에서 위/아래 재배치 가능) |
+| content | Text(`@Lob`) | `INTRO:`/`"영어 — 한국어"` 줄 컨벤션으로 파싱(`LessonService.parseContent`) |
+| lessonType | Enum | VOCAB / READING / WRITING / LISTENING / SPEAKING |
 
 ### LearningProgress (학습 진행)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | Long | PK |
-| memberId | Long | 학습자 |
-| lessonId | Long | 대상 레슨 |
+| memberId, lessonId | Long | 학습자·대상 레슨 |
 | completed | boolean | 완료 여부 |
-| completedAt | DateTime | 완료 시각 |
+| completedAt | DateTime | 완료 시각 — 스트릭·캘린더·간격 반복 복습 판정에 재사용 |
 
-### Question (진단 테스트 문항)
+새 추적 테이블을 늘리지 않고 이 하나의 `completedAt` 값만으로 스트릭(연속일 계산), 월간 활동
+캘린더, 복습 대상 판정(완료 후 3일 경과)까지 전부 계산한다.
+
+### Question (진단 테스트 / 레벨 배치 문항)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | Long | PK |
-| targetType | Enum | 대상(CHILD/ADULT) |
-| level | Enum | 레벨 |
-| lessonType | Enum | 위 SkillArea 5종 — 특정 레슨이 아니라 대상·레벨·영역에 매인 문항이라 `lessonId`가 아닌 `lessonType`을 직접 가짐 |
+| targetType, level, lessonType | Enum | 특정 레슨이 아니라 대상·레벨·영역에 매인 문항 |
 | prompt | String | 문제 텍스트 |
-| audioText | String (nullable) | LISTENING 문항만 사용, 브라우저 `speechSynthesis`로 재생 |
-| options | List\<String\> | 4지선다 보기. `@OrderColumn` 필수(정답 인덱스와 순서가 맞아야 함) |
-| correctOptionIndex | int | 정답 보기 인덱스 |
+| audioText | String (nullable) | LISTENING 문항, `speechSynthesis`로 재생 |
+| options | List\<String\> (`@OrderColumn`) | 4지선다 보기 |
+| correctOptionIndex | int | 정답 인덱스 |
 
-대상×레벨 8개 조합 × 5개 영역 × 2문항 = 총 80문항(`QuestionDataInitializer` 시드). 응시 기록은 별도로 저장하지 않는다 —
-제출 시점에 바로 채점해 영역별 정답률이 가장 낮은 영역(동률이면 모두)을 뽑고, 그 결과인 개인 코스 자체가 곧 기록이라
-원시 답안까지 영구 저장할 이유가 없다(stateless). 채점 로직은 `QuestionService.determineFocusAreas()`.
+대상×레벨 8개 조합 × 5개 영역 × 2문항 = 80문항 시드(`QuestionDataInitializer`, 관리자 화면에서
+추가·수정 가능). 응시 원시 답안은 저장하지 않는다 — 제출 즉시 채점해 영역별 정답률이 가장 낮은
+영역(동률이면 모두)을 뽑고, 그 결과로 만들어진 개인 코스 자체가 기록이라 stateless로 둔다.
 
-### 추후 확장 후보
-- **Enrollment(수강신청)**: memberId, courseId — 회원이 코스 등록.
-- **Word(단어)**: lessonId, word, meaning, example — 단어 학습.
+> 그림 퀴즈·매일 단어장·레슨 내 이해도 퀴즈도 같은 stateless 원칙 — 별도 문제 테이블 없이, 기존
+> 레슨 콘텐츠에서 매 요청(그림 퀴즈·단어장은 날짜를 시드로) 결정론적으로 문제를 만들어낸다
+> (`DailySeed`, `QuizWordPicker`).
 
-> 연관관계는 현재 id 참조(Long)로 느슨하게 두고, 도메인이 안정되면 `@ManyToOne` 등으로 전환한다.
+## 6. 보안 아키텍처
 
-## 4. 화면 설계 (Thymeleaf)
+- **두 개의 `SecurityFilterChain`으로 분리**(`SecurityConfig`) — `formLogin`과 `httpBasic`을 같은
+  체인에 두면 인증 실패 시 응답 방식이 서로 덮어써서 분리가 필요했다.
+  - `apiSecurityFilterChain`(`/api/**`): HTTP Basic, `STATELESS`, CSRF 없음. 회원 데이터를 바꾸는
+    엔드포인트만 인증을 요구하고 `@CurrentMemberId`(인증된 사용자)로 memberId를 가져온다 — 요청
+    본문의 memberId를 신뢰하지 않는다.
+  - `webSecurityFilterChain`(그 외 전부): 이메일+비밀번호 세션 로그인, CSRF 보호, 역할 기반 인가
+    (`/admin/**` → `ROLE_ADMIN`).
+- **회원 식별**: `@CurrentMemberId` 커스텀 애너테이션 + `CurrentMemberIdArgumentResolver`(전역
+  등록) + `MemberPrincipal`(로그인 시점 스냅샷) 조합으로 컨트롤러 시그니처를 통일. 이 세 파일만
+  손대면 인증 방식을 바꿀 수 있게 미리 분리해둔 구조.
+- **무차별 대입 방지**: `LoginAttemptService`가 Spring Security의 인증 성공/실패 이벤트를 구독해
+  이메일별 실패 횟수를 인메모리로 추적, 5회 실패 시 15분 잠금.
+- **회원가입 이메일 인증**: `EmailVerificationService`가 6자리 코드를 인메모리로 관리(10분 유효),
+  실제 SMTP 없이 서버 로그로 코드를 출력하는 방식으로 검증 흐름만 구현.
+- **비밀번호 재설정**: `PasswordResetTokenService`가 같은 패턴(30분 유효 토큰)으로 재설정 링크를
+  로그에 출력.
+- **응답 헤더**: Content-Security-Policy(`script-src 'self'`, h2-console만 예외), Referrer-Policy,
+  Permissions-Policy(마이크는 SPEAKING 기능 때문에 self 허용), HSTS.
+- **비회원 콘텐츠 제한**: 로그인하지 않은 사용자는 코스별 첫 레슨만 열람 가능, 두 번째 레슨부터는
+  회원가입 유도 화면으로 대체.
 
-| 경로 | 화면 | 설명 |
+## 7. 화면 설계 (Thymeleaf)
+
+```mermaid
+flowchart LR
+    Root["/"] --> Courses["/courses"]
+    Courses --> CourseDetail["/courses/{id}"]
+    CourseDetail --> Lesson["/lessons/{id}"]
+
+    Root --> Signup["/members/new"]
+    Signup --> Verify["/members/new/verify"]
+    Root --> Login["/login"]
+    Root --> LevelTest["/members/new/level-test"]
+    Root --> PwReset["/password-reset (+/confirm)"]
+
+    Login --> My["/my 대시보드"]
+    My --> Profile["/my/profile"]
+    My --> Review["/my/review"]
+    My --> Daily["/my/daily"]
+    My --> PersonalNew["/courses/personal/new (+/diagnostic-test)"]
+
+    Root --> PictureQuiz["/quiz/picture"]
+
+    Login --> Admin["/admin 대시보드 (ADMIN 전용)"]
+    Admin --> AdminCourses["/admin/courses (+lessons/**)"]
+    Admin --> AdminQuestions["/admin/questions"]
+    Admin --> AdminMembers["/admin/members"]
+```
+
+| 영역 | 경로 | 설명 |
 |------|------|------|
-| `/` | 랜딩 | 서비스 소개 |
-| `/courses` | 코스 목록 | 대상/레벨 필터 |
-| `/courses/{id}` | 코스 상세 | 레슨 목록 |
-| `/lessons/{id}` | 레슨 학습 | 본문 + 완료 처리 |
-| `/my` | 마이페이지 | 내 진도율, 학습 이력 |
-| `/h2-console` | (개발) DB 콘솔 | |
+| 공개 | `/`, `/courses`, `/courses/{id}`, `/lessons/{id}` | 랜딩, 코스 목록/상세(검색·필터·평점·즐겨찾기·리뷰), 레슨 학습(비회원은 1과만) |
+| 계정 | `/members/new` → `/members/new/verify`, `/login`, `/members/new/level-test`, `/password-reset`(+`/confirm`) | 이메일 인증 2단계 가입, 로그인, 레벨 배치 테스트, 비밀번호 찾기 |
+| 마이페이지 | `/my`, `/my/profile`, `/my/review`, `/my/daily`, `/courses/personal/new`(+`/diagnostic-test`) | 대시보드, 프로필/비밀번호/탈퇴, 간격 반복 복습, 오늘의 단어, 개인 코스 생성 |
+| 참여 | `/quiz/picture` | 그림 퀴즈(비회원 가능) |
+| 관리자 | `/admin`, `/admin/courses`(+`/{id}/lessons/**`), `/admin/questions`, `/admin/members` | 커버리지 대시보드, 코스·레슨 CRUD, 문항 관리, 회원 관리 |
+| 개발용 | `/h2-console` | DB 콘솔(CSP 예외) |
 
-## 5. API 설계 (REST, /api)
+## 8. API 설계 (REST, `/api`)
 
-| 메서드 | 경로 | 기능 |
-|--------|------|------|
-| POST | `/api/members` | 회원 가입 |
-| GET | `/api/members/{id}` | 회원 조회 |
-| GET | `/api/courses` | 코스 목록(대상/레벨 필터) |
-| POST | `/api/courses` | 코스 등록(관리) |
-| GET | `/api/courses/{id}/lessons` | 코스의 레슨 목록 |
-| POST | `/api/progress/complete` | 레슨 완료 처리 |
-| GET | `/api/members/{id}/progress` | 회원 진도 조회 |
-| POST | `/api/courses/personal` | 개인 코스 생성 (기준: 자가선택/이력/진단테스트) — **Phase 5** |
-| GET | `/api/questions/diagnostic-test` | 대상·레벨별 진단 테스트 문항 목록(정답 인덱스 제외) |
-| POST | `/api/courses/personal/diagnostic-test` | 진단 테스트 채점 결과로 개인 코스 생성 |
+| 메서드 | 경로 | 인증 | 기능 |
+|--------|------|------|------|
+| POST | `/api/members` | 공개 | 회원 가입(즉시 생성, 웹 화면의 이메일 인증 플로우와 별개) |
+| GET | `/api/members/{id}` | 공개 | 회원 조회 |
+| GET | `/api/courses` | 공개 | 코스 목록(대상/레벨/영역/키워드 필터) |
+| POST | `/api/courses` | ADMIN | 코스 등록 |
+| GET | `/api/courses/{id}/lessons` | 공개 | 코스의 레슨 목록 |
+| POST | `/api/courses/personal` | 인증 필요 | 개인 코스 생성(자가 선택) |
+| POST | `/api/courses/personal/history-based` | 인증 필요 | 개인 코스 생성(학습 이력 기반) |
+| POST | `/api/courses/personal/diagnostic-test` | 인증 필요 | 개인 코스 생성(진단 테스트 채점) |
+| GET | `/api/questions/diagnostic-test` | 공개 | 대상·레벨별 진단 테스트 문항(정답 인덱스 제외) |
+| POST | `/api/progress/complete` | 인증 필요 | 레슨 완료 처리 |
 
-요청/응답은 DTO로 분리하고, 엔티티를 직접 노출하지 않는다.
-공통 응답 포맷(예: `ApiResponse<T>`)을 `common`에 두는 것을 권장.
+요청/응답은 전부 DTO(record)로 분리하고 엔티티를 직접 노출하지 않는다. 코스 즐겨찾기·평점/리뷰·
+관리자 기능·복습 등은 화면 전용으로 판단해 REST API를 별도로 열지 않았다(필요해지면 후속 확장).
 
-## 6. 개발 단계 (로드맵)
+## 9. 개발 단계 (완료된 로드맵)
 
-### Phase 1 — 회원 기반 (현재 다음 작업)
-- 회원 가입/조회 구현: `MemberService`, `MemberApiController`, 요청/응답 DTO.
-- `@DataJpaTest`로 `MemberRepository` 검증, `@SpringBootTest`로 컨텍스트 검증.
-
-### Phase 2 — 코스 · 레슨
-- Course/Lesson CRUD(서비스·컨트롤러) + 관리자용 등록.
-- 코스 목록/상세, 레슨 학습 페이지(Thymeleaf).
-
-### Phase 3 — 학습 진행
-- 레슨 완료 처리(`LearningProgress.complete()`), 코스별 진도율 계산.
-- 마이페이지에서 진도 표시.
-
-### Phase 4 — 학습 콘텐츠 강화
-- 단어(Word), 퀴즈(Quiz) 도메인 추가.
-- 레슨 타입별 학습 화면 분기.
+### Phase 1~4 — 회원 · 코스/레슨 · 학습 진행 · 콘텐츠 강화 (완료)
+회원 가입/조회, 코스·레슨 CRUD와 학습 화면, 레슨 완료 처리와 진도율, 레슨 타입별 콘텐츠(플래시카드
++아이콘)까지 기본기를 갖췄다.
 
 ### Phase 5 — 개인화 (완료)
-- 개인 코스 도입 (`Course.ownerId`, `focusAreas`, `criteriaSource`) — 공식 코스와 별개로 회원별 맞춤 코스 생성.
-  - 비중 기준 판단 3방식 모두 구현: ① 자가 선택 → ② 학습 이력 기반 → ③ 진단 테스트(`Question` 도메인, 80문항 시드).
-- 대상(초등/성인)·레벨별 코스 추천·필터.
-- 학습 대시보드.
+개인 코스 도입, 비중 기준 3방식(자가 선택 → 학습 이력 기반 → 진단 테스트) 모두 구현, 대상·레벨·
+영역 필터, 학습 대시보드(진도율·영역별 진도·스트릭·월간 캘린더).
 
-### Phase 6 — 인증 · 배포
-- Spring Security 도입(회원 로그인, 권한).
-- 운영 DB 전환(H2 → MySQL/PostgreSQL), 프로파일 분리(dev/prod).
-- 배포 파이프라인.
+### Phase 6 — 인증 · 보안 강화 (완료)
+Spring Security 도입, REST API의 memberId 신뢰 문제 보완, 로그인 시도 제한, 이메일 인증 회원가입,
+비밀번호 재설정, 회원 탈퇴, 보안 응답 헤더, 비회원 콘텐츠 제한.
 
-## 7. 기술 결정 메모
+### Phase 7 — 참여·리텐션 기능 (완료, 최초 로드맵엔 없던 확장)
+그림 퀴즈, 매일 단어장/단어 퀴즈, 간격 반복 복습 + 헤더 배지, 코스 즐겨찾기, 코스 평점/리뷰,
+코스 완료 시 다음 코스 자동 안내, 코스 검색(레슨 본문 포함).
 
-- 개발 DB는 H2 인메모리(`ddl-auto: create`). Phase 6에서 운영 DB로 전환하며 마이그레이션(Flyway 등) 검토.
-- 뷰는 Thymeleaf 서버 렌더링 + 필요한 곳만 REST. 추후 프론트 분리 여부는 규모 보고 판단.
-- 검증(Bean Validation), 예외 처리(@RestControllerAdvice)는 Phase 1~2에서 공통화.
+### Phase 8 — 관리자 도구 (완료, 최초 로드맵엔 없던 확장)
+코스/레슨/문항/회원을 코드 편집 없이 관리하는 관리자 화면 일체, 콘텐츠 커버리지 대시보드(대상×
+레벨×영역 조합별 빈 칸을 한눈에 확인).
+
+### Phase 9 — UX/접근성 (완료, 최초 로드맵엔 없던 확장)
+반응형 모바일 대응, 다크모드, 웹 접근성(a11y) 점검·개선.
+
+### 다음 단계 (미착수, 의도적으로 후순위)
+- 마스코트 캐릭터 이미지 연결(사용자가 이미지 파일을 전달하면 진행).
+- 운영 DB 전환(H2 → MySQL/PostgreSQL 등), 배포 파이프라인 구성.
+
+## 10. 기술 결정 메모
+
+- 개발 DB는 H2 인메모리(`ddl-auto: create`) 그대로 유지 — 운영 DB 전환은 의도적으로 최후순위.
+- 뷰는 Thymeleaf 서버 렌더링을 전 구간에서 유지, REST API는 화면이 필요 없는 순수 데이터 제공
+  용도로만 최소 사용. 클라이언트 JS는 브라우저 내장 API(TTS·음성인식·다크모드 토글)를 감싸는
+  용도로만 2개 파일에 한정, AJAX/프레임워크 도입 없음.
+- 실제 메일 발송 인프라(SMTP)가 없어, 이메일 인증·비밀번호 재설정은 "서버 로그에 코드/링크 출력"으로
+  시뮬레이션 — 나중에 SMTP를 붙이면 로그 출력 한 줄만 교체하면 되도록 서비스 레이어를 분리해둠.
+- 검증(Bean Validation)은 DTO에서, 서비스 레벨 방어 검증(예: 별점 범위, 포커스 영역 필수)은 각
+  서비스 메서드에서 전용 예외로 처리 — 전역 `@RestControllerAdvice`형 예외 변환은 API 컨트롤러별
+  `@ExceptionHandler`로 두고, 화면 컨트롤러는 try/catch 후 에러 메시지와 함께 폼을 다시 그리는
+  패턴을 일관되게 사용.
+- 회원 탈퇴·역할 변경처럼 "자기 자신에게 위험한" 작업엔 서비스 레벨 가드(관리자 자기 탈퇴 금지,
+  자기 역할 변경 금지)를 둬서 잠금 사고를 예방.
