@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.course.repository.CourseReviewRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
@@ -40,6 +41,9 @@ class CourseViewControllerTest {
 
     @Autowired
     private CourseRepository courseRepository;
+
+    @Autowired
+    private CourseReviewRepository courseReviewRepository;
 
     @Autowired
     private LessonRepository lessonRepository;
@@ -264,6 +268,76 @@ class CourseViewControllerTest {
         mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
                         .param("rating", "6"))
                 .andExpect(redirectedUrl("/courses/" + course.getId() + "?reviewError"));
+    }
+
+    @Test
+    void 로그인_회원은_리뷰에_도움돼요_투표를_토글할_수_있다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("도움돼요테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession author = loginAs("helpful-author@example.com", "리뷰작성자");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author).with(csrf())
+                        .param("rating", "5")
+                        .param("comment", "투표받을 리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        Long reviewId = courseReviewRepository.findByCourseIdOrderByIdDesc(course.getId()).get(0).getId();
+        MockHttpSession voter = loginAs("helpful-voter@example.com", "투표자");
+
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/helpful", course.getId(), reviewId)
+                        .session(voter).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        mockMvc.perform(get("/courses/{id}", course.getId()).session(voter))
+                .andExpect(content().string(containsString("도움돼요 취소 (1)")));
+
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/helpful", course.getId(), reviewId)
+                        .session(voter).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        mockMvc.perform(get("/courses/{id}", course.getId()).session(voter))
+                .andExpect(content().string(containsString("도움돼요 (0)")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("도움돼요 취소"))));
+    }
+
+    @Test
+    void 비로그인이면_리뷰_목록에_투표버튼_없이_카운트만_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("비로그인투표테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession author = loginAs("helpful-anon-author@example.com", "리뷰작성자2");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author).with(csrf())
+                        .param("rating", "4")
+                        .param("comment", "비로그인 열람용 리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+
+        mockMvc.perform(get("/courses/{id}", course.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("도움돼요 (0)")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("도움돼요 취소"))));
+    }
+
+    @Test
+    void reviewSort파라미터가_HELPFUL이면_투표많은_리뷰가_먼저_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("도움순정렬테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession author1 = loginAs("helpful-sort-author1@example.com", "먼저쓴사람");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author1).with(csrf())
+                        .param("rating", "3")
+                        .param("comment", "투표없는리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        MockHttpSession author2 = loginAs("helpful-sort-author2@example.com", "나중에쓴사람");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author2).with(csrf())
+                        .param("rating", "5")
+                        .param("comment", "투표받은리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        Long secondReviewId = courseReviewRepository.findByCourseIdOrderByIdDesc(course.getId()).get(0).getId();
+        MockHttpSession voter = loginAs("helpful-sort-voter@example.com", "투표하는사람");
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/helpful", course.getId(), secondReviewId)
+                        .session(voter).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+
+        String content = mockMvc.perform(get("/courses/{id}", course.getId()).param("reviewSort", "HELPFUL"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(content.indexOf("투표받은리뷰")).isLessThan(content.indexOf("투표없는리뷰"));
     }
 
     private MockHttpSession loginAs(String email, String nickname) throws Exception {

@@ -4,7 +4,9 @@ import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.domain.CourseReview;
+import com.edu.eduplatform.course.domain.CourseReviewVote;
 import com.edu.eduplatform.course.domain.CourseSort;
+import com.edu.eduplatform.course.domain.ReviewSort;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseRatingSummary;
 import com.edu.eduplatform.course.dto.CourseResponse;
@@ -17,6 +19,7 @@ import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.course.repository.CourseReviewRepository;
+import com.edu.eduplatform.course.repository.CourseReviewVoteRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
@@ -56,6 +59,7 @@ public class CourseService {
     private final MemberRepository memberRepository;
     private final QuestionService questionService;
     private final CourseBookmarkRepository courseBookmarkRepository;
+    private final CourseReviewVoteRepository courseReviewVoteRepository;
 
     public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType,
                                       String keyword, CourseSort sort) {
@@ -137,7 +141,7 @@ public class CourseService {
 
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
-        return toReviewResponse(saved, member.getNickname());
+        return toReviewResponse(saved, member.getNickname(), 0L, false);
     }
 
     @Transactional
@@ -145,21 +149,60 @@ public class CourseService {
         courseReviewRepository.deleteByMemberIdAndCourseId(memberId, courseId);
     }
 
-    /** 리뷰마다 회원을 따로 조회하지 않도록 닉네임을 배치 조회해 매칭한다. */
-    public List<CourseReviewResponse> listReviews(Long courseId) {
+    /**
+     * 리뷰마다 회원을 따로 조회하지 않도록 닉네임·도움돼요 투표 수·현재 회원의 투표 여부를 배치 조회해 매칭한다.
+     * sort가 HELPFUL이면 투표 수 내림차순으로 재정렬한다(동점은 안정 정렬로 기존 최신순 유지).
+     */
+    public List<CourseReviewResponse> listReviews(Long courseId, Long currentMemberId, ReviewSort sort) {
         List<CourseReview> reviews = courseReviewRepository.findByCourseIdOrderByIdDesc(courseId);
+        if (reviews.isEmpty()) {
+            return List.of();
+        }
+        List<Long> reviewIds = reviews.stream().map(CourseReview::getId).toList();
+
         Map<Long, String> nicknamesById = memberRepository.findAllById(
                         reviews.stream().map(CourseReview::getMemberId).distinct().toList())
                 .stream()
                 .collect(Collectors.toMap(Member::getId, Member::getNickname));
-        return reviews.stream()
-                .map(r -> toReviewResponse(r, nicknamesById.getOrDefault(r.getMemberId(), "알 수 없음")))
+        Map<Long, Long> helpfulCountsByReviewId = courseReviewVoteRepository.countByReviewIdIn(reviewIds).stream()
+                .collect(Collectors.toMap(
+                        CourseReviewVoteRepository.ReviewVoteCountProjection::getReviewId,
+                        CourseReviewVoteRepository.ReviewVoteCountProjection::getVoteCount));
+        Set<Long> votedReviewIds = currentMemberId == null
+                ? Set.of()
+                : Set.copyOf(courseReviewVoteRepository.findVotedReviewIds(currentMemberId, reviewIds));
+
+        List<CourseReviewResponse> responses = reviews.stream()
+                .map(r -> toReviewResponse(r, nicknamesById.getOrDefault(r.getMemberId(), "알 수 없음"),
+                        helpfulCountsByReviewId.getOrDefault(r.getId(), 0L),
+                        votedReviewIds.contains(r.getId())))
+                .toList();
+
+        if (sort != ReviewSort.HELPFUL) {
+            return responses;
+        }
+        return responses.stream()
+                .sorted(Comparator.comparingLong(CourseReviewResponse::helpfulCount).reversed())
                 .toList();
     }
 
     public Optional<CourseReviewResponse> getMyReview(Long memberId, Long courseId) {
         return courseReviewRepository.findByMemberIdAndCourseId(memberId, courseId)
-                .map(r -> toReviewResponse(r, null));
+                .map(r -> toReviewResponse(r, null, 0L, false));
+    }
+
+    /** 즐겨찾기 토글과 같은 패턴 — 존재하는 리뷰에만 투표하고, 이미 투표했으면 취소한다. */
+    @Transactional
+    public boolean toggleHelpfulVote(Long memberId, Long reviewId) {
+        if (!courseReviewRepository.existsById(reviewId)) {
+            return false;
+        }
+        if (courseReviewVoteRepository.existsByMemberIdAndReviewId(memberId, reviewId)) {
+            courseReviewVoteRepository.deleteByMemberIdAndReviewId(memberId, reviewId);
+            return false;
+        }
+        courseReviewVoteRepository.save(CourseReviewVote.builder().memberId(memberId).reviewId(reviewId).build());
+        return true;
     }
 
     /** 관리자 리뷰 관리 화면용 — 전체 리뷰를 코스 제목·닉네임까지 배치 조회해 최신순으로 반환한다. */
@@ -212,9 +255,10 @@ public class CourseService {
                         CourseBookmarkRepository.CourseBookmarkCountProjection::getBookmarkCount));
     }
 
-    private static CourseReviewResponse toReviewResponse(CourseReview review, String nickname) {
+    private static CourseReviewResponse toReviewResponse(CourseReview review, String nickname,
+                                                           long helpfulCount, boolean votedByCurrentMember) {
         return new CourseReviewResponse(review.getId(), review.getMemberId(), nickname,
-                review.getRating(), review.getComment(), review.getCreatedAt());
+                review.getRating(), review.getComment(), review.getCreatedAt(), helpfulCount, votedByCurrentMember);
     }
 
     public CourseResponse getCourse(Long id) {
