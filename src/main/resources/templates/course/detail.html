@@ -21,6 +21,7 @@
         <span class="badge" th:text="${course.level}"></span>
         <h1 th:text="${course.title}"></h1>
         <p th:text="${course.description}"></p>
+        <p th:unless="${course.personal}" class="empty-state">👥 이 코스를 시작한 학습자 <span th:text="${learnerCount}"></span>명</p>
         <form th:if="${currentMemberId != null}" th:action="@{/courses/{id}/bookmark(id=${course.id})}"
               method="post" class="bookmark-form">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
