@@ -19,6 +19,7 @@ import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -75,6 +76,14 @@ public class ProgressService {
     /** 이 코스를 시작해(레슨을 하나 이상 완료해) 학습 중인 회원 수 — 코스 상세의 사회적 증거 문구용. */
     public long getLearnerCount(Long courseId) {
         return learningProgressRepository.countDistinctMembersByCourseId(courseId);
+    }
+
+    /** 코스 목록 화면에서 카드마다 따로 집계 쿼리를 날리지 않도록 courseId 여러 개를 한 번에 집계한다. */
+    public Map<Long, Long> getLearnerCounts(Collection<Long> courseIds) {
+        return learningProgressRepository.countDistinctMembersByCourseIdIn(courseIds).stream()
+                .collect(Collectors.toMap(
+                        LearningProgressRepository.CourseLearnerCountProjection::getCourseId,
+                        LearningProgressRepository.CourseLearnerCountProjection::getLearnerCount));
     }
 
     @Transactional

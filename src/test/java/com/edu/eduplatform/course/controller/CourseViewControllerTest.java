@@ -18,6 +18,8 @@ import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.repository.MemberRepository;
+import com.edu.eduplatform.progress.domain.LearningProgress;
+import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +49,9 @@ class CourseViewControllerTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private LearningProgressRepository learningProgressRepository;
 
     @Test
     void 코스목록_잘못된_target값이면_500대신_필터없이_보여준다() throws Exception {
@@ -127,6 +132,27 @@ class CourseViewControllerTest {
         mockMvc.perform(get("/courses/{id}", personalCourse.getId()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("이 코스를 시작한 학습자"))));
+    }
+
+    @Test
+    void 코스목록_학습자가_있는_코스에_배지가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("목록학습자수테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+        Member member = memberRepository.save(Member.builder()
+                .email("list-learner-test@example.com").nickname("목록학습자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+        LearningProgress progress = LearningProgress.builder().memberId(member.getId()).lessonId(lesson.getId()).build();
+        progress.complete();
+        learningProgressRepository.save(progress);
+
+        mockMvc.perform(get("/courses").param("target", "ADULT").param("level", "BEGINNER"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("👥 1")));
     }
 
     @Test
