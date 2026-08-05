@@ -13,12 +13,16 @@ import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
+import com.edu.eduplatform.course.domain.CourseReview;
+import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.course.repository.CourseReviewRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
+import com.edu.eduplatform.member.domain.Member;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.service.MemberService;
@@ -31,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +64,12 @@ class CourseServiceTest {
 
     @Mock
     private CourseBookmarkRepository courseBookmarkRepository;
+
+    @Mock
+    private CourseReviewRepository courseReviewRepository;
+
+    @Mock
+    private com.edu.eduplatform.member.repository.MemberRepository memberRepository;
 
     @InjectMocks
     private CourseService courseService;
@@ -399,6 +410,90 @@ class CourseServiceTest {
         List<com.edu.eduplatform.course.dto.CourseResponse> result = courseService.listBookmarkedCourses(1L);
 
         assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseResponse::id).containsExactly(200L);
+    }
+
+    @Test
+    void submitReview_처음_작성하면_새_리뷰를_만든다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("reviewer@example.com").nickname("리뷰어")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").build(), 1L);
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(courseReviewRepository.findByMemberIdAndCourseId(1L, 100L)).thenReturn(Optional.empty());
+        when(courseReviewRepository.save(any(CourseReview.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+
+        var result = courseService.submitReview(1L, 100L, 5, "좋아요");
+
+        assertThat(result.rating()).isEqualTo(5);
+        assertThat(result.comment()).isEqualTo("좋아요");
+        assertThat(result.nickname()).isEqualTo("리뷰어");
+    }
+
+    @Test
+    void submitReview_이미_리뷰가_있으면_내용을_덮어쓴다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("reviewer@example.com").nickname("리뷰어")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").build(), 1L);
+        CourseReview existing = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(2).comment("별로예요").build(), 10L);
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(courseReviewRepository.findByMemberIdAndCourseId(1L, 100L)).thenReturn(Optional.of(existing));
+        when(courseReviewRepository.save(any(CourseReview.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+
+        var result = courseService.submitReview(1L, 100L, 5, "다시 보니 좋아요");
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.rating()).isEqualTo(5);
+        assertThat(result.comment()).isEqualTo("다시 보니 좋아요");
+        verify(courseReviewRepository).save(existing);
+    }
+
+    @Test
+    void submitReview_별점이_범위_밖이면_예외를_던진다() {
+        when(courseRepository.existsById(100L)).thenReturn(true);
+
+        assertThatThrownBy(() -> courseService.submitReview(1L, 100L, 0, "코멘트"))
+                .isInstanceOf(InvalidReviewException.class);
+        assertThatThrownBy(() -> courseService.submitReview(1L, 100L, 6, "코멘트"))
+                .isInstanceOf(InvalidReviewException.class);
+    }
+
+    @Test
+    void submitReview_존재하지_않는_코스면_예외를_던진다() {
+        when(courseRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> courseService.submitReview(1L, 999L, 5, "코멘트"))
+                .isInstanceOf(com.edu.eduplatform.course.exception.CourseNotFoundException.class);
+    }
+
+    @Test
+    void listReviews_닉네임을_배치조회해서_함께_반환한다() throws Exception {
+        CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
+        CourseReview review2 = withId(CourseReview.builder().memberId(2L).courseId(100L).rating(3).comment("보통").build(), 11L);
+        Member member1 = withId(Member.builder()
+                .email("a@example.com").nickname("에이").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 1L);
+        Member member2 = withId(Member.builder()
+                .email("b@example.com").nickname("비").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 2L);
+        when(courseReviewRepository.findByCourseIdOrderByIdDesc(100L)).thenReturn(List.of(review2, review1));
+        when(memberRepository.findAllById(any())).thenReturn(List.of(member1, member2));
+
+        var result = courseService.listReviews(100L);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseReviewResponse::nickname)
+                .containsExactly("비", "에이");
+    }
+
+    @Test
+    void getRatingSummary_리뷰가_없으면_0을_반환한다() {
+        when(courseReviewRepository.findAverageRatingByCourseId(100L)).thenReturn(null);
+        when(courseReviewRepository.countByCourseId(100L)).thenReturn(0L);
+
+        var summary = courseService.getRatingSummary(100L);
+
+        assertThat(summary.average()).isEqualTo(0.0);
+        assertThat(summary.count()).isEqualTo(0);
     }
 
     @Test

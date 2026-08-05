@@ -266,6 +266,16 @@ ul {
     display: inline;
 }
 
+.review-list {
+    list-style: none;
+    padding: 0;
+}
+
+.review-list li {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
 .site-nav .link-button {
     padding: 8px 14px;
     border-radius: 999px;

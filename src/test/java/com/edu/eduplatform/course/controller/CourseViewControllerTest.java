@@ -117,6 +117,87 @@ class CourseViewControllerTest {
                 .andExpect(redirectedUrl("/login"));
     }
 
+    @Test
+    void 로그인_회원은_리뷰를_작성하고_상세_페이지에서_확인할_수_있다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("리뷰테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession session = loginAs("review-test@example.com", "리뷰테스터");
+
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
+                        .param("rating", "5")
+                        .param("comment", "정말 좋아요"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+
+        mockMvc.perform(get("/courses/{id}", course.getId()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("정말 좋아요")))
+                .andExpect(content().string(containsString("리뷰테스터")));
+    }
+
+    @Test
+    void 같은_회원이_다시_작성하면_리뷰가_하나로_유지된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("리뷰재작성테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession session = loginAs("review-upsert-test@example.com", "리뷰업서트테스터");
+
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
+                        .param("rating", "2")
+                        .param("comment", "별로예요"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
+                        .param("rating", "5")
+                        .param("comment", "다시 보니 좋아요"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+
+        String content = mockMvc.perform(get("/courses/{id}", course.getId()).session(session))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(content).contains("다시 보니 좋아요");
+        assertThat(content).doesNotContain("별로예요");
+    }
+
+    @Test
+    void 리뷰를_삭제할_수_있다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("리뷰삭제테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession session = loginAs("review-delete-test@example.com", "리뷰삭제테스터");
+
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
+                        .param("rating", "4")
+                        .param("comment", "삭제될 리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        mockMvc.perform(post("/courses/{id}/reviews/delete", course.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+
+        mockMvc.perform(get("/courses/{id}", course.getId()).session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("삭제될 리뷰"))));
+    }
+
+    @Test
+    void 비로그인이면_리뷰_작성은_로그인으로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("리뷰비로그인테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).with(csrf())
+                        .param("rating", "5"))
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void 별점이_범위_밖이면_reviewError로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("리뷰범위밖테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession session = loginAs("review-invalid-test@example.com", "리뷰범위테스터");
+
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(session).with(csrf())
+                        .param("rating", "6"))
+                .andExpect(redirectedUrl("/courses/" + course.getId() + "?reviewError"));
+    }
+
     private MockHttpSession loginAs(String email, String nickname) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)
