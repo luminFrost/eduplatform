@@ -1227,6 +1227,43 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     "아직 후기가 없어요"로 돌아가는 것 확인 → 비로그인으로 상세 접근 시 리뷰는 보이되 작성 폼 대신
     "로그인하고 후기 남기기" 링크만 보이는 것 확인.
 
+- 복습 알림 배지 (dev 병합됨)
+  - 간격 반복 복습 기능(`/my/review`)은 있었지만 마이페이지에 직접 들어가야만 오늘 복습할 게 있는지
+    알 수 있었음 — 헤더의 "마이페이지" 링크에 오늘 복습 대상 개수를 작은 배지로 노출.
+  - `ProgressService.getLessonsDueForReview()`가 이미 쓰던 파생 쿼리
+    (`findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc`)에 똑같이
+    `limit(10)`을 적용한 뒤 `count()`만 하는 가벼운 `countLessonsDueForReview()`를 추가 —
+    레슨/코스 배치 조회 없이 개수만 필요할 때 씀. 배지 상한을 리뷰 페이지의 표시 상한(10)과 맞춰서,
+    배지 숫자와 실제로 `/my/review`에서 보게 될 개수가 항상 일치하게 설계.
+  - **이 프로젝트 첫 `@ControllerAdvice`** — 헤더 프래그먼트가 모든 페이지에서 `th:replace`로
+    공유되는데 지금까지 페이지마다 컨트롤러가 제각각이라, 배지를 보여주려면 모든 요청에 공통으로
+    모델 값을 미리 채워주는 장치가 필요했음. 신규 `ReviewBadgeControllerAdvice`의 `@ModelAttribute`가
+    `@CurrentMemberId Long memberId`를 그대로 받는데, `CurrentMemberIdArgumentResolver`가
+    `WebMvcConfig.addArgumentResolvers()`로 이미 전역 등록돼 있어 `@ControllerAdvice`의
+    `@ModelAttribute` 메서드에서도 별도 배관 없이 그대로 동작함을 확인.
+  - **알려진 트레이드오프(의도적으로 수용)**: 이 프로젝트는 페이지(HTML)와 API(JSON) 컨트롤러가
+    같은 패키지 안에 섞여 있어(`course.controller`에 `CourseViewController`와 `CourseApiController`가
+    같이 있는 식) `@ControllerAdvice`를 API만 깔끔히 제외하도록 범위를 좁히기 어려움 — 완벽히
+    분리하려면 `HandlerInterceptor` 등 더 복잡한 장치가 필요해 이번 규모엔 과함. 실제로는 이 앱의
+    웹 페이지들이 `/api/**`를 자바스크립트로 호출하지 않아(이미 이 세션에서 확인된 사실) 실사용
+    트래픽엔 영향이 없어 전역 적용을 그대로 수용.
+  - 화면: `fragments/layout.html`의 "마이페이지" 링크 안에 `dueReviewCount > 0`일 때만 작은 원형
+    배지(신규 `.review-badge`, `--color-primary` 배경이라 다크모드 자동 대응) 노출.
+  - 테스트: `ProgressServiceTest`에 `countLessonsDueForReview` 2개(개수 반환, 상한 10 초과분은
+    상한에서 멈추는지), 신규 `ReviewBadgeControllerAdviceTest`(`@SpringBootTest`+MockMvc 통합 테스트
+    — 회원가입 → 레슨 완료 → 리포지토리로 조회한 `LearningProgress`의 `completedAt`을 리플렉션으로
+    4일 전으로 되돌려 저장 → `/my` 응답에 배지와 개수가 실제로 렌더링되는지 확인, 복습 대상 없으면
+    배지 자체가 없는지, 비로그인이면 배지가 없는지).
+  - **실서버 검증 중 발견**: H2 콘솔의 쿼리 실행 버튼이 순수 `<form>` 제출이 아니라 자바스크립트로
+    동작해서(`action="javascript:alert(...)"` placeholder + 실제 실행은 별도 JS 함수), curl로는
+    로그인 핸드셰이크까지만 자동화하기 쉽고 쿼리 실행 자체는 claude-in-chrome으로도 세션 토큰이 섞인
+    프레임 내부를 다루다 브라우저 확장이 쿠키/세션 데이터로 보이는 출력을 자체적으로 차단해 막힘 —
+    "완료 시각을 과거로 되돌려 복습 대상을 실제로 만들어보는" 종단 확인은 이번엔 스킵하고, 위
+    `ReviewBadgeControllerAdviceTest`(진짜 HTTP 요청 + 트랜잭션 저장 + Thymeleaf 렌더링을 다 거치는
+    통합 테스트)로 갈음 — 이전에도 시간 조작이 필요한 경계(로그인 시도 잠금 만료, 복습 대상 판정
+    3일 기준)는 실서버 대신 자동화 테스트로 검증해온 것과 같은 패턴. curl로는 "복습 대상 없는 새
+    회원 → 배지 안 보임", "비로그인 → 배지 안 보임" 두 가지 정상 상태만 실서버에서 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
