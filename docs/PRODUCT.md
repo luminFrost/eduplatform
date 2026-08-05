@@ -110,15 +110,39 @@ BEGINNER(입문) → ELEMENTARY(초급) → INTERMEDIATE(중급) → ADVANCED(�
 
 ## 5. 화면 흐름
 
-```
-회원가입(이메일 인증) / 로그인
-      ↓
-내 레벨 로드맵(코스 목록, 검색·필터)  →  코스 상세(레슨 목록, 평점·리뷰, 즐겨찾기)  →  레슨 학습(활동+퀴즈)
-      ↑___________________________ 완료 시 진도·스트릭·캘린더 갱신 _________________________↓
-      마이페이지(대시보드, 개인 코스, 즐겨찾기, 복습, 매일 단어장)
+전체 화면 목록·라우트 표는 [DESIGN.md 7절](DESIGN.md#7-화면-설계-thymeleaf), 시스템 구조 다이어그램은
+[DESIGN.md 4-1절](DESIGN.md#4-1-시스템-구조)에 있다. 여기서는 학습자가 실제로 밟는 여정만 흐름도로
+정리한다.
+
+```mermaid
+flowchart TD
+    Landing["랜딩 /"] --> CourseList["코스 목록 /courses<br/>검색·필터"]
+    CourseList --> CourseDetail["코스 상세<br/>레슨 목록·평점/리뷰·즐겨찾기"]
+    CourseDetail --> AuthCheck{"로그인 상태?"}
+    AuthCheck -- 비회원 --> FirstLessonOnly["1과만 열람 가능<br/>2과부터 잠금 안내"]
+    FirstLessonOnly --> SignupPrompt["회원가입 유도"]
+    AuthCheck -- 회원 --> LessonPage["레슨 학습<br/>활동 + 이해도 퀴즈"]
+
+    SignupPrompt --> SignupForm["가입 폼 제출"]
+    SignupForm --> EmailVerify["이메일 인증번호 입력"]
+    EmailVerify --> LoggedIn(["로그인 완료"])
+    LoggedIn --> LessonPage
+
+    LessonPage --> Complete["학습 완료 처리"]
+    Complete --> Dashboard["마이페이지 대시보드<br/>진도율·스트릭·캘린더"]
+    Dashboard --> Personal["개인 코스 생성<br/>자가선택/이력기반/진단테스트"]
+    Dashboard --> Review["간격 반복 복습 /my/review"]
+    Dashboard --> Daily["매일 단어장 /my/daily"]
+    Dashboard --> Bookmarks["즐겨찾기한 코스"]
+    Personal --> CourseDetail
+    Review --> LessonPage
+    Bookmarks --> CourseDetail
+
+    Landing --> PictureQuiz["그림 퀴즈 /quiz/picture<br/>비회원도 가능"]
 ```
 
-관리자는 별도로 `/admin` 대시보드에서 콘텐츠 커버리지를 확인하고, 코스·레슨·문항·회원을 관리한다.
+관리자는 별도로 `/admin` 대시보드에서 콘텐츠 커버리지를 확인하고, 코스·레슨·문항·회원을 관리한다
+(관리자 화면 구조는 DESIGN.md 참고).
 
 ## 6. 성공 기준
 

@@ -59,7 +59,109 @@ com.edu.eduplatform
 주입받고, 반대로 `MemberService`는 다른 도메인 서비스 대신 그 리포지토리를 직접 주입받는다"는 방향
 규칙을 지킨다(예: 회원 탈퇴 시 개인 코스·진행기록을 지우는 `MemberService.withdraw()`).
 
+### 4-1. 시스템 구조
+
+브라우저 요청이 인증 방식이 다른 두 개의 `SecurityFilterChain`(6절) 중 하나를 거쳐 컨트롤러 →
+서비스 → 리포지토리로 내려가는 단순 계층형 구조다. 프론트엔드 빌드·API 게이트웨이·메시지 큐 같은
+별도 인프라 없이 하나의 Spring Boot 프로세스 + H2 인메모리 DB로 전체를 서빙한다.
+
+```mermaid
+flowchart TB
+    Browser["브라우저<br/>Thymeleaf 렌더링 HTML + 바닐라 JS 2개"]
+
+    subgraph Security["Spring Security (SecurityConfig)"]
+        direction LR
+        ApiChain["apiSecurityFilterChain<br/>/api/** · HTTP Basic · STATELESS"]
+        WebChain["webSecurityFilterChain<br/>그 외 전부 · 폼 로그인 · 세션 · CSRF"]
+    end
+
+    subgraph App["애플리케이션 계층"]
+        direction TB
+        Controller["Controller<br/>@Controller(HTML) / @RestController(JSON)"]
+        Service["Service<br/>@Transactional 비즈니스 로직"]
+        Repository["Repository<br/>Spring Data JPA"]
+        Controller --> Service --> Repository
+    end
+
+    DB[("H2 인메모리 DB<br/>jdbc:h2:mem:eduplatform")]
+
+    Browser -->|"/api/**"| ApiChain --> Controller
+    Browser -->|그 외 전부| WebChain --> Controller
+    Repository --> DB
+```
+
 ## 5. 도메인 모델
+
+전체 엔티티와 관계는 아래 다이어그램 하나로 요약된다. 화살표는 "느슨한 id 참조" 방향이며(외래키
+제약은 실제로 걸지 않음, 4절 참고), `Question`은 다른 엔티티를 참조하지 않는 독립 카탈로그라 연결선이
+없다.
+
+```mermaid
+erDiagram
+    MEMBER ||--o{ COURSE : "소유 (개인 코스, ownerId)"
+    MEMBER ||--o{ COURSE_BOOKMARK : 즐겨찾기
+    MEMBER ||--o{ COURSE_REVIEW : 작성
+    MEMBER ||--o{ LEARNING_PROGRESS : 완료기록
+    COURSE ||--o{ LESSON : 포함
+    COURSE ||--o{ COURSE_BOOKMARK : "즐겨찾기 대상"
+    COURSE ||--o{ COURSE_REVIEW : "리뷰 대상"
+    LESSON ||--o{ LEARNING_PROGRESS : "진행 추적"
+
+    MEMBER {
+        Long id PK
+        String email UK
+        String nickname
+        MemberType memberType
+        EnglishLevel level
+        String password "BCrypt"
+        MemberRole role
+    }
+    COURSE {
+        Long id PK
+        String title
+        String description
+        MemberType targetType
+        EnglishLevel level
+        Long ownerId "nullable, null=공식 코스"
+        CourseCriteriaSource criteriaSource "nullable"
+    }
+    LESSON {
+        Long id PK
+        Long courseId
+        String title
+        int orderNo
+        Text content
+        LessonType lessonType
+    }
+    LEARNING_PROGRESS {
+        Long id PK
+        Long memberId
+        Long lessonId
+        boolean completed
+        DateTime completedAt
+    }
+    COURSE_BOOKMARK {
+        Long id PK
+        Long memberId
+        Long courseId
+    }
+    COURSE_REVIEW {
+        Long id PK
+        Long memberId
+        Long courseId
+        int rating "1~5"
+        String comment
+    }
+    QUESTION {
+        Long id PK
+        MemberType targetType
+        EnglishLevel level
+        LessonType lessonType
+        String prompt
+        String audioText "nullable, LISTENING만"
+        int correctOptionIndex
+    }
+```
 
 ### Member (회원)
 | 필드 | 타입 | 설명 |
@@ -157,6 +259,32 @@ com.edu.eduplatform
   회원가입 유도 화면으로 대체.
 
 ## 7. 화면 설계 (Thymeleaf)
+
+```mermaid
+flowchart LR
+    Root["/"] --> Courses["/courses"]
+    Courses --> CourseDetail["/courses/{id}"]
+    CourseDetail --> Lesson["/lessons/{id}"]
+
+    Root --> Signup["/members/new"]
+    Signup --> Verify["/members/new/verify"]
+    Root --> Login["/login"]
+    Root --> LevelTest["/members/new/level-test"]
+    Root --> PwReset["/password-reset (+/confirm)"]
+
+    Login --> My["/my 대시보드"]
+    My --> Profile["/my/profile"]
+    My --> Review["/my/review"]
+    My --> Daily["/my/daily"]
+    My --> PersonalNew["/courses/personal/new (+/diagnostic-test)"]
+
+    Root --> PictureQuiz["/quiz/picture"]
+
+    Login --> Admin["/admin 대시보드 (ADMIN 전용)"]
+    Admin --> AdminCourses["/admin/courses (+lessons/**)"]
+    Admin --> AdminQuestions["/admin/questions"]
+    Admin --> AdminMembers["/admin/members"]
+```
 
 | 영역 | 경로 | 설명 |
 |------|------|------|
