@@ -1378,6 +1378,25 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     상세에 "학습자 0명"(가입 직후) → "학습자 2명"(완료 후)으로 정확히 바뀌는 것 확인 → 그 회원으로
     만든 개인 코스 상세에는 문구 자체가 안 보이는 것 확인.
 
+- 코스 목록에도 학습자 수 배지 (dev 병합됨)
+  - 바로 직전에 코스 상세에만 넣어둔 "학습자 수"를 평점·즐겨찾기와 같은 방식으로 코스 목록 카드에도
+    배치 집계로 노출.
+  - 코스 상세용 `getLearnerCount(courseId)`는 코스 하나짜리 서브쿼리라 목록(카드 여러 개)에 그대로
+    쓰면 카드마다 쿼리가 나가는 N+1이 됨 — `CourseService.getRatingSummaries()`/`getBookmarkCounts()`가
+    이미 쓰는 "courseId 여러 개를 한 번에 group by 집계" 패턴을 `LearningProgressRepository`에도
+    그대로 적용(`countDistinctMembersByCourseIdIn`). `LearningProgress`엔 courseId가 없어
+    `LessonRepository.searchByContent()`가 쓰던 "연관관계 없는 엔티티 간 명시적 ON 조인"
+    (`join Lesson l on l.id = lp.lessonId`)을 그대로 가져왔는데, 상세용 단일 쿼리는 서브쿼리
+    형태였던 것과 달리 이번엔 courseId별로 묶어야(group by) 해서 조인 형태를 씀.
+  - `CourseViewController.list()`가 이미 `courseService.getRatingSummaries(...)`를 호출하던 자리
+    바로 옆에 `progressService.getLearnerCounts(...)`만 추가 — `ProgressService`는 이미
+    `LearningProgressRepository`를 갖고 있어 새 의존성 없음. 개인 코스는 애초에 `/courses` 목록·
+    검색에 안 나와서(기존 `search()`가 `ownerId is null`만 반환) 별도 숨김 처리 불필요.
+  - 테스트: `ProgressServiceTest`에 `getLearnerCounts` 1개(배치 결과를 Map으로 변환),
+    `CourseViewControllerTest`에 1개(학습자가 있는 코스에 "👥 N" 배지 노출).
+  - curl 실서버 종단 검증: 회원 2명이 같은 코스의 서로 다른 레슨을 완료 → `/courses` 목록의 그 코스
+    카드에 "👥 2" 배지 확인, 학습자가 없는 다른 코스 카드엔 배지가 안 뜨는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -162,6 +163,24 @@ class ProgressServiceTest {
         when(learningProgressRepository.countDistinctMembersByCourseId(100L)).thenReturn(3L);
 
         assertThat(progressService.getLearnerCount(100L)).isEqualTo(3L);
+    }
+
+    @Test
+    void getLearnerCounts_배치_결과를_Map으로_변환한다() {
+        LearningProgressRepository.CourseLearnerCountProjection count100 =
+                mock(LearningProgressRepository.CourseLearnerCountProjection.class);
+        when(count100.getCourseId()).thenReturn(100L);
+        when(count100.getLearnerCount()).thenReturn(2L);
+        LearningProgressRepository.CourseLearnerCountProjection count200 =
+                mock(LearningProgressRepository.CourseLearnerCountProjection.class);
+        when(count200.getCourseId()).thenReturn(200L);
+        when(count200.getLearnerCount()).thenReturn(5L);
+        when(learningProgressRepository.countDistinctMembersByCourseIdIn(List.of(100L, 200L)))
+                .thenReturn(List.of(count100, count200));
+
+        var result = progressService.getLearnerCounts(List.of(100L, 200L));
+
+        assertThat(result).containsEntry(100L, 2L).containsEntry(200L, 5L);
     }
 
     @Test

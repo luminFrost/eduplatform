@@ -59,6 +59,7 @@ public class CourseViewController {
         List<CourseResponse> courses = courseService.list(targetType, levelFilter, typeFilter, keywordFilter, sortOption);
         model.addAttribute("courses", courses);
         model.addAttribute("ratingSummaries", courseService.getRatingSummaries(courses.stream().map(CourseResponse::id).toList()));
+        model.addAttribute("learnerCounts", progressService.getLearnerCounts(courses.stream().map(CourseResponse::id).toList()));
         model.addAttribute("lessonResults", lessonService.searchLessons(keywordFilter));
         model.addAttribute("memberTypes", MemberType.values());
         model.addAttribute("lessonTypes", LessonType.values());
