@@ -14,6 +14,8 @@ public interface CourseReviewRepository extends JpaRepository<CourseReview, Long
 
     List<CourseReview> findByCourseIdOrderByIdDesc(Long courseId);
 
+    List<CourseReview> findAllByOrderByIdDesc();
+
     void deleteByMemberIdAndCourseId(Long memberId, Long courseId);
 
     long countByCourseId(Long courseId);

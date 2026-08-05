@@ -8,6 +8,7 @@ import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseRatingSummary;
 import com.edu.eduplatform.course.dto.CourseResponse;
+import com.edu.eduplatform.course.dto.CourseReviewAdminResponse;
 import com.edu.eduplatform.course.dto.CourseReviewResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
@@ -159,6 +160,35 @@ public class CourseService {
     public Optional<CourseReviewResponse> getMyReview(Long memberId, Long courseId) {
         return courseReviewRepository.findByMemberIdAndCourseId(memberId, courseId)
                 .map(r -> toReviewResponse(r, null));
+    }
+
+    /** 관리자 리뷰 관리 화면용 — 전체 리뷰를 코스 제목·닉네임까지 배치 조회해 최신순으로 반환한다. */
+    public List<CourseReviewAdminResponse> listAllReviewsForAdmin() {
+        List<CourseReview> reviews = courseReviewRepository.findAllByOrderByIdDesc();
+        if (reviews.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> nicknamesById = memberRepository.findAllById(
+                        reviews.stream().map(CourseReview::getMemberId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Member::getId, Member::getNickname));
+        Map<Long, String> titlesById = courseRepository.findAllById(
+                        reviews.stream().map(CourseReview::getCourseId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Course::getId, Course::getTitle));
+        return reviews.stream()
+                .map(r -> new CourseReviewAdminResponse(
+                        r.getId(), r.getCourseId(), titlesById.getOrDefault(r.getCourseId(), "삭제된 코스"),
+                        nicknamesById.getOrDefault(r.getMemberId(), "알 수 없음"),
+                        r.getRating(), r.getComment(), r.getCreatedAt()))
+                .toList();
+    }
+
+    @Transactional
+    public void deleteReviewByAdmin(Long reviewId) {
+        if (courseReviewRepository.existsById(reviewId)) {
+            courseReviewRepository.deleteById(reviewId);
+        }
     }
 
     public CourseRatingSummary getRatingSummary(Long courseId) {
