@@ -4,6 +4,7 @@ import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.domain.CourseReview;
+import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseRatingSummary;
 import com.edu.eduplatform.course.dto.CourseResponse;
@@ -29,6 +30,7 @@ import com.edu.eduplatform.progress.service.ProgressService;
 import com.edu.eduplatform.question.dto.QuestionResponse;
 import com.edu.eduplatform.question.service.QuestionService;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,9 +56,27 @@ public class CourseService {
     private final QuestionService questionService;
     private final CourseBookmarkRepository courseBookmarkRepository;
 
-    public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType, String keyword) {
-        return courseRepository.search(targetType, level, lessonType, keyword).stream()
-                .map(CourseResponse::from)
+    public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType,
+                                      String keyword, CourseSort sort) {
+        List<Course> courses = courseRepository.search(targetType, level, lessonType, keyword);
+        List<CourseResponse> responses = courses.stream().map(CourseResponse::from).toList();
+        if (sort == null || sort == CourseSort.DEFAULT) {
+            return responses;
+        }
+
+        List<Long> courseIds = courses.stream().map(Course::getId).toList();
+        if (sort == CourseSort.RATING) {
+            Map<Long, CourseRatingSummary> ratings = getRatingSummaries(courseIds);
+            return responses.stream()
+                    .sorted(Comparator.comparingDouble(
+                            (CourseResponse c) -> ratings.getOrDefault(c.id(), new CourseRatingSummary(0, 0)).average())
+                            .reversed())
+                    .toList();
+        }
+
+        Map<Long, Long> bookmarkCounts = getBookmarkCounts(courseIds);
+        return responses.stream()
+                .sorted(Comparator.comparingLong((CourseResponse c) -> bookmarkCounts.getOrDefault(c.id(), 0L)).reversed())
                 .toList();
     }
 
@@ -152,6 +172,14 @@ public class CourseService {
                 .collect(Collectors.toMap(
                         CourseReviewRepository.CourseRatingProjection::getCourseId,
                         p -> new CourseRatingSummary(p.getAverageRating(), p.getReviewCount())));
+    }
+
+    /** 코스 목록 화면에서 카드마다 따로 집계 쿼리를 날리지 않도록 courseId 여러 개를 한 번에 집계한다. */
+    public Map<Long, Long> getBookmarkCounts(Collection<Long> courseIds) {
+        return courseBookmarkRepository.countByCourseIdIn(courseIds).stream()
+                .collect(Collectors.toMap(
+                        CourseBookmarkRepository.CourseBookmarkCountProjection::getCourseId,
+                        CourseBookmarkRepository.CourseBookmarkCountProjection::getBookmarkCount));
     }
 
     private static CourseReviewResponse toReviewResponse(CourseReview review, String nickname) {

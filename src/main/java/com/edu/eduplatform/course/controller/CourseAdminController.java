@@ -31,7 +31,7 @@ public class CourseAdminController {
 
     @GetMapping
     public String list(Model model) {
-        model.addAttribute("courses", courseService.list(null, null, null, null));
+        model.addAttribute("courses", courseService.list(null, null, null, null, null));
         return "admin/course-list";
     }
 

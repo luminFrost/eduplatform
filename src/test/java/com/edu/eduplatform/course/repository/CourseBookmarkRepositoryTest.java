@@ -3,6 +3,7 @@ package com.edu.eduplatform.course.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.edu.eduplatform.course.domain.CourseBookmark;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -39,5 +40,24 @@ class CourseBookmarkRepositoryTest {
         courseBookmarkRepository.deleteByMemberIdAndCourseId(1L, 10L);
 
         assertThat(courseBookmarkRepository.existsByMemberIdAndCourseId(1L, 10L)).isFalse();
+    }
+
+    @Test
+    void countByCourseIdIn_여러_코스의_즐겨찾기_개수를_한번에_집계한다() {
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(1L).courseId(10L).build());
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(2L).courseId(10L).build());
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(1L).courseId(20L).build());
+
+        List<CourseBookmarkRepository.CourseBookmarkCountProjection> counts =
+                courseBookmarkRepository.countByCourseIdIn(List.of(10L, 20L));
+
+        assertThat(counts).hasSize(2);
+        assertThat(counts).anySatisfy(c -> {
+            if (c.getCourseId().equals(10L)) {
+                assertThat(c.getBookmarkCount()).isEqualTo(2L);
+            } else {
+                assertThat(c.getBookmarkCount()).isEqualTo(1L);
+            }
+        });
     }
 }

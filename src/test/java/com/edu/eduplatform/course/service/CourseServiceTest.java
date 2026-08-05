@@ -3,6 +3,7 @@ package com.edu.eduplatform.course.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
+import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
@@ -73,6 +75,76 @@ class CourseServiceTest {
 
     @InjectMocks
     private CourseService courseService;
+
+    @Test
+    void list_정렬옵션이_없으면_기존_순서를_유지한다() throws Exception {
+        Course courseA = withId(Course.builder()
+                .title("A코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course courseB = withId(Course.builder()
+                .title("B코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        when(courseRepository.search(null, null, null, null)).thenReturn(List.of(courseA, courseB));
+
+        var result = courseService.list(null, null, null, null, null);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseResponse::id).containsExactly(100L, 200L);
+        verify(courseReviewRepository, never()).findRatingSummaries(any());
+        verify(courseBookmarkRepository, never()).countByCourseIdIn(any());
+    }
+
+    @Test
+    void list_RATING_정렬이면_평점_내림차순으로_반환하고_평점없는_코스는_뒤로_간다() throws Exception {
+        Course courseA = withId(Course.builder()
+                .title("A코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course courseB = withId(Course.builder()
+                .title("B코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        Course courseC = withId(Course.builder()
+                .title("C코스(평점없음)").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 300L);
+        when(courseRepository.search(null, null, null, null)).thenReturn(List.of(courseA, courseB, courseC));
+
+        CourseReviewRepository.CourseRatingProjection ratingA = mock(CourseReviewRepository.CourseRatingProjection.class);
+        when(ratingA.getCourseId()).thenReturn(100L);
+        when(ratingA.getAverageRating()).thenReturn(3.0);
+        when(ratingA.getReviewCount()).thenReturn(2L);
+        CourseReviewRepository.CourseRatingProjection ratingB = mock(CourseReviewRepository.CourseRatingProjection.class);
+        when(ratingB.getCourseId()).thenReturn(200L);
+        when(ratingB.getAverageRating()).thenReturn(5.0);
+        when(ratingB.getReviewCount()).thenReturn(1L);
+        when(courseReviewRepository.findRatingSummaries(List.of(100L, 200L, 300L))).thenReturn(List.of(ratingA, ratingB));
+
+        var result = courseService.list(null, null, null, null, CourseSort.RATING);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseResponse::id).containsExactly(200L, 100L, 300L);
+    }
+
+    @Test
+    void list_BOOKMARKS_정렬이면_즐겨찾기_많은순으로_반환한다() throws Exception {
+        Course courseA = withId(Course.builder()
+                .title("A코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course courseB = withId(Course.builder()
+                .title("B코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        when(courseRepository.search(null, null, null, null)).thenReturn(List.of(courseA, courseB));
+
+        CourseBookmarkRepository.CourseBookmarkCountProjection countA =
+                mock(CourseBookmarkRepository.CourseBookmarkCountProjection.class);
+        when(countA.getCourseId()).thenReturn(100L);
+        when(countA.getBookmarkCount()).thenReturn(1L);
+        CourseBookmarkRepository.CourseBookmarkCountProjection countB =
+                mock(CourseBookmarkRepository.CourseBookmarkCountProjection.class);
+        when(countB.getCourseId()).thenReturn(200L);
+        when(countB.getBookmarkCount()).thenReturn(5L);
+        when(courseBookmarkRepository.countByCourseIdIn(List.of(100L, 200L))).thenReturn(List.of(countA, countB));
+
+        var result = courseService.list(null, null, null, null, CourseSort.BOOKMARKS);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseResponse::id).containsExactly(200L, 100L);
+    }
 
     @Test
     void createPersonalCourse_선택한_영역의_레슨만_복사해_개인_코스를_만든다() throws Exception {
