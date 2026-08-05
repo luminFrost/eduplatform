@@ -158,6 +158,13 @@ class ProgressServiceTest {
     }
 
     @Test
+    void getLearnerCount_리포지토리_결과를_그대로_반환한다() {
+        when(learningProgressRepository.countDistinctMembersByCourseId(100L)).thenReturn(3L);
+
+        assertThat(progressService.getLearnerCount(100L)).isEqualTo(3L);
+    }
+
+    @Test
     void getLessonsDueForReview_기준일보다_오래된_완료_레슨을_반환한다() throws Exception {
         Course course = withId(Course.builder()
                 .title("코스").description("설명").emoji("📘")

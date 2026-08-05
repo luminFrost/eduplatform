@@ -106,6 +106,30 @@ class CourseViewControllerTest {
     }
 
     @Test
+    void 코스상세_학습자_수가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("학습자수테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses/{id}", course.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("이 코스를 시작한 학습자")));
+    }
+
+    @Test
+    void 개인_코스_상세에는_학습자_수가_안_보인다() throws Exception {
+        Course personalCourse = courseRepository.save(Course.builder()
+                .title("개인코스테스트").description("설명").ownerId(1L)
+                .focusAreas(java.util.Set.of(com.edu.eduplatform.lesson.domain.LessonType.VOCAB))
+                .criteriaSource(com.edu.eduplatform.course.domain.CourseCriteriaSource.SELF_SELECTED)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses/{id}", personalCourse.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("이 코스를 시작한 학습자"))));
+    }
+
+    @Test
     void 로그인_회원은_코스를_즐겨찾기하고_다시_토글하면_해제할_수_있다() throws Exception {
         Course course = courseRepository.save(Course.builder()
                 .title("북마크테스트코스").description("설명")

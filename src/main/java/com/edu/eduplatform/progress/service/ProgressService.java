@@ -72,6 +72,11 @@ public class ProgressService {
         return completedLessonIds.containsAll(courseLessonIds);
     }
 
+    /** 이 코스를 시작해(레슨을 하나 이상 완료해) 학습 중인 회원 수 — 코스 상세의 사회적 증거 문구용. */
+    public long getLearnerCount(Long courseId) {
+        return learningProgressRepository.countDistinctMembersByCourseId(courseId);
+    }
+
     @Transactional
     public void complete(Long memberId, Long lessonId) {
         memberService.getMember(memberId);

@@ -97,6 +97,7 @@ public class CourseViewController {
             model.addAttribute("selectedType", type);
             model.addAttribute("currentMemberId", memberId);
             model.addAttribute("bookmarked", courseService.isBookmarked(memberId, id));
+            model.addAttribute("learnerCount", progressService.getLearnerCount(id));
 
             model.addAttribute("reviews", courseService.listReviews(id));
             model.addAttribute("ratingSummary", courseService.getRatingSummary(id));

@@ -1348,6 +1348,36 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     해당 코스의 공개 상세 페이지에서도 "아직 후기가 없어요"로 돌아가는 것 확인 → 일반 회원 계정으로
     `/admin/reviews` 접근 시 403 확인.
 
+- 코스 학습자 수 표시 (dev 병합됨)
+  - 코스 상세에 평점·즐겨찾기 개수처럼 사회적 증거 신호를 하나 더 — 이 코스를 시작한(레슨을 하나
+    이상 완료한) 회원 수를 노출.
+  - **"학습자"의 정의를 이전 세션에서 이미 확인해둔 사실로 단순화**: `ProgressService.complete()`가
+    저장 직전 항상 `LearningProgress.complete()`를 호출해서, DB에 남는 진행 기록은 예외 없이 전부
+    완료 상태다 — 그래서 "이 코스의 레슨 중 하나라도 완료 기록이 있는 회원 수"를 세면 자연스럽게
+    "이 코스를 시작해 최소 하나는 마친 회원 수"가 된다. 별도 "시작함" 상태를 새로 추적할 필요 없이
+    기존 데이터만으로 끝남.
+  - `LearningProgress`엔 courseId가 없어(memberId, lessonId만) `Lesson.courseId`를 거쳐야 한다 —
+    `CourseRepository.search()`가 영역 필터에 쓰던 `c.id in (select l.courseId from Lesson l
+    where ...)` 서브쿼리 패턴을 그대로 가져와 `LearningProgressRepository.
+    countDistinctMembersByCourseId()`를 신규 추가(`lp.lessonId in (select l.id from Lesson l where
+    l.courseId = :courseId)`로 distinct memberId 집계).
+  - `ProgressService`가 이미 `LearningProgressRepository`/`LessonRepository`/`CourseRepository`를
+    전부 갖고 있고 `CourseViewController`도 이미 `ProgressService`를 주입받고 있어(코스 완료 여부·
+    다음 코스 추천에 씀) 새 의존성 추가 없이 `getLearnerCount()` 한 메서드만 얹으면 끝남.
+  - 개인 코스는 소유자 한 명뿐이라 "학습자 1명" 문구가 의미 없어 `course.personal`이면 화면에서
+    숨김(계산 자체는 항상 하되 렌더링만 조건부) — 코스 완료 배너를 개인 코스에서 이미 숨겨온 것과
+    같은 판단.
+  - 이번엔 코스 상세에만 노출, 코스 목록 카드엔 안 넣음 — 카드 하나에 이미 평점·잠금 배지가 있어
+    더 늘리면 복잡해짐, 필요해지면 배치 집계 버전을 후속으로 추가하면 됨(코스 목록 sort/rating
+    작업 때 만든 배치 집계 패턴 재사용하면 큰 비용 없음).
+  - 테스트: `ProgressServiceTest`에 `getLearnerCount` 1개(리포지토리 결과를 그대로 반환하는지 —
+    JPQL 서브쿼리 자체의 정합성은 Mockito로는 못 잡아서, 잘못된 JPQL이면 `./gradlew build`의 컨텍스트
+    부팅 자체가 실패하는 걸 안전망으로 씀 — CLOB `lower()` 캐스팅 이슈 때 겪었던 것과 같은 검증
+    방식), `CourseViewControllerTest`에 2개(공식 코스는 문구 노출, 개인 코스는 숨김).
+  - curl 실서버 종단 검증: 서로 다른 회원 2명이 같은 코스의 서로 다른 레슨을 하나씩 완료 → 코스
+    상세에 "학습자 0명"(가입 직후) → "학습자 2명"(완료 후)으로 정확히 바뀌는 것 확인 → 그 회원으로
+    만든 개인 코스 상세에는 문구 자체가 안 보이는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
