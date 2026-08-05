@@ -1,6 +1,7 @@
 package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
+import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
@@ -46,14 +47,16 @@ public class CourseViewController {
             @RequestParam(required = false) String level,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String sort,
             Model model
     ) {
         MemberType targetType = parseEnum(MemberType.class, target);
         EnglishLevel levelFilter = parseEnum(EnglishLevel.class, level);
         LessonType typeFilter = parseEnum(LessonType.class, type);
         String keywordFilter = StringUtils.hasText(keyword) ? keyword.strip() : null;
+        CourseSort sortOption = parseEnum(CourseSort.class, sort);
 
-        List<CourseResponse> courses = courseService.list(targetType, levelFilter, typeFilter, keywordFilter);
+        List<CourseResponse> courses = courseService.list(targetType, levelFilter, typeFilter, keywordFilter, sortOption);
         model.addAttribute("courses", courses);
         model.addAttribute("ratingSummaries", courseService.getRatingSummaries(courses.stream().map(CourseResponse::id).toList()));
         model.addAttribute("lessonResults", lessonService.searchLessons(keywordFilter));
@@ -63,6 +66,7 @@ public class CourseViewController {
         model.addAttribute("selectedLevel", level);
         model.addAttribute("selectedSkillType", type);
         model.addAttribute("selectedKeyword", keyword);
+        model.addAttribute("selectedSort", sort);
         return "course/list";
     }
 

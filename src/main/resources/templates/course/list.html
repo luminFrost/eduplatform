@@ -27,41 +27,49 @@
             <label>검색</label>
             <input type="text" name="keyword" th:value="${selectedKeyword}" placeholder="코스 제목·설명 검색"/>
         </div>
+        <div>
+            <label>정렬</label>
+            <select name="sort">
+                <option value="" th:selected="${selectedSort == null or selectedSort == ''}">추천순</option>
+                <option value="RATING" th:selected="${selectedSort == 'RATING'}">평점순</option>
+                <option value="BOOKMARKS" th:selected="${selectedSort == 'BOOKMARKS'}">즐겨찾기순</option>
+            </select>
+        </div>
         <input type="hidden" name="level" th:value="${selectedLevel}"/>
         <input type="hidden" name="type" th:value="${selectedSkillType}"/>
         <button type="submit">필터 적용</button>
     </form>
 
     <div class="level-path">
-        <a class="level-node" th:href="@{/courses(target=${selectedTarget},type=${selectedSkillType},keyword=${selectedKeyword})}"
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},type=${selectedSkillType},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:classappend="${selectedLevel == null or selectedLevel == ''} ? ' active' : ''">전체</a>
         <span class="level-connector"></span>
-        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='BEGINNER',type=${selectedSkillType},keyword=${selectedKeyword})}"
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='BEGINNER',type=${selectedSkillType},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:classappend="${selectedLevel == 'BEGINNER'} ? ' active' : ''">입문</a>
         <span class="level-connector"></span>
-        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ELEMENTARY',type=${selectedSkillType},keyword=${selectedKeyword})}"
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ELEMENTARY',type=${selectedSkillType},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:classappend="${selectedLevel == 'ELEMENTARY'} ? ' active' : ''">초급</a>
         <span class="level-connector"></span>
-        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='INTERMEDIATE',type=${selectedSkillType},keyword=${selectedKeyword})}"
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='INTERMEDIATE',type=${selectedSkillType},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:classappend="${selectedLevel == 'INTERMEDIATE'} ? ' active' : ''">중급</a>
         <span class="level-connector"></span>
-        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ADVANCED',type=${selectedSkillType},keyword=${selectedKeyword})}"
+        <a class="level-node" th:href="@{/courses(target=${selectedTarget},level='ADVANCED',type=${selectedSkillType},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:classappend="${selectedLevel == 'ADVANCED'} ? ' active' : ''">고급</a>
     </div>
 
     <div class="skill-tabs">
-        <a th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},keyword=${selectedKeyword})}"
+        <a th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},keyword=${selectedKeyword},sort=${selectedSort})}"
            th:class="${selectedSkillType == null or selectedSkillType == ''} ? 'skill-tab active' : 'skill-tab'">전체 영역</a>
         <th:block th:each="t : ${lessonTypes}" th:switch="${t.name()}">
-            <a th:case="'VOCAB'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword})}"
+            <a th:case="'VOCAB'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword},sort=${selectedSort})}"
                th:class="${selectedSkillType == t.name()} ? 'skill-tab active' : 'skill-tab'">어휘</a>
-            <a th:case="'READING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword})}"
+            <a th:case="'READING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword},sort=${selectedSort})}"
                th:class="${selectedSkillType == t.name()} ? 'skill-tab active' : 'skill-tab'">읽기</a>
-            <a th:case="'WRITING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword})}"
+            <a th:case="'WRITING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword},sort=${selectedSort})}"
                th:class="${selectedSkillType == t.name()} ? 'skill-tab active' : 'skill-tab'">쓰기</a>
-            <a th:case="'LISTENING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword})}"
+            <a th:case="'LISTENING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword},sort=${selectedSort})}"
                th:class="${selectedSkillType == t.name()} ? 'skill-tab active' : 'skill-tab'">듣기</a>
-            <a th:case="'SPEAKING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword})}"
+            <a th:case="'SPEAKING'" th:href="@{/courses(target=${selectedTarget},level=${selectedLevel},type=${t},keyword=${selectedKeyword},sort=${selectedSort})}"
                th:class="${selectedSkillType == t.name()} ? 'skill-tab active' : 'skill-tab'">말하기</a>
         </th:block>
     </div>

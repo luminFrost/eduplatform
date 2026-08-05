@@ -1,6 +1,7 @@
 package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
+import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.dto.CourseCreateRequest;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreateRequest;
@@ -48,9 +49,10 @@ public class CourseApiController {
             @RequestParam(required = false) MemberType target,
             @RequestParam(required = false) EnglishLevel level,
             @RequestParam(required = false) LessonType type,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) CourseSort sort
     ) {
-        return courseService.list(target, level, type, keyword);
+        return courseService.list(target, level, type, keyword, sort);
     }
 
     @PostMapping

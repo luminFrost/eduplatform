@@ -61,6 +61,24 @@ class CourseViewControllerTest {
     }
 
     @Test
+    void 코스목록_sort파라미터가_RATING이면_200을_반환한다() throws Exception {
+        mockMvc.perform(get("/courses").param("sort", "RATING"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void 코스목록_sort파라미터가_BOOKMARKS이면_200을_반환한다() throws Exception {
+        mockMvc.perform(get("/courses").param("sort", "BOOKMARKS"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void 코스목록_잘못된_sort값이면_500대신_기본_정렬로_보여준다() throws Exception {
+        mockMvc.perform(get("/courses").param("sort", "BOGUS"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void 코스상세_잘못된_type값이면_500대신_전체_레슨을_보여준다() throws Exception {
         Course course = courseRepository.save(Course.builder()
                 .title("뷰컨트롤러테스트코스").description("설명")
