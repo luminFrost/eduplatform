@@ -11,7 +11,9 @@ import static org.mockito.Mockito.when;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
+import com.edu.eduplatform.course.domain.CourseReviewVote;
 import com.edu.eduplatform.course.domain.CourseSort;
+import com.edu.eduplatform.course.domain.ReviewSort;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
 import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
@@ -20,6 +22,7 @@ import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
 import com.edu.eduplatform.course.repository.CourseReviewRepository;
+import com.edu.eduplatform.course.repository.CourseReviewVoteRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.lesson.repository.LessonRepository;
@@ -69,6 +72,9 @@ class CourseServiceTest {
 
     @Mock
     private CourseReviewRepository courseReviewRepository;
+
+    @Mock
+    private CourseReviewVoteRepository courseReviewVoteRepository;
 
     @Mock
     private com.edu.eduplatform.member.repository.MemberRepository memberRepository;
@@ -541,7 +547,7 @@ class CourseServiceTest {
     }
 
     @Test
-    void listReviews_닉네임을_배치조회해서_함께_반환한다() throws Exception {
+    void listReviews_닉네임과_도움돼요_투표수를_배치조회해서_함께_반환한다() throws Exception {
         CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
         CourseReview review2 = withId(CourseReview.builder().memberId(2L).courseId(100L).rating(3).comment("보통").build(), 11L);
         Member member1 = withId(Member.builder()
@@ -550,11 +556,88 @@ class CourseServiceTest {
                 .email("b@example.com").nickname("비").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 2L);
         when(courseReviewRepository.findByCourseIdOrderByIdDesc(100L)).thenReturn(List.of(review2, review1));
         when(memberRepository.findAllById(any())).thenReturn(List.of(member1, member2));
+        when(courseReviewVoteRepository.countByReviewIdIn(any())).thenReturn(List.of());
+        when(courseReviewVoteRepository.findVotedReviewIds(any(), any())).thenReturn(List.of(11L));
 
-        var result = courseService.listReviews(100L);
+        var result = courseService.listReviews(100L, 3L, ReviewSort.NEWEST);
 
         assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseReviewResponse::nickname)
                 .containsExactly("비", "에이");
+        assertThat(result.get(0).votedByCurrentMember()).isTrue();
+        assertThat(result.get(1).votedByCurrentMember()).isFalse();
+    }
+
+    @Test
+    void listReviews_currentMemberId가_없으면_투표여부조회를_생략한다() throws Exception {
+        CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
+        Member member1 = withId(Member.builder()
+                .email("a@example.com").nickname("에이").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 1L);
+        when(courseReviewRepository.findByCourseIdOrderByIdDesc(100L)).thenReturn(List.of(review1));
+        when(memberRepository.findAllById(any())).thenReturn(List.of(member1));
+        when(courseReviewVoteRepository.countByReviewIdIn(any())).thenReturn(List.of());
+
+        var result = courseService.listReviews(100L, null, ReviewSort.NEWEST);
+
+        assertThat(result.get(0).votedByCurrentMember()).isFalse();
+        verify(courseReviewVoteRepository, never()).findVotedReviewIds(any(), any());
+    }
+
+    @Test
+    void listReviews_HELPFUL_정렬이면_투표수_내림차순으로_반환한다() throws Exception {
+        CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
+        CourseReview review2 = withId(CourseReview.builder().memberId(2L).courseId(100L).rating(3).comment("보통").build(), 11L);
+        Member member1 = withId(Member.builder()
+                .email("a@example.com").nickname("에이").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 1L);
+        Member member2 = withId(Member.builder()
+                .email("b@example.com").nickname("비").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 2L);
+        CourseReviewVoteRepository.ReviewVoteCountProjection count10 =
+                mock(CourseReviewVoteRepository.ReviewVoteCountProjection.class);
+        when(count10.getReviewId()).thenReturn(10L);
+        when(count10.getVoteCount()).thenReturn(5L);
+        // review2(id=11)는 최신순으로는 앞이지만 투표가 없어 도움순에서는 뒤로 밀려야 한다.
+        when(courseReviewRepository.findByCourseIdOrderByIdDesc(100L)).thenReturn(List.of(review2, review1));
+        when(memberRepository.findAllById(any())).thenReturn(List.of(member1, member2));
+        when(courseReviewVoteRepository.countByReviewIdIn(any())).thenReturn(List.of(count10));
+        when(courseReviewVoteRepository.findVotedReviewIds(any(), any())).thenReturn(List.of());
+
+        var result = courseService.listReviews(100L, 3L, ReviewSort.HELPFUL);
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseReviewResponse::id)
+                .containsExactly(10L, 11L);
+    }
+
+    @Test
+    void toggleHelpfulVote_투표가_없으면_추가하고_true를_반환한다() {
+        when(courseReviewRepository.existsById(10L)).thenReturn(true);
+        when(courseReviewVoteRepository.existsByMemberIdAndReviewId(1L, 10L)).thenReturn(false);
+
+        boolean result = courseService.toggleHelpfulVote(1L, 10L);
+
+        assertThat(result).isTrue();
+        verify(courseReviewVoteRepository).save(any(CourseReviewVote.class));
+    }
+
+    @Test
+    void toggleHelpfulVote_투표가_있으면_삭제하고_false를_반환한다() {
+        when(courseReviewRepository.existsById(10L)).thenReturn(true);
+        when(courseReviewVoteRepository.existsByMemberIdAndReviewId(1L, 10L)).thenReturn(true);
+
+        boolean result = courseService.toggleHelpfulVote(1L, 10L);
+
+        assertThat(result).isFalse();
+        verify(courseReviewVoteRepository).deleteByMemberIdAndReviewId(1L, 10L);
+        verify(courseReviewVoteRepository, never()).save(any());
+    }
+
+    @Test
+    void toggleHelpfulVote_존재하지_않는_리뷰면_조용히_false를_반환한다() {
+        when(courseReviewRepository.existsById(999L)).thenReturn(false);
+
+        boolean result = courseService.toggleHelpfulVote(1L, 999L);
+
+        assertThat(result).isFalse();
+        verify(courseReviewVoteRepository, never()).save(any());
+        verify(courseReviewVoteRepository, never()).deleteByMemberIdAndReviewId(any(), any());
     }
 
     @Test

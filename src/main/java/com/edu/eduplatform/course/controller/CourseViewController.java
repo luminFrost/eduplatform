@@ -2,6 +2,7 @@ package com.edu.eduplatform.course.controller;
 
 import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.course.domain.CourseSort;
+import com.edu.eduplatform.course.domain.ReviewSort;
 import com.edu.eduplatform.course.dto.CourseResponse;
 import com.edu.eduplatform.course.dto.PersonalCourseCreationResult;
 import com.edu.eduplatform.course.exception.CourseNotFoundException;
@@ -76,6 +77,7 @@ public class CourseViewController {
             @PathVariable Long id,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String reviewError,
+            @RequestParam(required = false) String reviewSort,
             @CurrentMemberId Long memberId,
             Model model
     ) {
@@ -100,7 +102,9 @@ public class CourseViewController {
             model.addAttribute("bookmarked", courseService.isBookmarked(memberId, id));
             model.addAttribute("learnerCount", progressService.getLearnerCount(id));
 
-            model.addAttribute("reviews", courseService.listReviews(id));
+            ReviewSort sortOption = parseEnum(ReviewSort.class, reviewSort);
+            model.addAttribute("reviews", courseService.listReviews(id, memberId, sortOption == null ? ReviewSort.NEWEST : sortOption));
+            model.addAttribute("selectedReviewSort", reviewSort);
             model.addAttribute("ratingSummary", courseService.getRatingSummary(id));
             model.addAttribute("myReview", memberId != null ? courseService.getMyReview(memberId, id).orElse(null) : null);
             model.addAttribute("reviewError", reviewError != null);
@@ -145,6 +149,12 @@ public class CourseViewController {
     public String deleteReview(@PathVariable Long id, @CurrentMemberId Long memberId) {
         courseService.deleteReview(memberId, id);
         return "redirect:/courses/" + id;
+    }
+
+    @PostMapping("/{courseId}/reviews/{reviewId}/helpful")
+    public String toggleHelpfulVote(@PathVariable Long courseId, @PathVariable Long reviewId, @CurrentMemberId Long memberId) {
+        courseService.toggleHelpfulVote(memberId, reviewId);
+        return "redirect:/courses/" + courseId;
     }
 
     @GetMapping("/personal/new")

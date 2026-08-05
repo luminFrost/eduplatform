@@ -1397,6 +1397,43 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - curl 실서버 종단 검증: 회원 2명이 같은 코스의 서로 다른 레슨을 완료 → `/courses` 목록의 그 코스
     카드에 "👥 2" 배지 확인, 학습자가 없는 다른 코스 카드엔 배지가 안 뜨는 것 확인.
 
+- 리뷰 "도움돼요" 투표 (dev 병합됨)
+  - 리뷰가 많아지면 어떤 리뷰가 신뢰할 만한지 구분할 방법이 없던 갭 — 회원별로 리뷰에 "도움돼요"를
+    투표하고 그 수로 정렬(도움순)할 수 있게 해 유용한 리뷰가 위로 올라오게 함.
+  - `CourseReviewVote`(신규 엔티티, memberId+reviewId)는 `CourseBookmark`와 정확히 같은 구조 —
+    `CourseReviewVoteRepository`도 `CourseBookmarkRepository`의 3종 세트(존재 확인/삭제/배치 집계
+    `countByReviewIdIn`+`ReviewVoteCountProjection`)를 그대로 재사용, 추가로 현재 회원의 투표
+    여부를 한 번에 확인하는 `findVotedReviewIds(memberId, reviewIds)` 신규.
+  - `CourseReviewResponse`에 `helpfulCount`/`votedByCurrentMember` 필드 추가 — 생성자 호출이
+    `CourseService.toReviewResponse()` 한 곳뿐임을 grep으로 미리 확인해 안전하게 필드 추가.
+    `submitReview()`/`getMyReview()`가 반환하는 응답은 화면에서 투표 정보를 안 쓰므로
+    `helpfulCount=0, voted=false` 고정값으로 채워 불필요한 조회를 피함 — 실제 투표 정보가 필요한
+    건 `listReviews()`(코스 상세의 후기 목록) 하나뿐.
+  - `CourseService.listReviews(courseId)` → `listReviews(courseId, currentMemberId, ReviewSort sort)`로
+    시그니처 변경. 새 `ReviewSort`(NEWEST/HELPFUL) enum은 `CourseSort`와 같은 자리에 둠. HELPFUL
+    정렬은 `CourseService.list()`의 `CourseSort` 처리와 같은 방식 — 이미 최신순으로 가져온 리스트를
+    `Comparator.comparingLong(helpfulCount).reversed()`로 재정렬(스트림의 안정 정렬 특성상 동점은
+    최신순 그대로 유지, 별도 tie-break 코드 불필요).
+  - `toggleHelpfulVote(memberId, reviewId)`는 `toggleBookmark()`와 동일한 존재 확인 후 토글 패턴
+    (삭제된 리뷰에 투표 시도하면 예외 없이 조용히 `false`).
+  - 화면: `course/detail.html`의 "후기" 제목 옆에 최신순/도움순 정렬 링크(`?reviewSort=HELPFUL`,
+    선택된 쪽은 대괄호로 표시), 리뷰 항목마다 "👍 도움돼요 (N)" — 로그인 회원은 토글 버튼(기존
+    `.bookmark-form` 인라인 스타일 재사용), 비로그인은 버튼 없이 카운트 텍스트만.
+    `CourseViewController`에 신규 라우트 `POST /{courseId}/reviews/{reviewId}/helpful` 추가
+    (기존 리뷰 제출/삭제 라우트와 같은 인증 요구 — Security 설정 변경 불필요).
+  - **범위 제외**: 본인 리뷰에 본인이 투표하는 것을 막는 방어 로직 — 이 규모에서 과한 엔지니어링으로
+    판단, 허용.
+  - 테스트: `CourseReviewVoteRepositoryTest`(신규, `@DataJpaTest` 4개 — 존재확인/삭제/배치집계/
+    회원별 투표 조회), `CourseServiceTest`(기존 `listReviews` 테스트를 새 시그니처로 갱신 + 신규
+    5개 — 투표수·투표여부 반영, currentMemberId 없으면 투표조회 생략, HELPFUL 정렬, 토글 투표
+    생성/취소/존재하지 않는 리뷰), `CourseViewControllerTest`(신규 3개 — 투표 토글 종단 흐름,
+    비로그인 카운트만 노출, HELPFUL 정렬 파라미터로 순서가 바뀌는지).
+  - curl 실서버 종단 검증: 회원 2명(작성자·투표자)으로 리뷰 작성 → 투표자가 투표 → 본인 화면엔
+    "도움돼요 취소 (1)", 비로그인 화면엔 "도움돼요 (1)"만 확인 → 다시 눌러 취소 → 카운트 0으로
+    복귀 확인 → 두 번째 리뷰(투표 없음) 작성 후 첫 리뷰에 투표 → 기본(최신순)에서는 두 번째 리뷰가
+    위, `?reviewSort=HELPFUL`에서는 투표받은 첫 리뷰가 위로 재배열되는 것 확인 → 정렬 링크가 선택된
+    쪽만 대괄호로 표시되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

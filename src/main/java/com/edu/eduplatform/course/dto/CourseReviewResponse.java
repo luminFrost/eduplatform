@@ -8,6 +8,8 @@ public record CourseReviewResponse(
         String nickname,
         int rating,
         String comment,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        long helpfulCount,
+        boolean votedByCurrentMember
 ) {
 }
