@@ -131,6 +131,16 @@ public class ProgressService {
                 .toList();
     }
 
+    /** 헤더 배지용 — 레슨/코스 배치 조회 없이 개수만 필요할 때 쓴다. 상한은 {@link #getLessonsDueForReview}와 동일. */
+    public long countLessonsDueForReview(Long memberId) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(REVIEW_DUE_AFTER_DAYS);
+        return learningProgressRepository
+                .findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(memberId, cutoff)
+                .stream()
+                .limit(REVIEW_LIST_LIMIT)
+                .count();
+    }
+
     /** 복습했다는 표시로 완료 시각을 지금으로 밀어낸다 — 멱등성 가드 없이 매번 갱신하는 게 목적. */
     @Transactional
     public void markReviewed(Long memberId, Long lessonId) {

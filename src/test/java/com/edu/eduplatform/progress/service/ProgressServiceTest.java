@@ -189,6 +189,35 @@ class ProgressServiceTest {
     }
 
     @Test
+    void countLessonsDueForReview_대상_개수를_반환한다() {
+        LearningProgress due1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        due1.complete();
+        LearningProgress due2 = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        due2.complete();
+
+        when(learningProgressRepository.findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(
+                eq(1L), any(LocalDateTime.class))).thenReturn(List.of(due1, due2));
+
+        assertThat(progressService.countLessonsDueForReview(1L)).isEqualTo(2);
+    }
+
+    @Test
+    void countLessonsDueForReview_상한을_넘으면_상한에서_멈춘다() {
+        List<LearningProgress> elevenDue = java.util.stream.IntStream.range(0, 11)
+                .mapToObj(i -> {
+                    LearningProgress progress = LearningProgress.builder().memberId(1L).lessonId((long) i).build();
+                    progress.complete();
+                    return progress;
+                })
+                .toList();
+
+        when(learningProgressRepository.findByMemberIdAndCompletedTrueAndCompletedAtBeforeOrderByCompletedAtAsc(
+                eq(1L), any(LocalDateTime.class))).thenReturn(elevenDue);
+
+        assertThat(progressService.countLessonsDueForReview(1L)).isEqualTo(10);
+    }
+
+    @Test
     void markReviewed_완료_시각을_지금으로_밀어낸다() {
         LearningProgress progress = LearningProgress.builder().memberId(1L).lessonId(10L).build();
         progress.complete();
