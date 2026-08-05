@@ -569,6 +569,56 @@ class CourseServiceTest {
     }
 
     @Test
+    void listAllReviewsForAdmin_코스제목과_닉네임을_배치조회해서_함께_반환한다() throws Exception {
+        CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
+        CourseReview review2 = withId(CourseReview.builder().memberId(2L).courseId(200L).rating(1).comment("별로").build(), 11L);
+        Member member1 = withId(Member.builder()
+                .email("a@example.com").nickname("에이").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 1L);
+        Member member2 = withId(Member.builder()
+                .email("b@example.com").nickname("비").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 2L);
+        Course course100 = withId(Course.builder()
+                .title("첫코스").description("설명").targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course course200 = withId(Course.builder()
+                .title("둘째코스").description("설명").targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        when(courseReviewRepository.findAllByOrderByIdDesc()).thenReturn(List.of(review2, review1));
+        when(memberRepository.findAllById(any())).thenReturn(List.of(member1, member2));
+        when(courseRepository.findAllById(any())).thenReturn(List.of(course100, course200));
+
+        var result = courseService.listAllReviewsForAdmin();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).courseTitle()).isEqualTo("둘째코스");
+        assertThat(result.get(0).reviewerNickname()).isEqualTo("비");
+        assertThat(result.get(1).courseTitle()).isEqualTo("첫코스");
+        assertThat(result.get(1).reviewerNickname()).isEqualTo("에이");
+    }
+
+    @Test
+    void listAllReviewsForAdmin_리뷰가_없으면_빈_목록을_반환한다() {
+        when(courseReviewRepository.findAllByOrderByIdDesc()).thenReturn(List.of());
+
+        assertThat(courseService.listAllReviewsForAdmin()).isEmpty();
+    }
+
+    @Test
+    void deleteReviewByAdmin_존재하면_삭제한다() {
+        when(courseReviewRepository.existsById(10L)).thenReturn(true);
+
+        courseService.deleteReviewByAdmin(10L);
+
+        verify(courseReviewRepository).deleteById(10L);
+    }
+
+    @Test
+    void deleteReviewByAdmin_존재하지_않으면_조용히_무시한다() {
+        when(courseReviewRepository.existsById(999L)).thenReturn(false);
+
+        courseService.deleteReviewByAdmin(999L);
+
+        verify(courseReviewRepository, never()).deleteById(any());
+    }
+
+    @Test
     void updateCourse_존재하는_코스면_내용을_수정한다() throws Exception {
         Course course = withId(Course.builder()
                 .title("기존 제목").description("기존 설명").emoji("📘")

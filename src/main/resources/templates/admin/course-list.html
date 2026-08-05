@@ -11,7 +11,7 @@
 
     <main id="main-content" class="page page-wide">
     <h1>코스 관리</h1>
-    <p><a th:href="@{/admin/courses/new}">+ 새 코스 만들기</a> · <a th:href="@{/admin/questions}">문항 관리 →</a> · <a th:href="@{/admin/members}">회원 관리 →</a> · <a th:href="@{/admin}">대시보드 →</a></p>
+    <p><a th:href="@{/admin/courses/new}">+ 새 코스 만들기</a> · <a th:href="@{/admin/questions}">문항 관리 →</a> · <a th:href="@{/admin/members}">회원 관리 →</a> · <a th:href="@{/admin/reviews}">리뷰 관리 →</a> · <a th:href="@{/admin}">대시보드 →</a></p>
 
     <p class="empty-state" th:if="${#lists.isEmpty(courses)}">등록된 공식 코스가 없습니다.</p>
 

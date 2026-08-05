@@ -52,6 +52,16 @@ class CourseReviewRepositoryTest {
     }
 
     @Test
+    void findAllByOrderByIdDesc_전체_리뷰를_최신순으로_반환한다() {
+        courseReviewRepository.save(CourseReview.builder().memberId(1L).courseId(10L).rating(5).comment("첫번째").build());
+        courseReviewRepository.save(CourseReview.builder().memberId(2L).courseId(20L).rating(3).comment("두번째").build());
+
+        assertThat(courseReviewRepository.findAllByOrderByIdDesc())
+                .extracting(CourseReview::getComment)
+                .containsExactly("두번째", "첫번째");
+    }
+
+    @Test
     void 여러_코스를_한번에_집계한다() {
         courseReviewRepository.save(CourseReview.builder().memberId(1L).courseId(10L).rating(5).build());
         courseReviewRepository.save(CourseReview.builder().memberId(2L).courseId(10L).rating(3).build());
