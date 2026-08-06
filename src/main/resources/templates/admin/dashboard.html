@@ -3,18 +3,53 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>관리자 · 콘텐츠 커버리지 - eduplatform</title>
+    <title>관리자 대시보드 - eduplatform</title>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
     <div th:replace="~{fragments/layout :: header}"></div>
 
     <main id="main-content" class="page page-wide">
-    <h1>콘텐츠 커버리지</h1>
+    <h1>관리자 대시보드</h1>
     <p><a th:href="@{/admin/courses}">코스 관리 →</a> · <a th:href="@{/admin/questions}">문항 관리 →</a> · <a th:href="@{/admin/members}">회원 관리 →</a> · <a th:href="@{/admin/reviews}">리뷰 관리 →</a> · <a th:href="@{/admin/announcement}">공지 관리 →</a></p>
+
+    <div class="stat-tile-row">
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${stats.totalMembers}"></span>
+            <span class="stat-label">전체 회원</span>
+        </div>
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${stats.newMembersLast7Days}"></span>
+            <span class="stat-label">최근 7일 신규 가입</span>
+        </div>
+        <div class="stat-tile">
+            <span class="stat-value" th:text="${stats.totalCompletions}"></span>
+            <span class="stat-label">누적 레슨 완료</span>
+        </div>
+    </div>
+
+    <h2>최근 14일 가입자 추이</h2>
+    <div class="trend-chart">
+        <div class="trend-bar" th:each="d : ${stats.dailySignups}">
+            <span class="trend-bar-value" th:text="${d.completedCount}"></span>
+            <div class="trend-bar-fill" th:style="'height: ' + (${stats.maxDailySignup} == 0 ? 0 : (${d.completedCount} * 100 / ${stats.maxDailySignup})) + '%'"></div>
+            <span class="trend-bar-label" th:text="${d.date.dayOfMonth}"></span>
+        </div>
+    </div>
+
+    <h2>최근 14일 학습 완료 추이</h2>
+    <div class="trend-chart">
+        <div class="trend-bar" th:each="d : ${stats.dailyCompletions}">
+            <span class="trend-bar-value" th:text="${d.completedCount}"></span>
+            <div class="trend-bar-fill" th:style="'height: ' + (${stats.maxDailyCompletion} == 0 ? 0 : (${d.completedCount} * 100 / ${stats.maxDailyCompletion})) + '%'"></div>
+            <span class="trend-bar-label" th:text="${d.date.dayOfMonth}"></span>
+        </div>
+    </div>
+
+    <h2>콘텐츠 커버리지</h2>
     <p class="empty-state">대상·레벨 조합마다 영역별 레슨·문항 수를 보여줍니다. 0인 칸은 강조 표시됩니다.</p>
 
-    <h2>레슨 수</h2>
+    <h3>레슨 수</h3>
     <div class="table-scroll">
     <table class="coverage-table">
         <thead>
@@ -40,7 +75,7 @@
     </table>
     </div>
 
-    <h2>문항 수</h2>
+    <h3>문항 수</h3>
     <div class="table-scroll">
     <table class="coverage-table">
         <thead>

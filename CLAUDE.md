@@ -1649,6 +1649,45 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     → 문구 수정 → 반영 확인 → 빈 문구 제출 시 "공지 내용을 입력해 주세요" 검증 오류 확인 → 삭제 →
     배너가 랜딩 페이지에서 사라지는 것 확인.
 
+- 관리자 통계 대시보드 (dev 병합됨)
+  - 관리자 대시보드(`/admin`)가 콘텐츠 커버리지(레슨·문항 수)만 보여주고 가입자 추이·학습 활동량
+    같은 운영 지표가 전혀 없던 갭 — 총 회원 수·최근 7일 신규 가입·누적 완료 건수 요약 타일과
+    최근 14일 가입자/완료 추이 막대그래프를 같은 페이지에 추가.
+  - `Member`/`LearningProgress` 둘 다 `BaseTimeEntity`의 `createdAt`을 이미 갖고 있어 새 추적
+    데이터 없이 stateless 계산(스트릭·월간 캘린더와 같은 원칙). `ProgressService.
+    getMonthlyActivity()`/`getCurrentStreak()`가 이미 쓰는 "전체 조회 → Java 스트림으로 날짜별
+    필터/정렬/집계" 방식을 그대로 재사용 — 새 파생 쿼리 없이 `memberRepository.findAll()`/
+    `learningProgressRepository.findAll()`을 스트림 처리(이 프로젝트 규모의 개발 환경에 맞는
+    단순함).
+  - **새 DTO 없이 재사용** — `DailyActivityResponse(date, dayLabel, completedCount)`가 이미
+    "날짜+요일라벨+개수" 모양 그대로라 가입자 추이·완료 추이 둘 다에 그대로 씀(필드명이 "완료
+    개수" 의미로 고정돼 있어 가입자 추이엔 의미상 살짝 어긋나지만, 관리자 화면 내부에서만 쓰이는
+    값이라 새 타입 추가보다 실용적이라고 판단).
+  - `ProgressService`에 이미 있는 한글 요일 라벨 변환(`dayLabel()` private static 8줄 스위치문)을
+    신규 `AdminStatsService`에도 하나 더 둠 — 기존 검증된 코드를 이번 기능 때문에 리팩터링하는
+    대신 짧고 안정적인 로직이라 의도적으로 중복 허용(리팩터링이 오히려 기존 테스트에 불필요한
+    리스크를 만든다고 판단).
+  - `ContentCoverageService`의 "특정 도메인에 안 속하는 관리자 집계는 `common/service`에 둔다"는
+    선례를 그대로 따라 신규 `AdminStatsService`를 같은 패키지에 배치(Member+LearningProgress를
+    넘나드는 관리자 전용 집계).
+  - 시각화는 이 프로젝트가 지금까지 써온 순수 CSS 방식(월간 활동 캘린더, 진도 막대)을 그대로 이어
+    새 차트 라이브러리 없이 flex 막대그래프(`.trend-chart`/`.trend-bar`/`.trend-bar-fill`) 신규
+    추가 — dataviz 스킬 원칙대로 크기 비교(magnitude)는 단일 hue(`--color-primary`)로만 인코딩,
+    값은 막대 위에 항상 텍스트로 노출(모바일 감사 때 배운 "호버 전용 금지" 교훈 재적용).
+  - `AdminDashboardController`가 이미 `/admin` 라우트를 갖고 있어 새 라우트 없이 `stats` 모델
+    속성만 추가. `<h1>`을 "콘텐츠 커버리지"에서 "관리자 대시보드"로 바꾸고 기존 제목은 `<h2>
+    콘텐츠 커버리지</h2>`로 내림(내부 "레슨 수"/"문항 수"도 `<h3>`로 한 단계씩 내려 계층 유지) —
+    기존 `AdminDashboardControllerTest`가 "콘텐츠 커버리지" 텍스트 포함 여부만 검증해서 grep으로
+    확인 후 안전하게 변경.
+  - 테스트: 신규 `AdminStatsServiceTest`(Mockito 3개 — 전체 회원수/최근 7일 신규가입자수,
+    완료된 기록만 누적 집계에 반영, 14일 추이 배열 길이·최댓값 — `ProgressServiceTest`의
+    `withCompletedAt`과 같은 리플렉션 패턴으로 `createdAt`/`completedAt` 조작),
+    `AdminDashboardControllerTest`에 신규 1개(통계 타일·추이 차트 렌더링 확인).
+  - curl 실서버 종단 검증: 관리자 로그인 → `/admin`에서 전체 회원 1(시드 관리자)·최근 7일 신규
+    가입 1·누적 완료 0 확인 → 신규 회원 가입 + 레슨 1개 완료 → 전체 회원 2·최근 7일 신규 가입
+    2·누적 완료 1로 갱신 확인 → 가입자 추이·완료 추이 차트 모두 오늘 칸에 정확한 값(2, 1)과
+    `height: 100%`(최댓값이라 꽉 찬 막대)로 렌더링되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
