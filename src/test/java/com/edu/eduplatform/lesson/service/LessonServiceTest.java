@@ -43,6 +43,21 @@ class LessonServiceTest {
     private LessonService lessonService;
 
     @Test
+    void getLessonCounts_courseId_여러_개의_레슨_수를_한번에_집계한다() throws Exception {
+        Lesson lesson1 = withLessonId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withLessonId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        Lesson lesson3 = withLessonId(Lesson.builder().courseId(200L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 12L);
+        when(lessonRepository.findByCourseIdIn(List.of(100L, 200L))).thenReturn(List.of(lesson1, lesson2, lesson3));
+
+        var result = lessonService.getLessonCounts(List.of(100L, 200L));
+
+        assertThat(result).containsEntry(100L, 2L).containsEntry(200L, 1L);
+    }
+
+    @Test
     void getDetail_중간_레슨은_이전과_다음_레슨_id를_모두_가진다() throws Exception {
         Course course = withId(Course.builder()
                 .title("코스").description("설명")

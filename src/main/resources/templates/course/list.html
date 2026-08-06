@@ -106,6 +106,8 @@
                       th:text="'⭐ ' + ${#numbers.formatDecimal(ratingSummaries[c.id].average(), 1, 1)}"></span>
                 <span class="badge" th:if="${learnerCounts[c.id] != null}"
                       th:text="'👥 ' + ${learnerCounts[c.id]}"></span>
+                <span class="badge" th:if="${estimatedTimes[c.id] != null}"
+                      th:text="'⏱️ ' + ${estimatedTimes[c.id]}"></span>
             </div>
             <h3 th:text="${c.title}"></h3>
             <p th:text="${c.description}"></p>
