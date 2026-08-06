@@ -1383,3 +1383,9 @@ legend.quiz-prompt {
     color: var(--color-danger);
     font-weight: 700;
 }
+
+.badge.new {
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+    color: var(--color-accent);
+    font-weight: 700;
+}

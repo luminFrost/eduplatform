@@ -5,6 +5,7 @@ import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 public record CourseResponse(
@@ -16,11 +17,18 @@ public record CourseResponse(
         EnglishLevel level,
         Long ownerId,
         Set<LessonType> focusAreas,
-        CourseCriteriaSource criteriaSource
+        CourseCriteriaSource criteriaSource,
+        LocalDateTime createdAt
 ) {
+
+    private static final int RECENTLY_ADDED_DAYS = 7;
 
     public boolean isPersonal() {
         return ownerId != null;
+    }
+
+    public boolean isRecentlyAdded() {
+        return createdAt != null && createdAt.isAfter(LocalDateTime.now().minusDays(RECENTLY_ADDED_DAYS));
     }
 
     public static CourseResponse from(Course course) {
@@ -33,7 +41,8 @@ public record CourseResponse(
                 course.getLevel(),
                 course.getOwnerId(),
                 course.getFocusAreas(),
-                course.getCriteriaSource()
+                course.getCriteriaSource(),
+                course.getCreatedAt()
         );
     }
 }
