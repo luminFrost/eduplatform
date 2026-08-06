@@ -11,6 +11,7 @@ import com.edu.eduplatform.member.dto.MemberResponse;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
 import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
+import com.edu.eduplatform.member.exception.CannotForceWithdrawAdminException;
 import com.edu.eduplatform.member.exception.CannotWithdrawAdminException;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
@@ -135,6 +136,27 @@ public class MemberService {
             throw new InvalidPasswordException();
         }
 
+        deleteMemberAndData(member);
+    }
+
+    /**
+     * 관리자가 다른 회원을 강제로 탈퇴시킨다 — 본인 확인(비밀번호) 없이 관리자 권한만으로 실행한다.
+     * 대상이 관리자 계정이면(자기 자신도 ADMIN 역할이라 여기서 함께 걸러진다) 잠금 사고 방지를 위해 거부한다.
+     */
+    @Transactional
+    public void withdrawByAdmin(Long targetMemberId) {
+        Member member = memberRepository.findById(targetMemberId)
+                .orElseThrow(() -> new MemberNotFoundException(targetMemberId));
+        if (member.getRole() == MemberRole.ADMIN) {
+            throw new CannotForceWithdrawAdminException();
+        }
+
+        deleteMemberAndData(member);
+    }
+
+    /** 회원과 진행 기록·개인 코스(전용으로 복사된 레슨 포함)를 함께 지운다. */
+    private void deleteMemberAndData(Member member) {
+        Long memberId = member.getId();
         List<Course> personalCourses = courseRepository.findByOwnerIdOrderByIdDesc(memberId);
         if (!personalCourses.isEmpty()) {
             List<Long> personalCourseIds = personalCourses.stream().map(Course::getId).toList();

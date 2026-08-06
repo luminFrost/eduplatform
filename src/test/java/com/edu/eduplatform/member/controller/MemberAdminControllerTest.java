@@ -104,6 +104,50 @@ class MemberAdminControllerTest {
                 .andExpect(content().string(containsString("findme-luna@example.com")));
     }
 
+    @Test
+    void 관리자는_일반_회원을_강제_탈퇴시킬_수_있다() throws Exception {
+        MockHttpSession session = loginAs("member-admin-force-withdraw@example.com", "강제탈퇴관리자", MemberRole.ADMIN);
+        Member target = memberRepository.save(Member.builder()
+                .email("force-withdraw-target@example.com").nickname("탈퇴대상")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+
+        mockMvc.perform(post("/admin/members/" + target.getId() + "/withdraw").session(session).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(memberRepository.findById(target.getId())).isEmpty();
+    }
+
+    @Test
+    void 관리자_계정을_대상으로_강제_탈퇴시도하면_에러와_함께_계정이_남는다() throws Exception {
+        MockHttpSession session = loginAs("member-admin-force-withdraw-2@example.com", "강제탈퇴관리자2", MemberRole.ADMIN);
+        Member otherAdmin = memberRepository.save(Member.builder()
+                .email("force-withdraw-admin-target@example.com").nickname("다른관리자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).role(MemberRole.ADMIN).build());
+
+        MvcResult result = mockMvc.perform(post("/admin/members/" + otherAdmin.getId() + "/withdraw").session(session).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        assertThat(result.getResponse().getRedirectedUrl()).contains("error=");
+
+        assertThat(memberRepository.findById(otherAdmin.getId())).isPresent();
+    }
+
+    @Test
+    void 일반_회원은_강제_탈퇴_요청시_403이다() throws Exception {
+        MockHttpSession session = loginAs("member-admin-force-withdraw-user@example.com", "일반회원2", MemberRole.USER);
+        Member target = memberRepository.save(Member.builder()
+                .email("force-withdraw-target-2@example.com").nickname("탈퇴대상2")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+
+        mockMvc.perform(post("/admin/members/" + target.getId() + "/withdraw").session(session).with(csrf()))
+                .andExpect(status().isForbidden());
+
+        assertThat(memberRepository.findById(target.getId())).isPresent();
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

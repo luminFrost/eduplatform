@@ -4,6 +4,7 @@ import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.member.domain.MemberRole;
 import com.edu.eduplatform.member.dto.MemberAdminResponse;
 import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
+import com.edu.eduplatform.member.exception.CannotForceWithdrawAdminException;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
 import com.edu.eduplatform.member.service.MemberService;
 import java.util.List;
@@ -51,6 +52,21 @@ public class MemberAdminController {
         try {
             memberService.changeRole(id, currentMemberId, role);
         } catch (CannotChangeSelfRoleException | MemberNotFoundException e) {
+            redirect.queryParam("error", e.getMessage());
+        }
+        return "redirect:" + redirect.build().encode().toUriString();
+    }
+
+    @PostMapping("/admin/members/{id}/withdraw")
+    public String withdraw(
+            @PathVariable Long id,
+            @RequestParam(required = false) String keyword
+    ) {
+        UriComponentsBuilder redirect = UriComponentsBuilder.fromPath("/admin/members")
+                .queryParamIfPresent("keyword", Optional.ofNullable(keyword));
+        try {
+            memberService.withdrawByAdmin(id);
+        } catch (CannotForceWithdrawAdminException | MemberNotFoundException e) {
             redirect.queryParam("error", e.getMessage());
         }
         return "redirect:" + redirect.build().encode().toUriString();
