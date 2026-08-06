@@ -17,6 +17,7 @@ import com.edu.eduplatform.lesson.repository.LessonRepository;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -40,6 +41,12 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
     private final IconCatalog iconCatalog;
+
+    /** 코스 목록 화면에서 카드마다 따로 쿼리를 날리지 않도록 courseId 여러 개의 레슨 수를 한 번에 집계한다. */
+    public Map<Long, Long> getLessonCounts(Collection<Long> courseIds) {
+        return lessonRepository.findByCourseIdIn(courseIds).stream()
+                .collect(Collectors.groupingBy(Lesson::getCourseId, Collectors.counting()));
+    }
 
     public List<LessonSummaryResponse> listByCourse(Long courseId) {
         return lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()

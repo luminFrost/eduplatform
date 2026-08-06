@@ -20,6 +20,7 @@
         <span class="badge new" th:if="${course.recentlyAdded}">🆕 NEW</span>
         <span class="badge" th:text="${course.targetType}"></span>
         <span class="badge" th:text="${course.level}"></span>
+        <span class="badge" th:if="${estimatedTime != null}" th:text="'⏱️ ' + ${estimatedTime}"></span>
         <h1 th:text="${course.title}"></h1>
         <p th:text="${course.description}"></p>
         <p th:unless="${course.personal}" class="empty-state">👥 이 코스를 시작한 학습자 <span th:text="${learnerCount}"></span>명</p>

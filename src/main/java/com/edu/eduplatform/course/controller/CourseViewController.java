@@ -46,6 +46,9 @@ public class CourseViewController {
     private final ProgressService progressService;
     private final MemberService memberService;
 
+    /** 코스 예상 학습 시간 계산에 쓰는 레슨당 평균 소요 시간(분). */
+    private static final int MINUTES_PER_LESSON = 5;
+
     @GetMapping
     public String list(
             @RequestParam(required = false) String target,
@@ -65,6 +68,15 @@ public class CourseViewController {
         model.addAttribute("courses", courses);
         model.addAttribute("ratingSummaries", courseService.getRatingSummaries(courses.stream().map(CourseResponse::id).toList()));
         model.addAttribute("learnerCounts", progressService.getLearnerCounts(courses.stream().map(CourseResponse::id).toList()));
+        Map<Long, Long> lessonCountsByCourseId = lessonService.getLessonCounts(courses.stream().map(CourseResponse::id).toList());
+        Map<Long, String> estimatedTimes = new HashMap<>();
+        courses.forEach(c -> {
+            String formatted = formatEstimatedTime(lessonCountsByCourseId.getOrDefault(c.id(), 0L));
+            if (formatted != null) {
+                estimatedTimes.put(c.id(), formatted);
+            }
+        });
+        model.addAttribute("estimatedTimes", estimatedTimes);
         model.addAttribute("lessonResults", lessonService.searchLessons(keywordFilter));
         model.addAttribute("memberTypes", MemberType.values());
         model.addAttribute("lessonTypes", LessonType.values());
@@ -102,6 +114,7 @@ public class CourseViewController {
             model.addAttribute("lessons", lessons);
             model.addAttribute("lessonTypes", LessonType.values());
             model.addAttribute("lessonCounts", lessonCounts);
+            model.addAttribute("estimatedTime", formatEstimatedTime(allLessons.size()));
             model.addAttribute("selectedType", type);
             model.addAttribute("currentMemberId", memberId);
             model.addAttribute("bookmarked", courseService.isBookmarked(memberId, id));
@@ -271,5 +284,19 @@ public class CourseViewController {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /** 레슨이 하나도 없는 코스는 빈 값을 반환해 배지 자체를 생략한다. */
+    private static String formatEstimatedTime(long lessonCount) {
+        long totalMinutes = lessonCount * MINUTES_PER_LESSON;
+        if (totalMinutes == 0) {
+            return null;
+        }
+        long hours = totalMinutes / 60;
+        long minutes = totalMinutes % 60;
+        if (hours == 0) {
+            return "약 " + minutes + "분";
+        }
+        return minutes == 0 ? "약 " + hours + "시간" : "약 " + hours + "시간 " + minutes + "분";
     }
 }

@@ -1588,6 +1588,30 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     에서는 발생하지 않는, 이 개발 환경 특유의 현상. 관리자 화면으로 새 코스 하나를 만들어 목록·
     상세 둘 다에 배지가 뜨는 것으로 기능 자체는 정상 확인.
 
+- 코스 예상 학습 시간 표시 (dev 병합됨)
+  - 코스 상세·목록에 레벨·평점·학습자 수 배지는 있었지만 "얼마나 걸리는지" 감이 없던 갭 — 레슨 수
+    기반으로 "약 O분" 배지를 코스 목록 카드·상세 헤더에 추가. 새 추적 데이터 없이 기존 레슨 개수만
+    으로 stateless 계산(레슨당 5분 균등 가정).
+  - `LessonService.collectIconPairs()`가 이미 쓰는 "`findByCourseIdIn` → `groupingBy(Lesson::
+    getCourseId)`" 배치 패턴을 그대로 가져와 신규 `getLessonCounts(courseIds)` 추가(개수만 세면
+    되니 `Collectors.counting()`으로 끝). 상세 페이지는 새 조회가 아예 필요 없음 — 컨트롤러가 이미
+    `lessonService.listByCourse(id)`로 갖고 있는 `allLessons.size()`만 쓰면 됨.
+  - `CourseViewController`에 `MINUTES_PER_LESSON = 5` 상수와 분→"N시간 M분" 포맷 문자열을 만드는
+    private static 헬퍼(`formatEstimatedTime`) 추가 — Thymeleaf 인라인 표현식으로 시/분 나눗셈을
+    하면 복잡해져서, `parseEnum()`과 같은 자리에 순수 Java 헬퍼로 뺌. 레슨이 없으면 `null`을
+    반환해 배지 자체를 생략(기존 "정직하게 빈 상태" 컨벤션).
+  - **버그 발견·수정(빌드 중 바로 잡음)**: `list()`에서 코스 스트림을 `Collectors.toMap(..., c ->
+    formatEstimatedTime(...))`으로 배지 맵을 만들었더니, 레슨이 없는 코스(`formatEstimatedTime`이
+    `null` 반환)를 만나는 순간 `Collectors.toMap`이 `null` 값을 허용하지 않아 `NullPointerException`
+    으로 코스 목록 관련 테스트 8개가 한꺼번에 실패 — `HashMap`에 직접 `null`이 아닐 때만 `put`하는
+    수동 루프로 교체해 해결.
+  - 화면: `course/list.html` 카드 배지 영역과 `course/detail.html` 헤더 배지 영역 둘 다에
+    "⏱️ 약 O분" 배지 추가(기존 `.badge` 클래스 재사용, 새 CSS 없음).
+  - 테스트: `LessonServiceTest`에 `getLessonCounts` 1개, `CourseViewControllerTest`에 2개(레슨
+    7개짜리 코스는 목록·상세 둘 다 "약 35분" 배지 노출, 레슨 없는 코스는 배지 자체가 안 보임).
+  - curl 실서버 종단 검증: 레슨 7개짜리 기존 시드 코스(`/courses/25`)의 목록 카드·상세 페이지
+    둘 다에서 "⏱️ 약 35분" 배지 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

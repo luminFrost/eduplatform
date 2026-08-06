@@ -175,6 +175,37 @@ class CourseViewControllerTest {
     }
 
     @Test
+    void 레슨_7개짜리_코스는_목록과_상세에_예상_학습_시간_배지가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("예상시간테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        for (int i = 1; i <= 7; i++) {
+            lessonRepository.save(Lesson.builder()
+                    .courseId(course.getId()).orderNo(i).title(i + "과")
+                    .content("내용").lessonType(LessonType.VOCAB).build());
+        }
+
+        mockMvc.perform(get("/courses").param("target", "ADULT").param("level", "BEGINNER"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("⏱️ 약 35분")));
+
+        mockMvc.perform(get("/courses/{id}", course.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("⏱️ 약 35분")));
+    }
+
+    @Test
+    void 레슨이_없는_코스는_예상_학습_시간_배지가_안_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("레슨없는코스테스트").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses/{id}", course.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("⏱️"))));
+    }
+
+    @Test
     void 로그인_회원은_코스를_즐겨찾기하고_다시_토글하면_해제할_수_있다() throws Exception {
         Course course = courseRepository.save(Course.builder()
                 .title("북마크테스트코스").description("설명")
