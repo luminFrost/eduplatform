@@ -16,6 +16,7 @@ import com.edu.eduplatform.member.dto.MemberAdminResponse;
 import com.edu.eduplatform.member.dto.MemberUpdateRequest;
 import com.edu.eduplatform.member.dto.PasswordChangeRequest;
 import com.edu.eduplatform.member.exception.CannotChangeSelfRoleException;
+import com.edu.eduplatform.member.exception.CannotForceWithdrawAdminException;
 import com.edu.eduplatform.member.exception.CannotWithdrawAdminException;
 import com.edu.eduplatform.member.exception.DuplicateEmailException;
 import com.edu.eduplatform.member.exception.InvalidPasswordException;
@@ -304,6 +305,53 @@ class MemberServiceTest {
 
         assertThatThrownBy(() -> memberService.withdraw(4L, "password1234"))
                 .isInstanceOf(CannotWithdrawAdminException.class);
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    void withdrawByAdmin_정상_탈퇴시_회원과_진행기록과_개인코스를_모두_삭제한다() throws Exception {
+        Member member = withId(Member.builder()
+                .email("admin-withdraw@example.com").nickname("강제탈퇴테스터")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.USER).build(), 5L);
+        Course personalCourse = withCourseId(Course.builder()
+                .title("개인코스").description("설명").ownerId(5L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        Lesson personalLesson = Lesson.builder()
+                .courseId(200L).orderNo(1).title("1과").content("내용").lessonType(LessonType.VOCAB).build();
+
+        when(memberRepository.findById(5L)).thenReturn(Optional.of(member));
+        when(courseRepository.findByOwnerIdOrderByIdDesc(5L)).thenReturn(List.of(personalCourse));
+        when(lessonRepository.findByCourseIdIn(List.of(200L))).thenReturn(List.of(personalLesson));
+        when(learningProgressRepository.findByMemberId(5L)).thenReturn(List.of());
+
+        memberService.withdrawByAdmin(5L);
+
+        verify(lessonRepository).deleteAll(List.of(personalLesson));
+        verify(courseRepository).deleteAll(List.of(personalCourse));
+        verify(learningProgressRepository).deleteAll(List.of());
+        verify(memberRepository).delete(member);
+    }
+
+    @Test
+    void withdrawByAdmin_대상이_관리자면_예외를_던지고_아무것도_지우지_않는다() throws Exception {
+        Member admin = withId(Member.builder()
+                .email("admin-withdraw-target@example.com").nickname("관리자대상")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password("hashed").role(MemberRole.ADMIN).build(), 6L);
+        when(memberRepository.findById(6L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> memberService.withdrawByAdmin(6L))
+                .isInstanceOf(CannotForceWithdrawAdminException.class);
+        verify(memberRepository, never()).delete(any());
+    }
+
+    @Test
+    void withdrawByAdmin_존재하지_않는_회원이면_예외를_던진다() {
+        when(memberRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> memberService.withdrawByAdmin(999L))
+                .isInstanceOf(MemberNotFoundException.class);
         verify(memberRepository, never()).delete(any());
     }
 

@@ -44,6 +44,12 @@
                     <input type="hidden" name="role" th:value="${m.role.name() == 'ADMIN'} ? 'USER' : 'ADMIN'"/>
                     <button type="submit" th:text="${m.role.name() == 'ADMIN'} ? '일반 회원으로 강등' : '관리자로 승격'"></button>
                 </form>
+                <form th:unless="${m.id == currentMemberId}"
+                      th:action="@{/admin/members/{id}/withdraw(id=${m.id})}" method="post" class="lesson-delete-form">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="keyword" th:value="${selectedKeyword}"/>
+                    <button type="submit">탈퇴시키기</button>
+                </form>
             </div>
         </li>
     </ul>

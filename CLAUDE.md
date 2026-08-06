@@ -1473,6 +1473,37 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     시도 시 코스 상세로 리다이렉트 확인 → 존재하지 않는 코스 id는 `/courses`로, 비로그인은 `/login`
     으로 리다이렉트되는 것 확인.
 
+- 관리자 회원 강제 탈퇴 (dev 병합됨)
+  - 관리자 회원 관리 화면(`/admin/members`)에 승격/강등은 있었지만 문제 있는 계정을 관리자가 직접
+    정지/삭제할 방법이 없던 갭 — 회원 스스로 탈퇴하는 기존 `MemberService.withdraw()`의 정리
+    로직을 재사용해 비밀번호 확인 없이 관리자 권한만으로 탈퇴시키는 경로를 추가.
+  - `withdraw()`의 "개인 코스+레슨 삭제 → 진행 기록 삭제 → 회원 삭제" 블록을
+    `deleteMemberAndData(Member member)` private 헬퍼로 추출(순수 리팩터링, 동작 변화 없음)해
+    신규 `withdrawByAdmin(targetMemberId)`와 공유.
+  - **자기 자신 체크를 따로 안 둠** — `member.getRole() == ADMIN`이면 거부하는 기존 조건을 그대로
+    쓰면 "다른 관리자를 강제 탈퇴"와 "자기 자신을 강제 탈퇴"(자기 자신도 ADMIN 역할이므로)가 한
+    조건으로 자동으로 같이 막힌다 — `changeRole()`의 `targetMemberId.equals(actingMemberId)` 같은
+    별도 자기-자신 체크가 불필요했음. 기존 `CannotWithdrawAdminException`은 메시지가 "마이페이지에서
+    탈퇴할 수 없습니다"로 자기서비스 탈퇴 문맥에 고정돼 있어, 관리자 강제 탈퇴 문맥에 맞는 신규
+    `CannotForceWithdrawAdminException`("관리자 계정은 강제 탈퇴시킬 수 없습니다. 역할을 먼저
+    변경해 주세요")을 별도로 둠.
+  - `MemberAdminController`에 `POST /admin/members/{id}/withdraw` 신규 — 기존 `changeRole()`이
+    확립해둔 "성공하면 단순 리다이렉트, 예외 잡으면 `UriComponentsBuilder`로 `keyword`+`error` 쿼리
+    붙여 같은 화면으로 리다이렉트" 패턴 그대로 재사용. Security 설정 변경 불필요(`/admin/**` →
+    `hasRole("ADMIN")`이 이미 덮음, 이번 세션 admin 기능 전부에서 반복 확인된 패턴).
+    화면: `admin/member-list.html`의 역할 변경 폼과 같은 `th:unless="${m.id == currentMemberId}"`
+    블록 안에 "탈퇴시키기" 폼 추가 — 자기 자신 행엔 두 버튼 모두 자동으로 안 보임(서비스단 방어와
+    이중 안전). 이 프로젝트 관리자 삭제 버튼들과 같은 관례로 JS confirm() 다이얼로그 없이 바로 제출.
+  - **범위 제외**: 확인 다이얼로그, 탈퇴 사유 기록/감사 로그, 정지(soft-suspend, 로그인만 막고
+    데이터 보존) — 전부 이 규모에서 과한 엔지니어링 또는 별도 기능으로 판단.
+  - 테스트: `MemberServiceTest`에 `withdrawByAdmin` 3개(정상 삭제, 대상이 관리자면 예외+아무것도
+    안 지워짐, 존재하지 않는 회원이면 예외), `MemberAdminControllerTest`에 3개(일반 회원 강제
+    탈퇴 성공, 관리자 대상 시도 시 에러+계정 유지, 일반 회원 권한으로 시도 시 403).
+  - curl 실서버 종단 검증: 관리자 로그인 → 신규 가입 회원 강제 탈퇴 → 목록에서 사라짐 확인 → 그
+    이메일로 재로그인 시도 시 `/login?error`로 실패 확인 → 다른 회원을 관리자로 승격 후 그 계정
+    대상으로 강제 탈퇴 시도 → 리다이렉트 URL에 정확한 에러 메시지 포함 + 계정이 목록에 그대로 남는
+    것 확인 → 관리자 자기 자신 행엔 역할변경·탈퇴 버튼 둘 다 없이 "(나)"만 보이는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
