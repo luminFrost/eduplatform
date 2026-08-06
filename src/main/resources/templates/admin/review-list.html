@@ -23,6 +23,7 @@
                         <a th:href="@{/courses/{id}(id=${r.courseId})}" th:text="${r.courseTitle}"></a>
                         · <span th:text="${r.reviewerNickname}"></span>
                         · <span th:text="${'⭐'.repeat(r.rating())}"></span>
+                        <span th:if="${r.reportCount > 0}" class="badge reported" th:text="'🚩 신고 ' + ${r.reportCount}"></span>
                     </span>
                     <span class="lesson-title" th:if="${r.comment != null and !r.comment.isEmpty()}" th:text="${r.comment}"></span>
                 </span>

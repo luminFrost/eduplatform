@@ -82,6 +82,7 @@ public class CourseViewController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String reviewError,
             @RequestParam(required = false) String reviewSort,
+            @RequestParam(required = false) String reported,
             @CurrentMemberId Long memberId,
             Model model
     ) {
@@ -112,6 +113,7 @@ public class CourseViewController {
             model.addAttribute("ratingSummary", courseService.getRatingSummary(id));
             model.addAttribute("myReview", memberId != null ? courseService.getMyReview(memberId, id).orElse(null) : null);
             model.addAttribute("reviewError", reviewError != null);
+            model.addAttribute("reported", reported != null);
 
             if (memberId != null && !course.isPersonal()) {
                 boolean courseCompleted = progressService.isCourseFullyCompleted(memberId, id);
@@ -180,6 +182,12 @@ public class CourseViewController {
     public String toggleHelpfulVote(@PathVariable Long courseId, @PathVariable Long reviewId, @CurrentMemberId Long memberId) {
         courseService.toggleHelpfulVote(memberId, reviewId);
         return "redirect:/courses/" + courseId;
+    }
+
+    @PostMapping("/{courseId}/reviews/{reviewId}/report")
+    public String reportReview(@PathVariable Long courseId, @PathVariable Long reviewId, @CurrentMemberId Long memberId) {
+        courseService.reportReview(memberId, reviewId);
+        return "redirect:/courses/" + courseId + "?reported";
     }
 
     @GetMapping("/personal/new")

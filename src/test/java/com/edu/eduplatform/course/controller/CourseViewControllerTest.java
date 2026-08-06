@@ -406,6 +406,42 @@ class CourseViewControllerTest {
                 .andExpect(redirectedUrl("/login"));
     }
 
+    @Test
+    void 로그인_회원은_리뷰를_신고할_수_있고_배너가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("신고테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession author = loginAs("report-author@example.com", "신고대상작성자");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author).with(csrf())
+                        .param("rating", "1")
+                        .param("comment", "신고받을 리뷰"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        Long reviewId = courseReviewRepository.findByCourseIdOrderByIdDesc(course.getId()).get(0).getId();
+        MockHttpSession reporter = loginAs("report-reporter@example.com", "신고자");
+
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/report", course.getId(), reviewId)
+                        .session(reporter).with(csrf()))
+                .andExpect(redirectedUrl("/courses/" + course.getId() + "?reported"));
+        mockMvc.perform(get("/courses/{id}", course.getId()).param("reported", "").session(reporter))
+                .andExpect(content().string(containsString("신고가 접수되었습니다")));
+    }
+
+    @Test
+    void 비로그인이면_리뷰_신고는_로그인으로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("비로그인신고테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        MockHttpSession author = loginAs("report-anon-author@example.com", "신고대상작성자2");
+        mockMvc.perform(post("/courses/{id}/reviews", course.getId()).session(author).with(csrf())
+                        .param("rating", "2")
+                        .param("comment", "신고받을 리뷰2"))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+        Long reviewId = courseReviewRepository.findByCourseIdOrderByIdDesc(course.getId()).get(0).getId();
+
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/report", course.getId(), reviewId).with(csrf()))
+                .andExpect(redirectedUrl("/login"));
+    }
+
     private MockHttpSession loginAs(String email, String nickname) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

@@ -85,6 +85,7 @@
     </ul>
 
     <h2>후기</h2>
+    <p class="quiz-question" th:if="${reported}">신고가 접수되었습니다. 검토 후 조치할게요.</p>
     <p>
         <a th:href="@{/courses/{id}(id=${course.id},type=${selectedType})}"
            th:text="${selectedReviewSort == null or selectedReviewSort == 'NEWEST'} ? '[최신순]' : '최신순'"></a>
@@ -135,6 +136,11 @@
                         th:text="(${r.votedByCurrentMember} ? '👍 도움돼요 취소 (' : '👍 도움돼요 (') + ${r.helpfulCount} + ')'"></button>
             </form>
             <span th:if="${currentMemberId == null}" th:text="'👍 도움돼요 (' + ${r.helpfulCount} + ')'"></span>
+            <form th:if="${currentMemberId != null}" th:action="@{/courses/{courseId}/reviews/{reviewId}/report(courseId=${course.id},reviewId=${r.id})}"
+                  method="post" class="bookmark-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button type="submit">🚩 신고</button>
+            </form>
         </li>
     </ul>
 
