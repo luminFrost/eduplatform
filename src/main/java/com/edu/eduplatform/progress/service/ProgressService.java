@@ -25,6 +25,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +72,28 @@ public class ProgressService {
                 .map(LearningProgress::getLessonId)
                 .collect(Collectors.toSet());
         return completedLessonIds.containsAll(courseLessonIds);
+    }
+
+    /**
+     * 코스를 완료한 시각(그 코스 레슨들 중 가장 늦게 완료한 시각) — 완료하지 않았으면 빈 값.
+     * 수료증 발급에 쓰인다.
+     */
+    public Optional<LocalDateTime> getCourseCompletionDate(Long memberId, Long courseId) {
+        List<Long> courseLessonIds = lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()
+                .map(Lesson::getId)
+                .toList();
+        if (courseLessonIds.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<Long, LearningProgress> completedByLessonId = learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .collect(Collectors.toMap(LearningProgress::getLessonId, progress -> progress));
+        if (!completedByLessonId.keySet().containsAll(courseLessonIds)) {
+            return Optional.empty();
+        }
+        return courseLessonIds.stream()
+                .map(id -> completedByLessonId.get(id).getCompletedAt())
+                .max(Comparator.naturalOrder());
     }
 
     /** 이 코스를 시작해(레슨을 하나 이상 완료해) 학습 중인 회원 수 — 코스 상세의 사회적 증거 문구용. */

@@ -15,12 +15,15 @@ import com.edu.eduplatform.lesson.service.LessonService;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
 import com.edu.eduplatform.member.exception.MemberNotFoundException;
+import com.edu.eduplatform.member.service.MemberService;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.service.ProgressService;
 import com.edu.eduplatform.question.exception.DiagnosticTestIncompleteException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class CourseViewController {
     private final CourseService courseService;
     private final LessonService lessonService;
     private final ProgressService progressService;
+    private final MemberService memberService;
 
     @GetMapping
     public String list(
@@ -120,6 +124,27 @@ public class CourseViewController {
         } catch (CourseNotFoundException e) {
             return "redirect:/courses";
         }
+    }
+
+    @GetMapping("/{id}/certificate")
+    public String certificate(@PathVariable Long id, @CurrentMemberId Long memberId, Model model) {
+        CourseResponse course;
+        try {
+            course = courseService.getCourse(id);
+        } catch (CourseNotFoundException e) {
+            return "redirect:/courses";
+        }
+        if (course.isPersonal()) {
+            return "redirect:/courses/" + id;
+        }
+        Optional<LocalDateTime> completedAt = progressService.getCourseCompletionDate(memberId, id);
+        if (completedAt.isEmpty()) {
+            return "redirect:/courses/" + id;
+        }
+        model.addAttribute("course", course);
+        model.addAttribute("nickname", memberService.getMember(memberId).nickname());
+        model.addAttribute("completedAt", completedAt.get());
+        return "course/certificate";
     }
 
     @PostMapping("/{id}/bookmark")

@@ -340,6 +340,72 @@ class CourseViewControllerTest {
         assertThat(content.indexOf("투표받은리뷰")).isLessThan(content.indexOf("투표없는리뷰"));
     }
 
+    @Test
+    void 코스를_완료하면_수료증_페이지에_닉네임과_코스제목이_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("수료증테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+        MockHttpSession session = loginAs("certificate-test@example.com", "수료증테스터");
+        Member member = memberRepository.findByEmail("certificate-test@example.com").orElseThrow();
+        LearningProgress progress = LearningProgress.builder().memberId(member.getId()).lessonId(lesson.getId()).build();
+        progress.complete();
+        learningProgressRepository.save(progress);
+
+        mockMvc.perform(get("/courses/{id}/certificate", course.getId()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("수료증테스터")))
+                .andExpect(content().string(containsString("수료증테스트코스")));
+    }
+
+    @Test
+    void 완료하지_않은_코스는_수료증_대신_코스상세로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("미완료수료증테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+        MockHttpSession session = loginAs("certificate-incomplete-test@example.com", "미완료테스터");
+
+        mockMvc.perform(get("/courses/{id}/certificate", course.getId()).session(session))
+                .andExpect(redirectedUrl("/courses/" + course.getId()));
+    }
+
+    @Test
+    void 개인_코스는_수료증_대신_코스상세로_리다이렉트된다() throws Exception {
+        MockHttpSession session = loginAs("certificate-personal-test@example.com", "개인코스테스터");
+        Member member = memberRepository.findByEmail("certificate-personal-test@example.com").orElseThrow();
+        Course personalCourse = courseRepository.save(Course.builder()
+                .title("개인수료증테스트코스").description("설명").ownerId(member.getId())
+                .focusAreas(java.util.Set.of(LessonType.VOCAB))
+                .criteriaSource(com.edu.eduplatform.course.domain.CourseCriteriaSource.SELF_SELECTED)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses/{id}/certificate", personalCourse.getId()).session(session))
+                .andExpect(redirectedUrl("/courses/" + personalCourse.getId()));
+    }
+
+    @Test
+    void 존재하지_않는_코스의_수료증은_코스목록으로_리다이렉트된다() throws Exception {
+        MockHttpSession session = loginAs("certificate-notfound-test@example.com", "없는코스테스터");
+
+        mockMvc.perform(get("/courses/{id}/certificate", 999999L).session(session))
+                .andExpect(redirectedUrl("/courses"));
+    }
+
+    @Test
+    void 비로그인이면_수료증_페이지는_로그인으로_리다이렉트된다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("비로그인수료증테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses/{id}/certificate", course.getId()))
+                .andExpect(redirectedUrl("/login"));
+    }
+
     private MockHttpSession loginAs(String email, String nickname) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

@@ -37,6 +37,7 @@
                          th:text="${nextCourse.emoji} + ' ' + ${nextCourse.title}"></a>
         </p>
         <p th:if="${nextCourse == null}">이 레벨의 로드맵을 모두 마쳤어요! 대단해요 🏆</p>
+        <p><a th:href="@{/courses/{id}/certificate(id=${course.id})}">🎓 수료증 보기</a></p>
     </div>
 
     <div class="skill-tabs">
