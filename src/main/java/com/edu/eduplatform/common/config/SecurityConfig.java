@@ -84,6 +84,7 @@ public class SecurityConfig {
                         // 아래는 특정 규칙이라, 뒤따르는 일반 /courses/** permitAll보다 먼저 와야 한다.
                         .requestMatchers("/my", "/my/**").authenticated()
                         .requestMatchers("/courses/personal/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/courses/*/certificate").authenticated()
                         .requestMatchers(HttpMethod.POST, "/lessons/*/complete").authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/courses", "/courses/**").permitAll()

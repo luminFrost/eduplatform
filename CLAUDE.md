@@ -1434,6 +1434,45 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     위, `?reviewSort=HELPFUL`에서는 투표받은 첫 리뷰가 위로 재배열되는 것 확인 → 정렬 링크가 선택된
     쪽만 대괄호로 표시되는 것 확인.
 
+- 코스 완료 수료증 (dev 병합됨)
+  - 코스를 완료하면 이미 "🎉 이 코스를 모두 완료했어요!" 배너와 다음 코스 추천이 뜨지만, 그 성취를
+    보여줄 실체가 없던 갭 — 완료 시점에 간단한 디지털 수료증 페이지를 발급해 열람/인쇄할 수 있게 함.
+    스트릭·히트맵과 같은 원칙으로 새 추적 테이블 없이 기존 `LearningProgress.completedAt`만으로
+    stateless 계산.
+  - `ProgressService.getCourseCompletionDate(memberId, courseId)` 신규 — 기존
+    `isCourseFullyCompleted()`와 같은 "코스 레슨 id 전체가 완료 기록에 포함되는지" 판정 로직을
+    쓰되, 포함되면 그 레슨들의 `completedAt` 중 가장 늦은 시각까지 반환(Optional, 미완료면 빈 값).
+    `isCourseFullyCompleted()`를 이 메서드로 대체하지 않음 — boolean만 필요한 기존 배너 조건
+    호출부까지 완료 시각을 다시 계산하게 만드는 불필요한 결합을 피함.
+  - `CourseViewController`에 `MemberService` 신규 주입(닉네임 표시용, `CourseService`가 이미 하는
+    것과 같은 방식) + `GET /{id}/certificate` 라우트 — 코스가 개인 코스면, 또는 완료 시각이 없으면
+    코스 상세로 조용히 리다이렉트(개인 코스는 로드맵 개념이 없어 기존 완료 배너 자체도 안 뜨는 것과
+    같은 조건 재사용), 존재하지 않는 코스는 `/courses`로.
+  - `SecurityConfig`에 `GET /courses/*/certificate`를 `/courses/personal/**` 바로 아래 한 줄
+    추가(일반 `GET /courses/**` permitAll보다 먼저 와야 하는 특정 규칙 자리 — 기존 컨벤션 그대로).
+    Security가 이미 인증을 막아 컨트롤러에 memberId null 체크 코드는 불필요.
+  - 화면: 신규 `course/certificate.html` — 테두리 있는 카드(`.certificate-card`, 기존 `.card`
+    톤의 변형)에 코스 이모지·"수료증" 제목·닉네임·코스 제목/대상·레벨 뱃지·완료일
+    (`#temporals.format`). "🖨️ 인쇄하기" 버튼은 CSP가 `script-src 'self'`만 허용해 인라인
+    `onclick`을 못 써서, `theme-toggle.js`/`lesson-audio.js`와 같은 이벤트 위임 패턴의 신규
+    `static/js/certificate-print.js`(`[data-print-certificate]` 클릭 → `window.print()`)로 처리.
+    완료 배너(`course/detail.html`)에 "🎓 수료증 보기" 링크 추가.
+  - `style.css`에 `@media print { .site-header, .site-footer, .no-print { display: none; } }`
+    신규(이 프로젝트 첫 인쇄 스타일) — 인쇄 시 헤더/푸터/인쇄 버튼 자체를 숨겨 증서만 남게 함.
+  - **범위 제외**: 위조 방지 검증 코드/QR — 순수 열람·인쇄용으로 과한 엔지니어링 판단. PDF 다운로드
+    — 브라우저 인쇄의 "PDF로 저장"으로 충분해 별도 라이브러리 불필요. 개인 코스 수료증 — 로드맵
+    개념이 없어 제외. REST API — 화면 전용(기존 "다음 코스 추천"과 같은 패턴).
+  - 테스트: `ProgressServiceTest`에 `getCourseCompletionDate` 3개(전부 완료 시 최댓값 반환, 일부만
+    완료 시 빈 값, 레슨 없는 코스는 빈 값), `CourseViewControllerTest`에 5개(완료 코스는 200 +
+    닉네임/제목 노출, 미완료 코스는 코스 상세로 리다이렉트, 개인 코스는 코스 상세로 리다이렉트,
+    존재하지 않는 코스는 `/courses`로, 비로그인은 `/login`으로).
+  - curl 실서버 종단 검증: 회원가입 → 공식 VOCAB 코스(7레슨, 레슨마다 퀴즈 게이트) 전부 브루트포스
+    완료 → 코스 상세에 "🎓 수료증 보기" 링크 확인 → 클릭 시 닉네임·코스 제목이 들어간 증서 페이지
+    200 확인 → 인쇄 버튼·스크립트 태그가 응답 HTML에 실제로 포함되는지 확인 → 다른(미완료) 코스의
+    `/certificate` URL 직접 접근 시 코스 상세로 리다이렉트 확인 → 개인 코스 생성 후 같은 URL
+    시도 시 코스 상세로 리다이렉트 확인 → 존재하지 않는 코스 id는 `/courses`로, 비로그인은 `/login`
+    으로 리다이렉트되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

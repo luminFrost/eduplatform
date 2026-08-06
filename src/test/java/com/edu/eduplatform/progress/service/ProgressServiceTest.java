@@ -159,6 +159,42 @@ class ProgressServiceTest {
     }
 
     @Test
+    void getCourseCompletionDate_모두_완료하면_가장_늦은_완료시각을_반환한다() throws Exception {
+        Lesson lesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lesson1, lesson2));
+
+        LocalDateTime earlier = LocalDateTime.now().minusDays(1);
+        LocalDateTime later = LocalDateTime.now();
+        LearningProgress done1 = withCompletedAt(newCompleted(10L), earlier);
+        LearningProgress done2 = withCompletedAt(newCompleted(11L), later);
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(done1, done2));
+
+        assertThat(progressService.getCourseCompletionDate(1L, 100L)).contains(later);
+    }
+
+    @Test
+    void getCourseCompletionDate_일부만_완료하면_빈_값을_반환한다() throws Exception {
+        Lesson lesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(lesson1, lesson2));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(newCompleted(10L)));
+
+        assertThat(progressService.getCourseCompletionDate(1L, 100L)).isEmpty();
+    }
+
+    @Test
+    void getCourseCompletionDate_레슨이_없는_코스는_빈_값을_반환한다() {
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of());
+
+        assertThat(progressService.getCourseCompletionDate(1L, 100L)).isEmpty();
+    }
+
+    @Test
     void getLearnerCount_리포지토리_결과를_그대로_반환한다() {
         when(learningProgressRepository.countDistinctMembersByCourseId(100L)).thenReturn(3L);
 

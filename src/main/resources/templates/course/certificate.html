@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${course.title} + ' 수료증 - eduplatform'"></title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <script th:src="@{/js/certificate-print.js}" defer></script>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main id="main-content" class="page">
+        <div class="certificate-card">
+            <span class="certificate-brand">🦊 eduplatform</span>
+            <span class="course-emoji large" th:text="${course.emoji}"></span>
+            <h1>수료증</h1>
+            <p class="certificate-body">
+                위 사람은 아래 과정을 성실히 이수하였음을 증명합니다.
+            </p>
+            <p class="certificate-name" th:text="${nickname}"></p>
+            <p class="certificate-course" th:text="${course.title}"></p>
+            <p class="certificate-meta">
+                <span class="badge" th:text="${course.targetType}"></span>
+                <span class="badge" th:text="${course.level}"></span>
+            </p>
+            <p class="certificate-date"
+               th:text="${#temporals.format(completedAt, 'yyyy년 M월 d일')} + ' 수료'"></p>
+        </div>
+
+        <p class="no-print">
+            <button type="button" data-print-certificate>🖨️ 인쇄하기</button>
+            <a th:href="@{/courses/{id}(id=${course.id})}">코스로 돌아가기</a>
+        </p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
