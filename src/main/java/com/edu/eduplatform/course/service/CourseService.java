@@ -4,6 +4,7 @@ import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
 import com.edu.eduplatform.course.domain.CourseReview;
+import com.edu.eduplatform.course.domain.CourseReviewReport;
 import com.edu.eduplatform.course.domain.CourseReviewVote;
 import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.domain.ReviewSort;
@@ -18,6 +19,7 @@ import com.edu.eduplatform.course.exception.InvalidFocusAreasException;
 import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.course.repository.CourseReviewReportRepository;
 import com.edu.eduplatform.course.repository.CourseReviewRepository;
 import com.edu.eduplatform.course.repository.CourseReviewVoteRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
@@ -60,6 +62,7 @@ public class CourseService {
     private final QuestionService questionService;
     private final CourseBookmarkRepository courseBookmarkRepository;
     private final CourseReviewVoteRepository courseReviewVoteRepository;
+    private final CourseReviewReportRepository courseReviewReportRepository;
 
     public List<CourseResponse> list(MemberType targetType, EnglishLevel level, LessonType lessonType,
                                       String keyword, CourseSort sort) {
@@ -205,7 +208,25 @@ public class CourseService {
         return true;
     }
 
-    /** 관리자 리뷰 관리 화면용 — 전체 리뷰를 코스 제목·닉네임까지 배치 조회해 최신순으로 반환한다. */
+    /**
+     * 리뷰를 신고한다 — 토글이 아니라 접수만 한다(취소 개념 없음). 존재하는 리뷰에만, 회원당 한 번만
+     * 기록되고 중복 신고는 조용히 무시한다.
+     */
+    @Transactional
+    public void reportReview(Long memberId, Long reviewId) {
+        if (!courseReviewRepository.existsById(reviewId)) {
+            return;
+        }
+        if (courseReviewReportRepository.existsByMemberIdAndReviewId(memberId, reviewId)) {
+            return;
+        }
+        courseReviewReportRepository.save(CourseReviewReport.builder().memberId(memberId).reviewId(reviewId).build());
+    }
+
+    /**
+     * 관리자 리뷰 관리 화면용 — 전체 리뷰를 코스 제목·닉네임·신고 수까지 배치 조회해 신고 많은 순으로
+     * 반환한다(동점은 안정 정렬로 기존 최신순 유지 — 신고 많은 리뷰를 우선 검토하게 함).
+     */
     public List<CourseReviewAdminResponse> listAllReviewsForAdmin() {
         List<CourseReview> reviews = courseReviewRepository.findAllByOrderByIdDesc();
         if (reviews.isEmpty()) {
@@ -219,11 +240,21 @@ public class CourseService {
                         reviews.stream().map(CourseReview::getCourseId).distinct().toList())
                 .stream()
                 .collect(Collectors.toMap(Course::getId, Course::getTitle));
-        return reviews.stream()
+        Map<Long, Long> reportCountsById = courseReviewReportRepository
+                .countByReviewIdIn(reviews.stream().map(CourseReview::getId).toList()).stream()
+                .collect(Collectors.toMap(
+                        CourseReviewReportRepository.ReviewReportCountProjection::getReviewId,
+                        CourseReviewReportRepository.ReviewReportCountProjection::getReportCount));
+
+        List<CourseReviewAdminResponse> responses = reviews.stream()
                 .map(r -> new CourseReviewAdminResponse(
                         r.getId(), r.getCourseId(), titlesById.getOrDefault(r.getCourseId(), "삭제된 코스"),
                         nicknamesById.getOrDefault(r.getMemberId(), "알 수 없음"),
-                        r.getRating(), r.getComment(), r.getCreatedAt()))
+                        r.getRating(), r.getComment(), r.getCreatedAt(),
+                        reportCountsById.getOrDefault(r.getId(), 0L)))
+                .toList();
+        return responses.stream()
+                .sorted(Comparator.comparingLong(CourseReviewAdminResponse::reportCount).reversed())
                 .toList();
     }
 

@@ -88,6 +88,29 @@ class CourseReviewAdminControllerTest {
         assertThat(courseReviewRepository.findById(review.getId())).isEmpty();
     }
 
+    @Test
+    void 신고된_리뷰는_목록에_신고_배지가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("신고배지테스트코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Member reviewer = memberRepository.save(Member.builder()
+                .email("review-report-author@example.com").nickname("신고대상작성자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+        CourseReview review = courseReviewRepository.save(CourseReview.builder()
+                .memberId(reviewer.getId()).courseId(course.getId()).rating(1).comment("신고당할 리뷰").build());
+        MockHttpSession reporterSession = loginAs("review-reporter@example.com", "신고자", MemberRole.USER);
+        mockMvc.perform(post("/courses/{courseId}/reviews/{reviewId}/report", course.getId(), review.getId())
+                        .session(reporterSession).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        MockHttpSession adminSession = loginAs("review-report-admin@example.com", "관리자2", MemberRole.ADMIN);
+
+        mockMvc.perform(get("/admin/reviews").session(adminSession))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("🚩 신고 1")));
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

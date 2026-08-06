@@ -1504,6 +1504,44 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     대상으로 강제 탈퇴 시도 → 리다이렉트 URL에 정확한 에러 메시지 포함 + 계정이 목록에 그대로 남는
     것 확인 → 관리자 자기 자신 행엔 역할변경·탈퇴 버튼 둘 다 없이 "(나)"만 보이는 것 확인.
 
+- 리뷰 신고 기능 (dev 병합됨)
+  - 관리자 리뷰 관리 화면(`/admin/reviews`)은 있었지만 부적절한 리뷰를 관리자가 직접 훑어보는 것
+    외엔 찾아낼 방법이 없던 갭 — 회원이 리뷰를 신고할 수 있게 하고, 관리자 목록에 신고 수를 노출·
+    강조해 우선 검토 대상을 바로 알 수 있게 함.
+  - `CourseReviewReport`(신규 엔티티, memberId+reviewId)는 `CourseReviewVote`와 정확히 같은
+    구조 — 다만 **신고는 토글이 아니다**(도움돼요 투표와 달리 취소 개념 없음). `existsById`로
+    존재하는 리뷰인지, `existsByMemberIdAndReviewId`로 중복 신고인지 확인 후 없을 때만 저장,
+    둘 다 조용히 무시(예외 없음) — `toggleHelpfulVote()`의 리뷰 존재 확인 가드와 같은 패턴.
+    **버튼에 "이미 신고했는지" 상태를 반영하지 않기로 결정** — 리뷰 목록 DTO에 신고 여부 필드를
+    또 추가하는 대신 서버가 중복을 조용히 무시하는 것만으로 충분하다고 판단(본인 리뷰에 본인이
+    투표하는 것을 막지 않기로 한 것과 같은 단순화 원칙).
+  - `CourseReviewReportRepository`도 `CourseReviewVoteRepository`의 배치 집계 패턴
+    (`countByReviewIdIn` + `ReviewReportCountProjection`)을 그대로 재사용.
+  - `CourseService.listAllReviewsForAdmin()`에 신고 수 배치 조회를 추가하고, 결과를
+    `Comparator.comparingLong(reportCount).reversed()`로 재정렬(안정 정렬 — 동점은 기존 최신순
+    유지) — 신고 많은 리뷰가 관리자 목록 위로 오게 해 우선 검토 대상을 바로 보여줌. 생성자 호출이
+    한 곳뿐임을 grep으로 확인해 `CourseReviewAdminResponse`에 `reportCount` 필드 추가.
+  - 화면: `course/detail.html`의 도움돼요 폼 옆에 "🚩 신고" 폼 추가(로그인 회원만), 신고 후
+    `?reported` 쿼리 파라미터로 리다이렉트해 "신고가 접수되었습니다. 검토 후 조치할게요." 배너
+    표시(기존 `.quiz-question` 카드 스타일 재사용). `admin/review-list.html`에 신고 1건 이상이면
+    "🚩 신고 N" 배지 노출 — 관리자 콘텐츠 커버리지 대시보드의 `.zero` 클래스와 같은
+    `color-mix(in srgb, var(--color-danger) N%, transparent)` 패턴으로 신규 `.badge.reported`
+    스타일(새 팔레트 검증 불필요).
+  - Security 설정 변경 불필요 — `/courses/**`의 POST는 다른 특정 규칙에 안 걸리면 이미
+    `anyRequest().authenticated()`로 떨어짐(도움돼요 투표 라우트 추가 때도 변경 불필요했던 것과
+    동일한 이유).
+  - **범위 제외**: 신고 사유 입력(카테고리 선택) — 신고 존재 자체가 신호로 충분, 관리자가 리뷰
+    내용을 직접 보고 판단. 신고 임계치 도달 시 자동 숨김/삭제 — 오탐 위험, 관리자 수동 삭제(기존
+    기능)로 충분. 신고 취소, 신고자 알림 — 실 메일 인프라 없이는 의미 없어 제외.
+  - 테스트: `CourseReviewReportRepositoryTest`(신규, `@DataJpaTest` 2개 — 존재확인·배치집계),
+    `CourseServiceTest`(신규 4개 — 정상 신고, 중복 신고 무시, 존재하지 않는 리뷰 무시, 신고 많은
+    순 정렬), `CourseViewControllerTest`(신규 2개 — 로그인 회원 신고+배너 확인, 비로그인은
+    `/login`), `CourseReviewAdminControllerTest`(신규 1개 — 신고된 리뷰에 배지 노출).
+  - curl 실서버 종단 검증: 회원 2명(작성자·신고자)으로 리뷰 작성 → 신고자가 신고 → 코스 상세에
+    "신고가 접수되었습니다" 배너 확인 → 같은 리뷰 재신고 시도 → 관리자 화면 신고 수가 1에서 안
+    늘어나는 것으로 중복 무시 확인 → 관리자 로그인 → `/admin/reviews`에서 "🚩 신고 1" 배지가
+    실제 `class="badge reported"` 마크업으로 렌더링되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

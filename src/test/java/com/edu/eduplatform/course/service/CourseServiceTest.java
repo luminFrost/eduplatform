@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.edu.eduplatform.course.domain.Course;
 import com.edu.eduplatform.course.domain.CourseBookmark;
 import com.edu.eduplatform.course.domain.CourseCriteriaSource;
+import com.edu.eduplatform.course.domain.CourseReviewReport;
 import com.edu.eduplatform.course.domain.CourseReviewVote;
 import com.edu.eduplatform.course.domain.CourseSort;
 import com.edu.eduplatform.course.domain.ReviewSort;
@@ -21,6 +22,7 @@ import com.edu.eduplatform.course.domain.CourseReview;
 import com.edu.eduplatform.course.exception.InvalidReviewException;
 import com.edu.eduplatform.course.repository.CourseBookmarkRepository;
 import com.edu.eduplatform.course.repository.CourseRepository;
+import com.edu.eduplatform.course.repository.CourseReviewReportRepository;
 import com.edu.eduplatform.course.repository.CourseReviewRepository;
 import com.edu.eduplatform.course.repository.CourseReviewVoteRepository;
 import com.edu.eduplatform.lesson.domain.Lesson;
@@ -75,6 +77,9 @@ class CourseServiceTest {
 
     @Mock
     private CourseReviewVoteRepository courseReviewVoteRepository;
+
+    @Mock
+    private CourseReviewReportRepository courseReviewReportRepository;
 
     @Mock
     private com.edu.eduplatform.member.repository.MemberRepository memberRepository;
@@ -641,6 +646,35 @@ class CourseServiceTest {
     }
 
     @Test
+    void reportReview_정상_신고시_저장한다() {
+        when(courseReviewRepository.existsById(10L)).thenReturn(true);
+        when(courseReviewReportRepository.existsByMemberIdAndReviewId(1L, 10L)).thenReturn(false);
+
+        courseService.reportReview(1L, 10L);
+
+        verify(courseReviewReportRepository).save(any(CourseReviewReport.class));
+    }
+
+    @Test
+    void reportReview_이미_신고했으면_조용히_무시한다() {
+        when(courseReviewRepository.existsById(10L)).thenReturn(true);
+        when(courseReviewReportRepository.existsByMemberIdAndReviewId(1L, 10L)).thenReturn(true);
+
+        courseService.reportReview(1L, 10L);
+
+        verify(courseReviewReportRepository, never()).save(any());
+    }
+
+    @Test
+    void reportReview_존재하지_않는_리뷰면_조용히_무시한다() {
+        when(courseReviewRepository.existsById(999L)).thenReturn(false);
+
+        courseService.reportReview(1L, 999L);
+
+        verify(courseReviewReportRepository, never()).save(any());
+    }
+
+    @Test
     void getRatingSummary_리뷰가_없으면_0을_반환한다() {
         when(courseReviewRepository.findAverageRatingByCourseId(100L)).thenReturn(null);
         when(courseReviewRepository.countByCourseId(100L)).thenReturn(0L);
@@ -681,6 +715,36 @@ class CourseServiceTest {
         when(courseReviewRepository.findAllByOrderByIdDesc()).thenReturn(List.of());
 
         assertThat(courseService.listAllReviewsForAdmin()).isEmpty();
+    }
+
+    @Test
+    void listAllReviewsForAdmin_신고수를_반영해_신고_많은_순으로_정렬한다() throws Exception {
+        CourseReview review1 = withId(CourseReview.builder().memberId(1L).courseId(100L).rating(5).comment("좋아요").build(), 10L);
+        CourseReview review2 = withId(CourseReview.builder().memberId(2L).courseId(200L).rating(1).comment("별로").build(), 11L);
+        Member member1 = withId(Member.builder()
+                .email("a@example.com").nickname("에이").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 1L);
+        Member member2 = withId(Member.builder()
+                .email("b@example.com").nickname("비").memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER).password("h").build(), 2L);
+        Course course100 = withId(Course.builder()
+                .title("첫코스").description("설명").targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course course200 = withId(Course.builder()
+                .title("둘째코스").description("설명").targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+        CourseReviewReportRepository.ReviewReportCountProjection count10 =
+                mock(CourseReviewReportRepository.ReviewReportCountProjection.class);
+        when(count10.getReviewId()).thenReturn(10L);
+        when(count10.getReportCount()).thenReturn(3L);
+        // review2(id=11)는 최신순으로는 앞이지만 신고가 없어 신고 많은 순에서는 뒤로 밀려야 한다.
+        when(courseReviewRepository.findAllByOrderByIdDesc()).thenReturn(List.of(review2, review1));
+        when(memberRepository.findAllById(any())).thenReturn(List.of(member1, member2));
+        when(courseRepository.findAllById(any())).thenReturn(List.of(course100, course200));
+        when(courseReviewReportRepository.countByReviewIdIn(any())).thenReturn(List.of(count10));
+
+        var result = courseService.listAllReviewsForAdmin();
+
+        assertThat(result).extracting(com.edu.eduplatform.course.dto.CourseReviewAdminResponse::id)
+                .containsExactly(10L, 11L);
+        assertThat(result.get(0).reportCount()).isEqualTo(3L);
+        assertThat(result.get(1).reportCount()).isEqualTo(0L);
     }
 
     @Test

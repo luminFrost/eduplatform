@@ -9,6 +9,7 @@ public record CourseReviewAdminResponse(
         String reviewerNickname,
         int rating,
         String comment,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        long reportCount
 ) {
 }
