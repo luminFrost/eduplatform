@@ -33,6 +33,7 @@ public class MyPageController {
         model.addAttribute("monthlyActivity", monthlyActivity);
         model.addAttribute("leadingBlanks", monthlyActivity.get(0).date().getDayOfWeek().getValue() - 1);
         model.addAttribute("today", LocalDate.now());
+        model.addAttribute("recentActivity", progressService.getRecentActivity(memberId));
         return "my/dashboard";
     }
 }

@@ -53,6 +53,21 @@
     <p><a th:href="@{/my/daily}">오늘의 단어 보러가기 →</a></p>
     <p><a th:href="@{/my/review}">복습할 레슨 보기 →</a></p>
 
+    <h2>최근 학습 활동</h2>
+    <p class="empty-state" th:if="${#lists.isEmpty(recentActivity)}">아직 완료한 레슨이 없어요.</p>
+    <ul class="lesson-list" th:unless="${#lists.isEmpty(recentActivity)}">
+        <li th:each="a : ${recentActivity}">
+            <a class="lesson-row" th:href="@{/lessons/{id}(id=${a.lessonId})}">
+                <span class="lesson-text">
+                    <span class="lesson-eyebrow" th:text="${a.courseTitle}"></span>
+                    <span class="lesson-title" th:text="${a.lessonTitle}"></span>
+                </span>
+                <span class="lesson-eyebrow" th:text="${#temporals.format(a.completedAt, 'yyyy-MM-dd HH:mm')}"></span>
+                <span class="lesson-chevron">›</span>
+            </a>
+        </li>
+    </ul>
+
     <div class="skill-area-chart" th:if="${not #lists.isEmpty(skillAreaProgress)}">
         <h2>영역별 학습 현황</h2>
         <div class="skill-area-row" th:each="s : ${skillAreaProgress}" th:switch="${s.lessonType.name()}">
