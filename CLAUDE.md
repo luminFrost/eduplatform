@@ -1564,6 +1564,30 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     169과(인사와 자기소개)보다 위에 뜨는 것(최신순) 확인, 각 항목 링크가 해당 레슨 페이지
     (`/lessons/170`, `/lessons/169`)로 정확히 연결되는 것 확인.
 
+- 신규 코스 "NEW" 배지 (dev 병합됨)
+  - 공식 코스가 58개로 늘어난 뒤 새로 추가된 코스가 목록에 묻혀 눈에 안 띄던 갭 — 최근(7일 이내)
+    등록된 코스에 "NEW" 배지를 붙임. 새 추적 데이터 없이 모든 엔티티가 상속하는
+    `BaseTimeEntity.createdAt`만으로 stateless 계산.
+  - `CourseResponse`에 `createdAt` 필드와 `isRecentlyAdded()` 파생 메서드 추가(`isPersonal()`과
+    같은 자리) — 생성자 호출이 `from()` 한 곳뿐임을 grep으로 확인해 안전하게 필드 추가.
+    **메서드명을 `isNew()`가 아니라 `isRecentlyAdded()`로 정함** — `new`는 SpEL 예약어라
+    Thymeleaf가 `${c.new}`를 프로퍼티 접근이 아니라 인스턴스화 연산자로 오인할 위험이 있어 피함.
+    Mockito 기반 서비스 테스트는 `Course.builder()...build()`로 엔티티를 만들어 JPA Auditing이
+    동작하지 않아 `createdAt`이 `null`인 채로 넘어올 수 있어 `isRecentlyAdded()`가 null-safe하게
+    `false`를 반환하도록 함.
+  - 화면: `course/list.html` 카드 배지 영역과 `course/detail.html` 헤더 배지 영역 둘 다에
+    "🆕 NEW" 배지 추가(기존 `.badge` 클래스 재사용). `style.css`에 관리자 리뷰 신고 배지
+    (`.badge.reported`)와 같은 `color-mix(in srgb, var(--color-*) N%, transparent)` 패턴으로
+    신규 `.badge.new`(색만 danger 대신 accent) — 새 팔레트 검증 불필요.
+  - 테스트: 신규 `CourseResponseTest`(record 순수 단위 테스트, 서비스 의존성 없음 — 7일 이내/초과/
+    `createdAt` null 3케이스), `CourseViewControllerTest`에 1개(방금 저장한 코스는 목록·상세 둘
+    다에 배지 노출).
+  - **curl 실서버 검증 중 확인한 것(버그 아님)**: H2가 인메모리라 서버를 새로 띄울 때마다
+    `SampleDataInitializer`가 전체 코스를 다시 저장하므로, 그 순간의 모든 코스가 `createdAt`이
+    "방금"이 되어 재시작 직후엔 시드 코스 전부가 NEW로 보임 — 실제 배포 환경(DB가 유지되는 환경)
+    에서는 발생하지 않는, 이 개발 환경 특유의 현상. 관리자 화면으로 새 코스 하나를 만들어 목록·
+    상세 둘 다에 배지가 뜨는 것으로 기능 자체는 정상 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

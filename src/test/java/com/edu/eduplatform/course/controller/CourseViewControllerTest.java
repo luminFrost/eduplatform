@@ -160,6 +160,21 @@ class CourseViewControllerTest {
     }
 
     @Test
+    void 방금_등록한_코스는_목록과_상세에_NEW_배지가_보인다() throws Exception {
+        Course course = courseRepository.save(Course.builder()
+                .title("신규코스배지테스트").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(get("/courses").param("target", "ADULT").param("level", "BEGINNER"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("🆕 NEW")));
+
+        mockMvc.perform(get("/courses/{id}", course.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("🆕 NEW")));
+    }
+
+    @Test
     void 로그인_회원은_코스를_즐겨찾기하고_다시_토글하면_해제할_수_있다() throws Exception {
         Course course = courseRepository.save(Course.builder()
                 .title("북마크테스트코스").description("설명")
