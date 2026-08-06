@@ -160,7 +160,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourse_선택한_영역의_레슨만_복사해_개인_코스를_만든다() throws Exception {
         MemberResponse member = new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
         when(courseRepository.findByOwnerIdOrderByIdDesc(1L)).thenReturn(Collections.emptyList());
 
@@ -213,7 +213,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourse_이미_같은_영역의_개인_코스가_있으면_새로_만들지_않고_기존_코스를_반환한다() throws Exception {
         MemberResponse member = new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
 
         Course existingPersonalCourse = withId(Course.builder()
@@ -234,7 +234,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourseFromHistory_추천된_영역의_레슨만_복사해_개인_코스를_만든다() throws Exception {
         MemberResponse member = new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
         when(progressService.recommendFocusAreas(1L)).thenReturn(Set.of(LessonType.WRITING));
         when(courseRepository.findByOwnerIdOrderByIdDesc(1L)).thenReturn(Collections.emptyList());
@@ -277,7 +277,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourseFromHistory_이력이_부족하면_예외를_그대로_전파하고_저장하지_않는다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         when(progressService.recommendFocusAreas(1L)).thenThrow(new InsufficientHistoryException());
 
         assertThatThrownBy(() -> courseService.createPersonalCourseFromHistory(1L))
@@ -288,7 +288,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourseFromDiagnosticTest_채점된_영역의_레슨만_복사해_개인_코스를_만든다() throws Exception {
         MemberResponse member = new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
         Map<Long, Integer> answers = Map.of(1000L, 0);
         when(questionService.determineFocusAreas(MemberType.ADULT, EnglishLevel.BEGINNER, answers))
@@ -333,7 +333,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourseFromDiagnosticTest_문항을_다_안_풀면_예외를_그대로_전파하고_저장하지_않는다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         Map<Long, Integer> incompleteAnswers = Map.of(1000L, 0);
         when(questionService.determineFocusAreas(MemberType.ADULT, EnglishLevel.BEGINNER, incompleteAnswers))
                 .thenThrow(new DiagnosticTestIncompleteException());
@@ -346,7 +346,7 @@ class CourseServiceTest {
     @Test
     void createPersonalCourseFromDiagnosticTest_이미_같은_영역의_개인_코스가_있으면_새로_만들지_않고_기존_코스를_반환한다() throws Exception {
         MemberResponse member = new MemberResponse(1L, "a@example.com", "테스터",
-                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
         Map<Long, Integer> answers = Map.of(1000L, 0);
         when(questionService.determineFocusAreas(MemberType.ADULT, EnglishLevel.BEGINNER, answers))

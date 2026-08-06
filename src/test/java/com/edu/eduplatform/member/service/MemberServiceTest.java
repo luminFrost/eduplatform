@@ -83,24 +83,25 @@ class MemberServiceTest {
     }
 
     @Test
-    void updateProfile_닉네임과_레벨을_변경한다() throws Exception {
+    void updateProfile_닉네임과_레벨과_주간목표를_변경한다() throws Exception {
         Member member = withId(Member.builder()
                 .email("a@example.com").nickname("기존닉네임")
                 .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
                 .password("hashed").build(), 1L);
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
 
-        memberService.updateProfile(1L, new MemberUpdateRequest("새닉네임", EnglishLevel.INTERMEDIATE));
+        memberService.updateProfile(1L, new MemberUpdateRequest("새닉네임", EnglishLevel.INTERMEDIATE, 5));
 
         assertThat(member.getNickname()).isEqualTo("새닉네임");
         assertThat(member.getLevel()).isEqualTo(EnglishLevel.INTERMEDIATE);
+        assertThat(member.getWeeklyGoal()).isEqualTo(5);
     }
 
     @Test
     void updateProfile_존재하지_않는_회원이면_예외를_던진다() {
         when(memberRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> memberService.updateProfile(999L, new MemberUpdateRequest("닉네임", EnglishLevel.BEGINNER)))
+        assertThatThrownBy(() -> memberService.updateProfile(999L, new MemberUpdateRequest("닉네임", EnglishLevel.BEGINNER, 0)))
                 .isInstanceOf(MemberNotFoundException.class);
     }
 

@@ -32,6 +32,19 @@
         </div>
     </div>
 
+    <h2>이번 주 학습 목표</h2>
+    <p class="empty-state" th:if="${weeklyGoalProgress.goal() == 0}">
+        아직 목표를 설정하지 않았어요.
+        <a th:href="@{/my/profile}">프로필에서 주간 목표를 정해보세요 →</a>
+    </p>
+    <div th:unless="${weeklyGoalProgress.goal() == 0}">
+        <div class="progress-bar-track">
+            <div class="progress-bar-fill" th:style="'width: ' + ${weeklyGoalProgress.percentage()} + '%'"></div>
+        </div>
+        <span class="progress-label"
+              th:text="${weeklyGoalProgress.completed()} + ' / ' + ${weeklyGoalProgress.goal()} + '개 (' + ${weeklyGoalProgress.percentage()} + '%)'"></span>
+    </div>
+
     <h2 th:text="${#temporals.format(today, 'yyyy년 M월')} + ' 학습 활동'"></h2>
     <div class="activity-calendar">
         <span class="cal-weekday">월</span>

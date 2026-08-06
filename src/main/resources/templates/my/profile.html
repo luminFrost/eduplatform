@@ -38,6 +38,11 @@
                 </select>
             </label>
         </div>
+        <div>
+            <label>주간 학습 목표 (레슨 수, 0이면 미설정)
+                <input type="number" name="weeklyGoal" min="0" th:value="${member.weeklyGoal}"/>
+            </label>
+        </div>
         <button type="submit">저장</button>
     </form>
 
