@@ -3,6 +3,7 @@
 <body>
     <header class="site-header" th:fragment="header">
         <a href="#main-content" class="skip-link">본문으로 바로가기</a>
+        <div class="site-announcement" th:if="${siteAnnouncementMessage != null}" th:text="${siteAnnouncementMessage}"></div>
         <a class="brand" th:href="@{/}"><span class="brand-emoji">🦊</span> eduplatform</a>
         <nav class="site-nav">
             <a th:href="@{/courses}">코스</a>

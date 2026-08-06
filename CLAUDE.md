@@ -1612,6 +1612,43 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
   - curl 실서버 종단 검증: 레슨 7개짜리 기존 시드 코스(`/courses/25`)의 목록 카드·상세 페이지
     둘 다에서 "⏱️ 약 35분" 배지 확인.
 
+- 관리자 공지사항 배너 (dev 병합됨)
+  - 관리자가 사이트 전체에 공지(점검 안내, 새 기능 소개 등)를 게시할 방법이 지금까지 없던 갭 —
+    문구 하나를 등록/수정/삭제할 수 있는 단일 배너를 만들고, 등록돼 있으면 모든 페이지 헤더에 노출.
+  - 신규 `announcement` 패키지(package-by-feature 관례 그대로) — `SiteAnnouncement` 엔티티는
+    "활성" 플래그 없이 **존재 여부 자체가 표시 여부** — `SiteAnnouncementService.save()`가
+    "있으면 갱신, 없으면 생성"(`CourseService.submitReview()`와 같은 upsert 패턴)으로 항상 최대
+    한 행만 유지하도록 보장해, 별도 boolean 없이 단순하게 구성.
+  - `ReviewBadgeControllerAdvice`(마이페이지 링크의 복습 배지)가 확립해둔 "헤더 프래그먼트가 모든
+    페이지에서 공유되므로 `@ControllerAdvice`의 `@ModelAttribute`로 모든 요청에 값을 미리 채워둔다"
+    패턴을 그대로 재사용한 신규 `SiteAnnouncementControllerAdvice`(이 프로젝트 두 번째
+    `@ControllerAdvice`).
+  - `fragments/layout.html`의 `header` 프래그먼트 내부, skip-link 바로 다음(형제가 아니라 자손 —
+    다크모드 스크립트 태그 작업 때 겪은 "`th:replace`는 프래그먼트의 자손만 선택한다" 교훈을 그대로
+    적용)에 배너 `<div>` 추가. `.site-header`가 이미 `display:flex; flex-wrap:wrap`이라 배너에
+    `flex-basis: 100%`만 주면 새 레이아웃 구조 변경 없이 브랜드·내비 위 자기 줄로 밀려남 — 스킵
+    링크가 이미 쓰는 "진한 primary 배경 + 흰 글자" 조합을 그대로 재사용해 새 팔레트 검증 불필요.
+  - 관리자 화면: `CourseAdminController`의 `@Valid` DTO + `BindingResult` + `validationMessages()`
+    헬퍼 + `<ul class="error-message">` 렌더링 패턴을 그대로 따르는 신규
+    `AnnouncementAdminController`(`/admin/announcement`) — 목록이 아니라 단일 설정값이라 CRUD
+    목록 화면 대신 "지금 값 보여주고 수정/삭제" 하나의 화면(`MemberProfileViewController`와 같은
+    성격)으로 구성. 관리자 화면 5곳(대시보드·코스·회원·리뷰·문항 관리)의 교차 링크 줄에 "공지 관리
+    →" 링크를 grep으로 전수 확인해 추가.
+  - **범위 제외**: 배너 종류별 색상, 사용자별 "닫기 후 다시 안 보기"(로컬스토리지 기억 — 다크모드
+    토글처럼 지속 저장이 필요한 "설정"이 아니라 "안내"라 매번 보여도 무방하다고 판단), 예약 게시/
+    만료 시각, 공지 이력 — 전부 이 규모에서 과한 엔지니어링으로 판단.
+  - 테스트: 신규 `SiteAnnouncementRepositoryTest`(`@DataJpaTest` 2개), `SiteAnnouncementServiceTest`
+    (Mockito 5개 — 조회·upsert 생성/갱신·삭제 존재유무), `AnnouncementAdminControllerTest`(비로그인/
+    일반회원/등록→수정→삭제 종단 흐름/빈 문구 검증 오류), `SiteAnnouncementControllerAdviceTest`
+    (공지 있으면 아무 페이지에나 배너 노출, 없으면 미노출). **싱글턴 테이블이라 테스트 간 상태가
+    새어나갈 수 있다는 걸 미리 인지하고 방어** — `SiteAnnouncementControllerAdviceTest`의 "있으면"
+    테스트는 `finally`로 만든 행을 반드시 삭제하고, "없으면" 테스트는 시작할 때 `deleteAll()`로
+    전제 조건을 직접 보장(테스트 실행 순서가 보장되지 않는 JUnit 특성상 다른 테스트가 남긴 행에
+    의존하지 않도록).
+  - curl 실서버 종단 검증: 관리자 로그인 → 공지 등록 → 랜딩·코스목록 페이지 둘 다에 배너 노출 확인
+    → 문구 수정 → 반영 확인 → 빈 문구 제출 시 "공지 내용을 입력해 주세요" 검증 오류 확인 → 삭제 →
+    배너가 랜딩 페이지에서 사라지는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

@@ -205,6 +205,17 @@ ul {
     top: 8px;
 }
 
+.site-announcement {
+    flex-basis: 100%;
+    background: var(--color-primary);
+    color: #fff;
+    text-align: center;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
 .site-header {
     display: flex;
     align-items: center;
