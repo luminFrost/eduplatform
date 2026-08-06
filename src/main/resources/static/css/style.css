@@ -1088,6 +1088,43 @@ ul {
     font-size: 0.85rem;
 }
 
+.trend-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px;
+    margin: 16px 0 32px;
+}
+
+.trend-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+}
+
+.trend-bar-value {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+}
+
+.trend-bar-fill {
+    width: 100%;
+    max-width: 22px;
+    background: var(--color-primary);
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+}
+
+.trend-bar-label {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
 .activity-calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);

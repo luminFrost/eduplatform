@@ -63,6 +63,22 @@ class AdminDashboardControllerTest {
                 .andExpect(content().string(containsString("ADULT")));
     }
 
+    @Test
+    void 관리자는_운영_통계_타일과_추이_차트를_본다() throws Exception {
+        MockHttpSession session = loginAs("dashboard-stats-admin@example.com", "통계관리자", MemberRole.ADMIN);
+        memberRepository.save(Member.builder()
+                .email("dashboard-stats-signup@example.com").nickname("신규가입자")
+                .memberType(MemberType.ADULT).level(EnglishLevel.BEGINNER)
+                .password(passwordEncoder.encode(RAW_PASSWORD)).build());
+
+        mockMvc.perform(get("/admin").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("전체 회원")))
+                .andExpect(content().string(containsString("최근 7일 신규 가입")))
+                .andExpect(content().string(containsString("누적 레슨 완료")))
+                .andExpect(content().string(containsString("trend-chart")));
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)
