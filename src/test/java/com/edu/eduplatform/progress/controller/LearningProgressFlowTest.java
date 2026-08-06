@@ -155,6 +155,28 @@ class LearningProgressFlowTest {
                 .andExpect(redirectedUrl("/login"));
     }
 
+    @Test
+    void 레슨을_완료하면_마이페이지_최근_학습_활동에_보인다() throws Exception {
+        MockHttpSession session = signUp("recent-activity-test@example.com", "히스토리테스터");
+        Course course = courseRepository.save(Course.builder()
+                .title("히스토리테스트코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("히스토리테스트레슨")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(content().string(containsString("아직 완료한 레슨이 없어요")));
+
+        mockMvc.perform(post("/lessons/{id}/complete", lesson.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/lessons/" + lesson.getId()));
+
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(content().string(containsString("최근 학습 활동")))
+                .andExpect(content().string(containsString("히스토리테스트레슨")))
+                .andExpect(content().string(containsString("히스토리테스트코스")));
+    }
+
     private MockHttpSession signUp(String email, String nickname) throws Exception {
         MvcResult requestResult = mockMvc.perform(post("/members/new")
                         .with(csrf())

@@ -48,6 +48,9 @@ public class ProgressService {
     /** "오늘 학습 안 해도 어제까지 했으면 아직 안 끊긴 것"으로 보는 유예 기준(일). */
     private static final int STREAK_GRACE_PERIOD_DAYS = 1;
 
+    /** 마이페이지 히스토리에 보여줄 최대 개수. */
+    private static final int RECENT_ACTIVITY_LIMIT = 10;
+
     private final LearningProgressRepository learningProgressRepository;
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
@@ -153,6 +156,41 @@ public class ProgressService {
                 .collect(Collectors.toMap(Course::getId, course -> course));
 
         return due.stream()
+                .map(progress -> {
+                    Lesson lesson = lessonsById.get(progress.getLessonId());
+                    if (lesson == null) {
+                        return null;
+                    }
+                    Course course = coursesById.get(lesson.getCourseId());
+                    return new ReviewLessonResponse(
+                            lesson.getId(), lesson.getTitle(),
+                            course.getId(), course.getTitle(),
+                            progress.getCompletedAt());
+                })
+                .filter(response -> response != null)
+                .toList();
+    }
+
+    /** 최근에 완료한 레슨을 최신순으로 반환한다 — 마이페이지 학습 활동 히스토리에 쓰인다. */
+    public List<ReviewLessonResponse> getRecentActivity(Long memberId) {
+        List<LearningProgress> recent = learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .sorted(Comparator.comparing(LearningProgress::getCompletedAt).reversed())
+                .limit(RECENT_ACTIVITY_LIMIT)
+                .toList();
+        if (recent.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> lessonIds = recent.stream().map(LearningProgress::getLessonId).toList();
+        Map<Long, Lesson> lessonsById = lessonRepository.findAllById(lessonIds).stream()
+                .collect(Collectors.toMap(Lesson::getId, lesson -> lesson));
+
+        List<Long> courseIds = lessonsById.values().stream().map(Lesson::getCourseId).distinct().toList();
+        Map<Long, Course> coursesById = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course));
+
+        return recent.stream()
                 .map(progress -> {
                     Lesson lesson = lessonsById.get(progress.getLessonId());
                     if (lesson == null) {

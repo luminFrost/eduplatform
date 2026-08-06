@@ -251,6 +251,56 @@ class ProgressServiceTest {
     }
 
     @Test
+    void getRecentActivity_완료한_레슨을_최신순으로_반환한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Lesson lesson1 = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson lesson2 = withId(Lesson.builder().courseId(100L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 11L);
+        LearningProgress older = withCompletedAt(newCompleted(10L), LocalDateTime.now().minusDays(1));
+        LearningProgress newer = withCompletedAt(newCompleted(11L), LocalDateTime.now());
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(older, newer));
+        when(lessonRepository.findAllById(any())).thenReturn(List.of(lesson1, lesson2));
+        when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+
+        List<ReviewLessonResponse> result = progressService.getRecentActivity(1L);
+
+        assertThat(result).extracting(ReviewLessonResponse::lessonId).containsExactly(11L, 10L);
+    }
+
+    @Test
+    void getRecentActivity_완료_기록이_없으면_빈_목록을_반환한다() {
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        assertThat(progressService.getRecentActivity(1L)).isEmpty();
+    }
+
+    @Test
+    void getRecentActivity_10개를_초과하면_최근_10개만_반환한다() throws Exception {
+        Course course = withId(Course.builder()
+                .title("코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        List<LearningProgress> progresses = new java.util.ArrayList<>();
+        List<Lesson> lessons = new java.util.ArrayList<>();
+        for (long i = 1; i <= 12; i++) {
+            lessons.add(withId(Lesson.builder().courseId(100L).orderNo((int) i).title(i + "과")
+                    .content("내용").lessonType(LessonType.VOCAB).build(), i));
+            progresses.add(withCompletedAt(newCompleted(i), LocalDateTime.now().minusMinutes(12 - i)));
+        }
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(progresses);
+        when(lessonRepository.findAllById(any())).thenReturn(lessons);
+        when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+
+        List<ReviewLessonResponse> result = progressService.getRecentActivity(1L);
+
+        assertThat(result).hasSize(10);
+        assertThat(result.get(0).lessonId()).isEqualTo(12L);
+        assertThat(result.get(9).lessonId()).isEqualTo(3L);
+    }
+
+    @Test
     void countLessonsDueForReview_대상_개수를_반환한다() {
         LearningProgress due1 = LearningProgress.builder().memberId(1L).lessonId(10L).build();
         due1.complete();

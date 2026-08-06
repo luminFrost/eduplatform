@@ -1542,6 +1542,28 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     늘어나는 것으로 중복 무시 확인 → 관리자 로그인 → `/admin/reviews`에서 "🚩 신고 1" 배지가
     실제 `class="badge reported"` 마크업으로 렌더링되는 것 확인.
 
+- 마이페이지 최근 학습 활동 히스토리 (dev 병합됨)
+  - 마이페이지엔 스트릭·월간 캘린더로 "얼마나" 학습했는지는 보였지만 "무엇을" 완료했는지 목록으로
+    돌아볼 방법이 없던 갭 — 최근 완료한 레슨을 시간 역순으로 보여주는 히스토리 섹션 추가.
+  - `ProgressService.getLessonsDueForReview()`의 "완료 기록 조회 → 레슨/코스 배치 조회 →
+    `ReviewLessonResponse`로 매핑" 패턴을 거의 그대로 재사용해 신규 `getRecentActivity(memberId)`
+    추가 — 차이는 정렬 방향(최신순)과 필터(기준일 없이 전체)뿐. **새 DTO를 만들지 않음** —
+    `ReviewLessonResponse(lessonId, lessonTitle, courseId, courseTitle, completedAt)`가 필요한
+    모양과 정확히 일치해 그대로 재사용. `getCurrentStreak`/`getMonthlyActivity`가 이미 쓰는
+    "`findByMemberId` 전체 조회 → Java 스트림으로 필터/정렬/집계" 방식을 그대로 따라 새 파생 쿼리도
+    추가하지 않음(`isCompleted` 필터 → `completedAt` 내림차순 정렬 → 최근 10개로 자름).
+  - `MyPageController.dashboard()`에 `recentActivity` 모델 속성 한 줄 추가.
+  - 화면: `my/dashboard.html`의 활동 캘린더 다음, 영역별 학습 현황 앞에 새 섹션 —
+    `/my/review`(복습 목록)가 이미 쓰는 `.lesson-list`/`.lesson-row` 마크업을 그대로 재사용해
+    새 CSS 없음.
+  - 테스트: `ProgressServiceTest`에 `getRecentActivity` 3개(최신순 정렬, 완료 기록 없으면 빈 목록,
+    10개 초과분은 잘리는지), `LearningProgressFlowTest`에 1개(레슨 완료 전 빈 상태 문구 → 완료 후
+    히스토리에 레슨·코스명 노출, 기존 `signUp()` 헬퍼 재사용).
+  - curl 실서버 종단 검증: 신규 회원은 "아직 완료한 레슨이 없어요" 빈 상태 확인 → 레슨 2개를
+    순서대로 완료(169과 → 170과) → `/my`에서 나중에 완료한 170과(숫자와 시간 표현)가 먼저 완료한
+    169과(인사와 자기소개)보다 위에 뜨는 것(최신순) 확인, 각 항목 링크가 해당 레슨 페이지
+    (`/lessons/170`, `/lessons/169`)로 정확히 연결되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)
