@@ -14,6 +14,7 @@ import com.edu.eduplatform.progress.dto.DailyActivityResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
 import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
+import com.edu.eduplatform.progress.dto.WeeklyGoalProgress;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
 import com.edu.eduplatform.progress.repository.LearningProgressRepository;
 import java.time.LocalDate;
@@ -331,6 +332,21 @@ public class ProgressService {
         int overallPercentage = totalLessons == 0 ? 0 : (int) Math.round(totalCompleted * 100.0 / totalLessons);
 
         return new DashboardSummaryResponse(totalCompleted, courseProgress.size(), overallPercentage, getCurrentStreak(memberId));
+    }
+
+    /**
+     * 이번 주(월요일 시작)에 완료한 레슨 수를 회원이 설정한 주간 목표와 함께 반환한다 — 새 추적
+     * 테이블 없이 기존 completedAt만으로 즉석 계산한다(stateless).
+     */
+    public WeeklyGoalProgress getWeeklyGoalProgress(Long memberId) {
+        int goal = memberService.getMember(memberId).weeklyGoal();
+        LocalDate today = LocalDate.now();
+        LocalDate weekStart = today.minusDays(today.getDayOfWeek().getValue() - 1);
+        int completed = (int) learningProgressRepository.findByMemberId(memberId).stream()
+                .filter(LearningProgress::isCompleted)
+                .filter(progress -> !progress.getCompletedAt().toLocalDate().isBefore(weekStart))
+                .count();
+        return new WeeklyGoalProgress(goal, completed);
     }
 
     /**

@@ -1688,6 +1688,40 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     2·누적 완료 1로 갱신 확인 → 가입자 추이·완료 추이 차트 모두 오늘 칸에 정확한 값(2, 1)과
     `height: 100%`(최댓값이라 꽉 찬 막대)로 렌더링되는 것 확인.
 
+- 주간 학습 목표 설정 (dev 병합됨)
+  - 스트릭·월간 캘린더·최근 활동 히스토리 전부 "얼마나 했는지"만 보여줬지, 회원이 스스로 목표를
+    정하고 그에 비춰 진도를 확인할 방법이 없던 갭. 프로필에서 주간 목표 레슨 수를 설정하면
+    마이페이지에 이번 주 진도율을 보여줌.
+  - **이번 세션의 다른 기능들과 달리 새 상태가 필요함** — `Member`에 `weeklyGoal`(int, `@Builder`
+    생성자엔 미포함 — 가입 시 자동으로 0=목표 없음) 필드와 `changeWeeklyGoal(int)` 메서드 추가
+    (세터 없이 의미 있는 메서드로 상태를 바꾸는 기존 컨벤션 그대로).
+  - **`MemberResponse`/`MemberUpdateRequest`에 필드를 추가하면서 기존 테스트 호출부가 광범위하게
+    깨짐** — grep으로 확인한 결과 `MemberResponse`는 positional 생성자 호출이 테스트에서
+    15곳(`CourseServiceTest` 7·`ProgressServiceTest` 7·`DailyWordServiceTest` 1), 프로덕션
+    코드는 `from()` 한 곳뿐이라 안전. `sed`로 `EnglishLevel.BEGINNER, LocalDateTime.now()` →
+    `EnglishLevel.BEGINNER, LocalDateTime.now(), 0`을 파일별 일괄 치환해 기계적으로 수정(코스
+    검색 때 `search()`에 인자 하나 추가하며 22곳을 고쳤던 것과 같은 성격의 작업). `MemberUpdateRequest`는
+    테스트 2곳만 있어 직접 `, 0`/`, 5` 추가.
+  - `SkillAreaProgressResponse.percentage()`(분모 0이면 0%, 아니면 100%로 캡)와 정확히 같은 패턴을
+    재사용해 신규 `progress/dto/WeeklyGoalProgress(goal, completed)` record에 `percentage()` 추가
+    — 목표를 낮춘 뒤에도 이전 완료가 남아있으면 100% 넘을 수 있어 캡 필요.
+  - `ProgressService.getWeeklyGoalProgress(memberId)` 신규 — `getCurrentStreak`/`getMonthlyActivity`
+    가 이미 쓰는 "`findByMemberId` 전체 조회 → Java 스트림으로 날짜 필터/집계" 방식 그대로, 새
+    파생 쿼리 없이 이번 주(월요일 시작) 완료 수만 필터링. 주 시작일 계산은
+    `MyPageController.leadingBlanks`가 이미 쓰는 `date.getDayOfWeek().getValue() - 1`(ISO 월=1~일=7)
+    관용구를 그대로 재사용해 일관성 유지.
+  - 화면: `my/dashboard.html`에 진도 막대(코스 진도 카드·영역별 학습 현황이 이미 쓰는
+    `.progress-bar-track`/`.progress-bar-fill`) 세 번째로 재사용 — 새 CSS 없음. 목표 0이면
+    "아직 목표를 설정하지 않았어요" + 프로필 링크. `my/profile.html`의 "기본 정보" 폼에 숫자
+    입력 하나만 추가.
+  - 테스트: `MemberServiceTest`(`updateProfile` 테스트를 weeklyGoal까지 검증하도록 확장),
+    `ProgressServiceTest`(`getWeeklyGoalProgress` 신규 3개 — 목표+완료 반영, 이번 주 이전 완료는
+    제외, 목표 미설정 시 0%), `MemberProfileViewControllerTest`(신규 1개 — 목표 설정 후 마이페이지
+    진도 막대 반영 확인).
+  - curl 실서버 종단 검증: 회원가입 → 마이페이지에 "아직 목표를 설정하지 않았어요" 확인 → 프로필에서
+    주간 목표 5로 설정 → 마이페이지에 "0 / 5개 (0%)" 확인 → 레슨 1개 완료 → "1 / 5개 (20%)"로
+    정확히 갱신되는 것 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

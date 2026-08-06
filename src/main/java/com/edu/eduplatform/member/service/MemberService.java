@@ -101,6 +101,7 @@ public class MemberService {
 
         member.changeNickname(request.nickname());
         member.changeLevel(request.level());
+        member.changeWeeklyGoal(request.weeklyGoal());
         memberRepository.save(member);
 
         return MemberResponse.from(member);

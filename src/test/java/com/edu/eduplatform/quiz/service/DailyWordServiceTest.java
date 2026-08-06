@@ -42,7 +42,7 @@ class DailyWordServiceTest {
     private DailyWordService dailyWordService;
 
     private static final MemberResponse MEMBER = new MemberResponse(
-            1L, "test@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+            1L, "test@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
 
     @Test
     void getTodayWords_회원_레벨의_공식_코스에서_단어장을_만든다() throws Exception {

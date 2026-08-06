@@ -44,6 +44,10 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private MemberRole role;
 
+    /** 주간 학습 목표(레슨 수). 0이면 목표 미설정 — 가입 시 별도 값을 안 받아 기본값 0을 그대로 쓴다. */
+    @Column(nullable = false)
+    private int weeklyGoal;
+
     @Builder
     public Member(String email, String nickname, MemberType memberType, EnglishLevel level, String password, MemberRole role) {
         this.email = email;
@@ -60,6 +64,10 @@ public class Member extends BaseTimeEntity {
 
     public void changeLevel(EnglishLevel level) {
         this.level = level;
+    }
+
+    public void changeWeeklyGoal(int weeklyGoal) {
+        this.weeklyGoal = weeklyGoal;
     }
 
     /** 인자는 반드시 이미 해시된 값이어야 한다 — 평문 비밀번호를 그대로 넘기지 않는다. */

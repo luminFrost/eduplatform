@@ -44,12 +44,28 @@ class MemberProfileViewControllerTest {
 
         mockMvc.perform(post("/my/profile").session(session).with(csrf())
                         .param("nickname", "바뀐닉네임")
-                        .param("level", "INTERMEDIATE"))
+                        .param("level", "INTERMEDIATE")
+                        .param("weeklyGoal", "0"))
                 .andExpect(redirectedUrl("/my/profile?updated"));
 
         mockMvc.perform(get("/my/profile").session(session))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("바뀐닉네임")));
+    }
+
+    @Test
+    void 로그인한_회원은_주간_학습_목표를_설정할_수_있다() throws Exception {
+        MockHttpSession session = signUp("profile-weekly-goal-test@example.com", "목표테스터");
+
+        mockMvc.perform(post("/my/profile").session(session).with(csrf())
+                        .param("nickname", "목표테스터")
+                        .param("level", "BEGINNER")
+                        .param("weeklyGoal", "5"))
+                .andExpect(redirectedUrl("/my/profile?updated"));
+
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("0 / 5개 (0%)")));
     }
 
     @Test

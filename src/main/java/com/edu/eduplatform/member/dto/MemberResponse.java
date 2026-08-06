@@ -11,7 +11,8 @@ public record MemberResponse(
         String nickname,
         MemberType memberType,
         EnglishLevel level,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        int weeklyGoal
 ) {
 
     public static MemberResponse from(Member member) {
@@ -21,7 +22,8 @@ public record MemberResponse(
                 member.getNickname(),
                 member.getMemberType(),
                 member.getLevel(),
-                member.getCreatedAt()
+                member.getCreatedAt(),
+                member.getWeeklyGoal()
         );
     }
 }

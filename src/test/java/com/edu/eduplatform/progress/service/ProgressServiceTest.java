@@ -62,7 +62,7 @@ class ProgressServiceTest {
     @Test
     void complete_기존_기록이_없으면_새로_만들어_완료_처리한다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         when(lessonRepository.existsById(10L)).thenReturn(true);
         when(learningProgressRepository.findByMemberIdAndLessonId(1L, 10L)).thenReturn(Optional.empty());
 
@@ -78,7 +78,7 @@ class ProgressServiceTest {
     @Test
     void complete_이미_완료된_기록이면_다시_완료_처리하지_않고_그대로_저장한다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         when(lessonRepository.existsById(10L)).thenReturn(true);
         LearningProgress existing = LearningProgress.builder().memberId(1L).lessonId(10L).build();
         existing.complete();
@@ -103,7 +103,7 @@ class ProgressServiceTest {
     @Test
     void complete_존재하지_않는_레슨이면_예외를_던지고_기록하지_않는다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         when(lessonRepository.existsById(999L)).thenReturn(false);
 
         assertThatThrownBy(() -> progressService.complete(1L, 999L))
@@ -391,7 +391,7 @@ class ProgressServiceTest {
     @Test
     void recommendFocusAreas_레벨_내_전체_레슨_대비_커버리지가_가장_낮은_영역을_추천한다() throws Exception {
         MemberResponse member = new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
 
         Course officialCourse = withId(Course.builder()
@@ -431,7 +431,7 @@ class ProgressServiceTest {
     @Test
     void recommendFocusAreas_커버리지가_동률이면_모두_추천한다() throws Exception {
         MemberResponse member = new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
 
         Course officialCourse = withId(Course.builder()
@@ -475,7 +475,7 @@ class ProgressServiceTest {
     @Test
     void recommendFocusAreas_완료한_레슨이_적으면_예외를_던진다() {
         when(memberService.getMember(1L)).thenReturn(new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now()));
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
         LearningProgress onlyOne = LearningProgress.builder().memberId(1L).lessonId(10L).build();
         onlyOne.complete();
         when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(onlyOne));
@@ -495,7 +495,7 @@ class ProgressServiceTest {
     @Test
     void getSkillAreaProgress_영역별_완료_대비_전체_레슨_수를_반환한다() throws Exception {
         MemberResponse member = new MemberResponse(
-                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now());
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);
         when(memberService.getMember(1L)).thenReturn(member);
 
         Course officialCourse = withId(Course.builder()
@@ -661,6 +661,43 @@ class ProgressServiceTest {
 
         assertThat(result).hasSize(LocalDate.now().lengthOfMonth());
         assertThat(result).allMatch(d -> d.completedCount() == 0);
+    }
+
+    @Test
+    void getWeeklyGoalProgress_목표와_이번주_완료수를_함께_반환한다() throws Exception {
+        when(memberService.getMember(1L)).thenReturn(new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 5));
+        LearningProgress today = withCompletedAt(newCompleted(10L), LocalDateTime.now());
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(today));
+
+        var result = progressService.getWeeklyGoalProgress(1L);
+
+        assertThat(result.goal()).isEqualTo(5);
+        assertThat(result.completed()).isEqualTo(1);
+    }
+
+    @Test
+    void getWeeklyGoalProgress_이번_주_이전에_완료한_레슨은_제외한다() throws Exception {
+        when(memberService.getMember(1L)).thenReturn(new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 5));
+        LearningProgress lastWeek = withCompletedAt(newCompleted(10L), LocalDateTime.now().minusDays(10));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of(lastWeek));
+
+        var result = progressService.getWeeklyGoalProgress(1L);
+
+        assertThat(result.completed()).isEqualTo(0);
+    }
+
+    @Test
+    void getWeeklyGoalProgress_목표를_설정하지_않았으면_0을_반환한다() {
+        when(memberService.getMember(1L)).thenReturn(new MemberResponse(
+                1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0));
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        var result = progressService.getWeeklyGoalProgress(1L);
+
+        assertThat(result.goal()).isEqualTo(0);
+        assertThat(result.percentage()).isEqualTo(0);
     }
 
     private static LearningProgress newCompleted(Long lessonId) {
