@@ -12,6 +12,7 @@ import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
 import com.edu.eduplatform.progress.dto.DailyActivityResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.MemberActivityStats;
 import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.dto.WeeklyGoalProgress;
@@ -365,6 +366,32 @@ public class ProgressService {
                 .filter(LearningProgress::isCompleted)
                 .map(progress -> progress.getCompletedAt().toLocalDate())
                 .collect(Collectors.toSet());
+        return computeStreak(activeDates);
+    }
+
+    /**
+     * 레슨을 1개 이상 완료한 회원 전원의 완료 레슨 수·스트릭을 계산한다 — 리더보드에 쓰인다.
+     * 회원 수만큼 {@link #getCurrentStreak}를 반복 호출하는 N+1을 피하려고 전체 진행 기록을
+     * 한 번에 조회한 뒤 memberId별로 묶어 계산한다.
+     */
+    public List<MemberActivityStats> getLeaderboardStats() {
+        Map<Long, List<LearningProgress>> byMember = learningProgressRepository.findAll().stream()
+                .filter(LearningProgress::isCompleted)
+                .collect(Collectors.groupingBy(LearningProgress::getMemberId));
+
+        return byMember.entrySet().stream()
+                .map(entry -> {
+                    Set<LocalDate> activeDates = entry.getValue().stream()
+                            .map(progress -> progress.getCompletedAt().toLocalDate())
+                            .collect(Collectors.toSet());
+                    return new MemberActivityStats(
+                            entry.getKey(), entry.getValue().size(), computeStreak(activeDates));
+                })
+                .toList();
+    }
+
+    /** "오늘까지 연속으로 학습한 날짜 수" 계산 — 하루 유예를 포함한 핵심 로직만 공유한다. */
+    private static int computeStreak(Set<LocalDate> activeDates) {
         if (activeDates.isEmpty()) {
             return 0;
         }

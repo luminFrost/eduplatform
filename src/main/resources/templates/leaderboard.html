@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>학습 리더보드 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main id="main-content" class="page">
+    <h1>🏆 학습 리더보드</h1>
+    <p>스트릭(연속 학습일) 기준으로 순위를 매겨요 · 동률이면 완료한 레슨 수로 정렬해요.</p>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(entries)}">아직 순위에 오른 회원이 없어요.</p>
+
+    <ul class="lesson-list" th:unless="${#lists.isEmpty(entries)}">
+        <li th:each="e : ${entries}">
+            <div class="lesson-row" th:classappend="${e.currentMember} ? 'me' : ''">
+                <span class="lesson-icon"
+                      th:text="${e.rank == 1} ? '🥇' : (${e.rank == 2} ? '🥈' : (${e.rank == 3} ? '🥉' : ${e.rank}))"></span>
+                <span class="lesson-text">
+                    <span class="lesson-eyebrow" th:text="${e.currentMember} ? '나' : (${e.rank} + '위')"></span>
+                    <span class="lesson-title" th:text="${e.nickname}"></span>
+                </span>
+                <span class="lesson-eyebrow"
+                      th:text="'🔥 ' + ${e.currentStreak} + '일 · 레슨 ' + ${e.completedLessons} + '개'"></span>
+            </div>
+        </li>
+    </ul>
+
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

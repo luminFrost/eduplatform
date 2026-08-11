@@ -25,6 +25,7 @@ import com.edu.eduplatform.progress.domain.LearningProgress;
 import com.edu.eduplatform.progress.dto.CourseProgressResponse;
 import com.edu.eduplatform.progress.dto.DailyActivityResponse;
 import com.edu.eduplatform.progress.dto.DashboardSummaryResponse;
+import com.edu.eduplatform.progress.dto.MemberActivityStats;
 import com.edu.eduplatform.progress.dto.ReviewLessonResponse;
 import com.edu.eduplatform.progress.dto.SkillAreaProgressResponse;
 import com.edu.eduplatform.progress.exception.InsufficientHistoryException;
@@ -668,6 +669,43 @@ class ProgressServiceTest {
         when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
 
         assertThat(progressService.getCurrentStreak(1L)).isEqualTo(0);
+    }
+
+    @Test
+    void getLeaderboardStats_회원별로_완료_레슨수와_스트릭을_집계한다() throws Exception {
+        LearningProgress member1Today = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        member1Today.complete();
+        withCompletedAt(member1Today, LocalDateTime.now());
+        LearningProgress member1Yesterday = LearningProgress.builder().memberId(1L).lessonId(11L).build();
+        member1Yesterday.complete();
+        withCompletedAt(member1Yesterday, LocalDateTime.now().minusDays(1));
+        LearningProgress member2Today = LearningProgress.builder().memberId(2L).lessonId(20L).build();
+        member2Today.complete();
+        withCompletedAt(member2Today, LocalDateTime.now());
+
+        when(learningProgressRepository.findAll())
+                .thenReturn(List.of(member1Today, member1Yesterday, member2Today));
+
+        List<MemberActivityStats> stats = progressService.getLeaderboardStats();
+
+        assertThat(stats).hasSize(2);
+        assertThat(stats).anySatisfy(s -> {
+            if (s.memberId().equals(1L)) {
+                assertThat(s.completedLessons()).isEqualTo(2);
+                assertThat(s.currentStreak()).isEqualTo(2);
+            } else {
+                assertThat(s.completedLessons()).isEqualTo(1);
+                assertThat(s.currentStreak()).isEqualTo(1);
+            }
+        });
+    }
+
+    @Test
+    void getLeaderboardStats_완료_기록이_없는_회원은_제외된다() throws Exception {
+        LearningProgress incomplete = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        when(learningProgressRepository.findAll()).thenReturn(List.of(incomplete));
+
+        assertThat(progressService.getLeaderboardStats()).isEmpty();
     }
 
     @Test

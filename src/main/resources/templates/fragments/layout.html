@@ -8,6 +8,7 @@
         <nav class="site-nav">
             <a th:href="@{/courses}">코스</a>
             <a th:href="@{/quiz/picture}">그림 퀴즈</a>
+            <a th:href="@{/leaderboard}">리더보드</a>
             <a th:href="@{/my}" sec:authorize="isAuthenticated()">
                 마이페이지
                 <span class="review-badge" th:if="${dueReviewCount != null and dueReviewCount > 0}" th:text="${dueReviewCount}"></span>
