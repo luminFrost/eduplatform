@@ -13,6 +13,8 @@ public interface CourseBookmarkRepository extends JpaRepository<CourseBookmark, 
 
     List<CourseBookmark> findByMemberIdOrderByIdDesc(Long memberId);
 
+    long countByMemberId(Long memberId);
+
     void deleteByMemberIdAndCourseId(Long memberId, Long courseId);
 
     /** 코스 목록 화면에서 카드마다 따로 집계 쿼리를 날리지 않도록 courseId 여러 개를 한 번에 집계한다. */

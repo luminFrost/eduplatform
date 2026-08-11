@@ -177,6 +177,29 @@ class LearningProgressFlowTest {
                 .andExpect(content().string(containsString("히스토리테스트코스")));
     }
 
+    @Test
+    void 레슨을_완료하면_첫_발걸음_배지가_달성_상태로_바뀐다() throws Exception {
+        MockHttpSession session = signUp("badge-flow-test@example.com", "배지테스터");
+        Course course = courseRepository.save(Course.builder()
+                .title("배지테스트코스").description("설명").emoji("📘")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        Lesson lesson = lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build());
+
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("업적 배지 (0 / 13개 달성)")))
+                .andExpect(content().string(containsString("badge-tile locked")));
+
+        mockMvc.perform(post("/lessons/{id}/complete", lesson.getId()).session(session).with(csrf()))
+                .andExpect(redirectedUrl("/lessons/" + lesson.getId()));
+
+        // 레슨이 1개뿐인 코스라 완료 즉시 "첫 발걸음"과 "첫 코스 완주" 배지가 함께 달성된다.
+        mockMvc.perform(get("/my").session(session))
+                .andExpect(content().string(containsString("업적 배지 (2 / 13개 달성)")));
+    }
+
     private MockHttpSession signUp(String email, String nickname) throws Exception {
         MvcResult requestResult = mockMvc.perform(post("/members/new")
                         .with(csrf())

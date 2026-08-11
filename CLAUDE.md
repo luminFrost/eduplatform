@@ -1722,6 +1722,64 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     주간 목표 5로 설정 → 마이페이지에 "0 / 5개 (0%)" 확인 → 레슨 1개 완료 → "1 / 5개 (20%)"로
     정확히 갱신되는 것 확인.
 
+- 프로젝트 산출물 문서 대폭 보강: README 신설 + 실제 스크린샷 (main 배포됨)
+  - 사용자 피드백("산출물이 너무 초보퀄리티 수준")에 응답 — 지금까지 텍스트 위주였던 산출물 문서가
+    최근 14개 기능(리뷰 도움돼요/신고, 수료증, 관리자 강제 탈퇴/리뷰 관리/공지 배너/통계 대시보드,
+    주간 목표 등)을 반영하지 못해 실제 완성도 대비 빈약해 보이던 문제를 해결.
+  - 신규 루트 `README.md`(지금까지 아예 없었음 — Spring Initializr가 만든 `HELP.md`만 있었음) —
+    배지, 실제 화면 스크린샷 6장, 접이식(`<details>`) 기능 요약, 빠른 시작, 기술 스택을 담은 프로젝트
+    첫인상 문서.
+  - `docs/DELIVERABLE.md`/`docs/DESIGN.md`/`docs/PRODUCT.md` 세 문서 전면 갱신 — 최신 수치(테스트
+    345개·템플릿 31개·패키지 8개), ERD에 `CourseReviewVote`/`CourseReviewReport`/`SiteAnnouncement`/
+    `weeklyGoal` 추가, 화면·라우트 표 갱신, 사용자 여정 흐름도에 수료증·리뷰 상호작용 노드 추가,
+    Phase 10~12 로드맵 추가.
+  - `docs/screenshots/` 신규 — claude-in-chrome으로 데모 회원 2명(레슨 완료·주간목표·즐겨찾기·리뷰·
+    투표)과 관리자 공지를 실제로 만들어 랜딩(다크모드+공지배너)·코스목록·마이페이지·레슨·리뷰·관리자
+    대시보드 6장을 캡처. claude-in-chrome이 이번에도 클릭/타이핑 도중 `"Cannot access a
+    chrome-extension:// URL of different extension"` 등으로 실패해(기존 메모리에 적힌 불안정성과
+    동일 계열) `read_page`로 얻은 `ref`에 `form_input`으로 값을 직접 넣고 `computer left_click`은
+    좌표 대신 `ref`로 누르는 기존 우회법으로 해결.
+- 학습 업적/배지 시스템 (dev 병합됨)
+  - 스트릭·월간 캘린더·주간 목표·최근 활동 히스토리가 전부 따로 존재해 "지금까지 이 사이트를 얼마나
+    다양하게 활용했는지"를 한눈에 보여주는 곳이 없던 갭 — 기존 데이터(완료 레슨 수·코스 완주 수·
+    스트릭·주간목표 달성·리뷰 작성·즐겨찾기·개인 코스 생성)만으로 13개 업적 배지를 계산해 마이페이지에
+    컬렉션으로 보여줌. 새 추적 테이블은 물론 `Member`에 새 필드조차 필요 없는, 이 세션에서 가장 순수한
+    stateless 계산 사례(weeklyGoal 때보다도 더 단순함).
+  - 리뷰 작성 수·즐겨찾기 수·개인 코스 생성 수를 회원 기준으로 세는 count 파생 쿼리가 지금까지 하나도
+    없었음(전부 courseId 기준 배치 집계만 있었음) — `CourseReviewRepository.countByMemberId`,
+    `CourseBookmarkRepository.countByMemberId`, `CourseRepository.countByOwnerId` 3개를 대칭적으로
+    추가. "코스 완주 수"는 `ProgressService.getCompletedCourseCount()` 신규 — 이미 있는
+    `getCourseProgress()`가 반환하는 `totalLessons`/`completedLessons`를 재사용해 완주한 코스만 세는
+    순수 스트림 필터라 새 쿼리 불필요.
+  - 신규 `common/service/BadgeService` — Progress·Course 두 도메인을 넘나드는 집계라
+    `ContentCoverageService`/`AdminStatsService`가 확립한 "특정 도메인 서비스에 안 얹고 common에
+    둔다" 선례를 그대로 따름. 배지 13개(학습량 4·코스완주 2·스트릭 3·주간목표 1·커뮤니티 3)를 고정
+    카탈로그(`BadgeDefinition` record + `Predicate<BadgeStats>`)로 선언해 평가.
+  - 화면: `my/dashboard.html` 스탯 타일 바로 아래에 `.badge-grid`/`.badge-tile` 신규 — 달성한 배지는
+    이모지+제목, 미달성 배지는 `.cal-cell.future`가 쓰던 `opacity: 0.45` 선례에 `filter:
+    grayscale(1)`을 더해 흐리게 처리. 달성 개수(`N / 13개 달성`)는 Thymeleaf `#lists.select` 같은
+    컬렉션 필터링 EL 대신 컨트롤러에서 직접 `badges.stream().filter(Badge::achieved).count()`로 계산해
+    모델에 담음 — 과거 세션에서 겪은 "Thymeleaf에서 SpEL elvis와 Thymeleaf 자체 삼항을 같은 속성에
+    섞어 쓰지 않는다" 교훈을 아예 우회.
+  - 테스트 작성 중 두 가지 실수 발견·수정: (1) `getCompletedCourseCount` Mockito 테스트가
+    `findAllById(List.of(100L, 200L))`처럼 특정 순서로 스텁했다가 `touchedCourseIds`가 `HashMap`
+    스트림에서 나와 순서가 보장 안 되는 걸 다시 놓쳐 실패 — `any()` 매처로 교체(대시보드 요약 테스트
+    때 이미 한 번 겪은 것과 똑같은 함정을 또 밟음). (2) 통합 테스트에서 레슨이 1개뿐인 코스를 하나
+    완료시켰더니 "첫 발걸음"뿐 아니라 "첫 코스 완주"까지 동시에 달성돼(완료 즉시 그 코스도 완주된
+    것이므로) 기대값을 "1/13"이 아니라 "2/13"으로 고쳐야 했음 — 배지 여러 개가 같은 이벤트로 동시에
+    풀릴 수 있다는 걸 실제로 확인. (3) 신규 통합 테스트가 기존 `ReviewBadgeControllerAdviceTest`와
+    같은 이메일(`badge-test@example.com`)을 써서 같은 JVM 내 다른 `@SpringBootTest`와 충돌(중복
+    이메일로 가입 자체가 실패) — 이메일을 `badge-flow-test@example.com`으로 바꿔 해결.
+  - 테스트: 신규 `BadgeServiceTest`(Mockito 5개 — 카탈로그 13개 전체 미달성, 완료 레슨수 경계값,
+    코스완주·스트릭, 주간목표는 목표 설정+달성 둘 다 있어야 함, 리뷰·즐겨찾기·개인코스), `ProgressServiceTest`
+    (`getCompletedCourseCount` 2개), `CourseReviewRepositoryTest`/`CourseBookmarkRepositoryTest`/
+    `CourseRepositoryTest`(각 `countByMemberId`/`countByOwnerId` 1개), `LearningProgressFlowTest`
+    (레슨 완료 전후 배지 달성 개수 변화 1개).
+  - curl 실서버 종단 검증: 신규 회원가입 → 마이페이지에 배지 13개 전부 흐리게(잠김) 표시 확인 → 퀴즈
+    게이트가 있는 레슨 하나를 정답 제출로 완료 → "첫 발걸음" 배지만 잠금 해제(1/13) 확인(레슨 7개짜리
+    코스라 코스 완주 배지는 아직 안 풀림) → 같은 코스 즐겨찾기 + 5점 리뷰 작성 → "첫 후기 작성" 배지
+    잠금 해제(2/13), "즐겨찾기 수집가"(3개 필요)는 여전히 잠김 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

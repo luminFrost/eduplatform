@@ -43,6 +43,16 @@ class CourseBookmarkRepositoryTest {
     }
 
     @Test
+    void countByMemberId_회원이_즐겨찾기한_코스_수를_센다() {
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(1L).courseId(10L).build());
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(1L).courseId(20L).build());
+        courseBookmarkRepository.save(CourseBookmark.builder().memberId(2L).courseId(10L).build());
+
+        assertThat(courseBookmarkRepository.countByMemberId(1L)).isEqualTo(2);
+        assertThat(courseBookmarkRepository.countByMemberId(99L)).isEqualTo(0);
+    }
+
+    @Test
     void countByCourseIdIn_여러_코스의_즐겨찾기_개수를_한번에_집계한다() {
         courseBookmarkRepository.save(CourseBookmark.builder().memberId(1L).courseId(10L).build());
         courseBookmarkRepository.save(CourseBookmark.builder().memberId(2L).courseId(10L).build());

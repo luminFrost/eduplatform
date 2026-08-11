@@ -20,6 +20,8 @@ public interface CourseReviewRepository extends JpaRepository<CourseReview, Long
 
     long countByCourseId(Long courseId);
 
+    long countByMemberId(Long memberId);
+
     @Query("select avg(r.rating) from CourseReview r where r.courseId = :courseId")
     Double findAverageRatingByCourseId(@Param("courseId") Long courseId);
 

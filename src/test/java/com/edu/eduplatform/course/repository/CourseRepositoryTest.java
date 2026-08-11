@@ -116,6 +116,22 @@ class CourseRepositoryTest {
     }
 
     @Test
+    void countByOwnerId_해당_회원의_개인_코스_수를_센다() {
+        courseRepository.save(Course.builder()
+                .title("남의 개인 코스").description("설명").ownerId(2L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        courseRepository.save(Course.builder()
+                .title("내 첫 코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        courseRepository.save(Course.builder()
+                .title("내 두번째 코스").description("설명").ownerId(1L)
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        assertThat(courseRepository.countByOwnerId(1L)).isEqualTo(2);
+        assertThat(courseRepository.countByOwnerId(99L)).isEqualTo(0);
+    }
+
+    @Test
     void search_키워드가_제목_설명엔_없어도_레슨_내용에_있으면_코스를_반환한다() {
         Course course = courseRepository.save(Course.builder()
                 .title("여행 영어").description("공항, 숙소에서 바로 쓰는 표현")

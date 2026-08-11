@@ -389,6 +389,45 @@ class ProgressServiceTest {
     }
 
     @Test
+    void getCompletedCourseCount_레슨을_전부_완료한_코스만_센다() throws Exception {
+        Course doneCourse = withId(Course.builder()
+                .title("완료 코스").description("설명").emoji("🗣️")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 100L);
+        Course partialCourse = withId(Course.builder()
+                .title("진행중 코스").description("설명").emoji("📖")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build(), 200L);
+
+        Lesson doneLesson = withId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        Lesson partialLesson1 = withId(Lesson.builder().courseId(200L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 20L);
+        Lesson partialLesson2 = withId(Lesson.builder().courseId(200L).orderNo(2).title("2과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 21L);
+
+        LearningProgress doneProgress = LearningProgress.builder().memberId(1L).lessonId(10L).build();
+        doneProgress.complete();
+        LearningProgress partialProgress = LearningProgress.builder().memberId(1L).lessonId(20L).build();
+        partialProgress.complete();
+
+        when(learningProgressRepository.findByMemberId(1L))
+                .thenReturn(List.of(doneProgress, partialProgress));
+        when(lessonRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(doneLesson, partialLesson1));
+        // touchedCourseIds는 HashMap 기반 스트림에서 나와 순서가 보장되지 않으므로 순서 무관 매처를 쓴다.
+        when(lessonRepository.findByCourseIdIn(any()))
+                .thenReturn(List.of(doneLesson, partialLesson1, partialLesson2));
+        when(courseRepository.findAllById(any())).thenReturn(List.of(doneCourse, partialCourse));
+
+        assertThat(progressService.getCompletedCourseCount(1L)).isEqualTo(1);
+    }
+
+    @Test
+    void getCompletedCourseCount_기록이_없으면_0을_반환한다() {
+        when(learningProgressRepository.findByMemberId(1L)).thenReturn(List.of());
+
+        assertThat(progressService.getCompletedCourseCount(1L)).isEqualTo(0);
+    }
+
+    @Test
     void recommendFocusAreas_레벨_내_전체_레슨_대비_커버리지가_가장_낮은_영역을_추천한다() throws Exception {
         MemberResponse member = new MemberResponse(
                 1L, "a@example.com", "테스터", MemberType.ADULT, EnglishLevel.BEGINNER, LocalDateTime.now(), 0);

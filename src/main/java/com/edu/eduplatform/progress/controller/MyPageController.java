@@ -1,5 +1,7 @@
 package com.edu.eduplatform.progress.controller;
 
+import com.edu.eduplatform.common.dto.Badge;
+import com.edu.eduplatform.common.service.BadgeService;
 import com.edu.eduplatform.common.web.CurrentMemberId;
 import com.edu.eduplatform.course.service.CourseService;
 import com.edu.eduplatform.member.service.MemberService;
@@ -19,6 +21,7 @@ public class MyPageController {
     private final MemberService memberService;
     private final ProgressService progressService;
     private final CourseService courseService;
+    private final BadgeService badgeService;
 
     @GetMapping("/my")
     public String dashboard(@CurrentMemberId Long memberId, Model model) {
@@ -35,6 +38,10 @@ public class MyPageController {
         model.addAttribute("today", LocalDate.now());
         model.addAttribute("recentActivity", progressService.getRecentActivity(memberId));
         model.addAttribute("weeklyGoalProgress", progressService.getWeeklyGoalProgress(memberId));
+
+        List<Badge> badges = badgeService.getBadges(memberId);
+        model.addAttribute("badges", badges);
+        model.addAttribute("achievedBadgeCount", badges.stream().filter(Badge::achieved).count());
         return "my/dashboard";
     }
 }

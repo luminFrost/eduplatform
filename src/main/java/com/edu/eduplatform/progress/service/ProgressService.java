@@ -100,6 +100,13 @@ public class ProgressService {
                 .max(Comparator.naturalOrder());
     }
 
+    /** 레슨을 전부 완료해 완주한 코스 수 — 업적 배지 계산에 쓰인다. */
+    public int getCompletedCourseCount(Long memberId) {
+        return (int) getCourseProgress(memberId).stream()
+                .filter(p -> p.totalLessons() > 0 && p.completedLessons() == p.totalLessons())
+                .count();
+    }
+
     /** 이 코스를 시작해(레슨을 하나 이상 완료해) 학습 중인 회원 수 — 코스 상세의 사회적 증거 문구용. */
     public long getLearnerCount(Long courseId) {
         return learningProgressRepository.countDistinctMembersByCourseId(courseId);
