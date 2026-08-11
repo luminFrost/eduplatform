@@ -43,6 +43,16 @@ class CourseReviewRepositoryTest {
     }
 
     @Test
+    void countByMemberId_회원이_작성한_리뷰_수를_센다() {
+        courseReviewRepository.save(CourseReview.builder().memberId(1L).courseId(10L).rating(5).build());
+        courseReviewRepository.save(CourseReview.builder().memberId(1L).courseId(20L).rating(4).build());
+        courseReviewRepository.save(CourseReview.builder().memberId(2L).courseId(10L).rating(3).build());
+
+        assertThat(courseReviewRepository.countByMemberId(1L)).isEqualTo(2);
+        assertThat(courseReviewRepository.countByMemberId(99L)).isEqualTo(0);
+    }
+
+    @Test
     void 평균과_개수를_집계한다() {
         courseReviewRepository.save(CourseReview.builder().memberId(1L).courseId(10L).rating(5).build());
         courseReviewRepository.save(CourseReview.builder().memberId(2L).courseId(10L).rating(3).build());

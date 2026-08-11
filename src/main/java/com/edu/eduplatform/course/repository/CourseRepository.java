@@ -34,4 +34,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     );
 
     List<Course> findByOwnerIdOrderByIdDesc(Long ownerId);
+
+    long countByOwnerId(Long ownerId);
 }

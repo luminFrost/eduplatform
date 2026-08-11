@@ -1426,6 +1426,39 @@ legend.quiz-prompt {
     }
 }
 
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+}
+
+.badge-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 8px;
+    text-align: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.badge-tile-emoji {
+    font-size: 1.6rem;
+}
+
+.badge-tile-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.badge-tile.locked {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+
 .badge.reported {
     background: color-mix(in srgb, var(--color-danger) 15%, transparent);
     color: var(--color-danger);
