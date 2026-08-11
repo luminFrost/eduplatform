@@ -42,13 +42,14 @@
 
 ```
 com.edu.eduplatform
-├── common/     JPA Auditing, WebMvc 설정, SecurityConfig, 샘플 데이터 시더, 관리자 대시보드, 랜딩 페이지
-├── member/     회원, 인증(로그인/가입/탈퇴/비밀번호), 이메일 인증·재설정 토큰, 관리자 회원 관리
-├── course/     코스(공식/개인), 즐겨찾기, 평점/리뷰, 관리자 코스 관리
-├── lesson/     레슨, 콘텐츠 파싱·아이콘 매핑, 이해도 퀴즈, 관리자 레슨 관리
-├── progress/   학습 진행, 대시보드 집계, 스트릭·캘린더, 간격 반복 복습(+헤더 배지)
-├── question/   진단 테스트/레벨 배치 문항, 관리자 문항 관리
-└── quiz/       그림 퀴즈, 매일 단어장/단어 퀴즈 (모두 저장 없이 그때그때 생성하는 stateless 설계)
+├── common/        JPA Auditing, WebMvc 설정, SecurityConfig, 샘플 데이터 시더, 관리자 통계·커버리지 대시보드, 랜딩 페이지
+├── member/        회원, 인증(로그인/가입/탈퇴/비밀번호), 이메일 인증·재설정 토큰, 관리자 회원 관리(강제 탈퇴 포함)
+├── course/        코스(공식/개인), 즐겨찾기, 평점/리뷰(+도움돼요 투표·신고), 관리자 코스·리뷰 관리, 수료증
+├── lesson/        레슨, 콘텐츠 파싱·아이콘 매핑, 이해도 퀴즈, 관리자 레슨 관리
+├── progress/      학습 진행, 대시보드 집계, 스트릭·캘린더·주간 목표·최근 활동, 간격 반복 복습(+헤더 배지)
+├── question/      진단 테스트/레벨 배치 문항, 관리자 문항 관리
+├── quiz/          그림 퀴즈, 매일 단어장/단어 퀴즈 (모두 저장 없이 그때그때 생성하는 stateless 설계)
+└── announcement/  사이트 전체 공지 배너(단일 슬롯 upsert), 관리자 공지 관리
 ```
 
 각 패키지 안에 `domain / repository / service / controller`(+ 필요 시 `dto`, `exception`, `security`)를
@@ -101,10 +102,14 @@ erDiagram
     MEMBER ||--o{ COURSE : "소유 (개인 코스, ownerId)"
     MEMBER ||--o{ COURSE_BOOKMARK : 즐겨찾기
     MEMBER ||--o{ COURSE_REVIEW : 작성
+    MEMBER ||--o{ COURSE_REVIEW_VOTE : "도움돼요 투표"
+    MEMBER ||--o{ COURSE_REVIEW_REPORT : 신고
     MEMBER ||--o{ LEARNING_PROGRESS : 완료기록
     COURSE ||--o{ LESSON : 포함
     COURSE ||--o{ COURSE_BOOKMARK : "즐겨찾기 대상"
     COURSE ||--o{ COURSE_REVIEW : "리뷰 대상"
+    COURSE_REVIEW ||--o{ COURSE_REVIEW_VOTE : "투표 대상"
+    COURSE_REVIEW ||--o{ COURSE_REVIEW_REPORT : "신고 대상"
     LESSON ||--o{ LEARNING_PROGRESS : "진행 추적"
 
     MEMBER {
@@ -115,6 +120,7 @@ erDiagram
         EnglishLevel level
         String password "BCrypt"
         MemberRole role
+        int weeklyGoal "0=미설정, 주간 목표 레슨 수"
     }
     COURSE {
         Long id PK
@@ -124,6 +130,7 @@ erDiagram
         EnglishLevel level
         Long ownerId "nullable, null=공식 코스"
         CourseCriteriaSource criteriaSource "nullable"
+        DateTime createdAt "NEW 배지 판정(7일 이내)"
     }
     LESSON {
         Long id PK
@@ -152,6 +159,16 @@ erDiagram
         int rating "1~5"
         String comment
     }
+    COURSE_REVIEW_VOTE {
+        Long id PK
+        Long memberId
+        Long reviewId
+    }
+    COURSE_REVIEW_REPORT {
+        Long id PK
+        Long memberId
+        Long reviewId
+    }
     QUESTION {
         Long id PK
         MemberType targetType
@@ -161,7 +178,14 @@ erDiagram
         String audioText "nullable, LISTENING만"
         int correctOptionIndex
     }
+    SITE_ANNOUNCEMENT {
+        Long id PK
+        String message "500자 이내, 항상 최대 한 행"
+    }
 ```
+
+> `SITE_ANNOUNCEMENT`는 다른 엔티티와 관계가 없는 독립 싱글턴 테이블(존재 여부 자체가 배너 표시
+> 여부) — 관계선 없이 별도 표기.
 
 ### Member (회원)
 | 필드 | 타입 | 설명 |
@@ -173,9 +197,10 @@ erDiagram
 | level | Enum | 현재 학습 레벨 |
 | password | String | BCrypt 해시(평문 저장 안 함) |
 | role | Enum | USER / ADMIN |
+| weeklyGoal | int | 주간 목표 레슨 수, 0=미설정(가입 시 기본값) |
 
-세터 없음 — `changeNickname`/`changeLevel`/`changePassword`/`changeRole` 등 의미 있는 메서드로만
-상태를 바꾼다.
+세터 없음 — `changeNickname`/`changeLevel`/`changePassword`/`changeRole`/`changeWeeklyGoal` 등
+의미 있는 메서드로만 상태를 바꾼다.
 
 ### Course (코스)
 | 필드 | 타입 | 설명 |
@@ -191,11 +216,16 @@ erDiagram
 공식 코스 레슨을 **복사**해서 만든다(다대다 공유 없음) — `CourseService.buildPersonalCourse()`가
 자가선택/이력기반/진단테스트 세 진입점의 공통 로직.
 
-### CourseBookmark / CourseReview (참여 기능)
+### CourseBookmark / CourseReview / CourseReviewVote / CourseReviewReport (참여 기능)
 | 엔티티 | 필드 | 설명 |
 |--------|------|------|
 | CourseBookmark | memberId, courseId | 회원이 즐겨찾기한 코스, 존재 여부로 토글 |
 | CourseReview | memberId, courseId, rating(1~5), comment | 회원당 코스 하나에 리뷰 하나(재작성 시 upsert) |
+| CourseReviewVote | memberId, reviewId | 리뷰 "도움돼요" 투표, 존재 여부로 토글(즐겨찾기와 동일 패턴) |
+| CourseReviewReport | memberId, reviewId | 리뷰 신고 — 취소 개념 없이 접수만(중복 신고는 조용히 무시) |
+
+네 엔티티 전부 같은 최소 구조(회원 id + 대상 id)로, 배치 집계(`countByXxxIdIn`)를 통해 코스·리뷰
+목록 카드에서 N+1 쿼리 없이 평점/즐겨찾기 수/도움돼요 수/신고 수를 한 번에 계산한다.
 
 ### Lesson (레슨)
 | 필드 | 타입 | 설명 |
@@ -235,6 +265,17 @@ erDiagram
 > 레슨 콘텐츠에서 매 요청(그림 퀴즈·단어장은 날짜를 시드로) 결정론적으로 문제를 만들어낸다
 > (`DailySeed`, `QuizWordPicker`).
 
+### SiteAnnouncement (사이트 공지 배너)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | Long | PK |
+| message | String(500) | 공지 문구 |
+
+"활성" 플래그 없이 **행의 존재 여부 자체가 표시 여부** — `SiteAnnouncementService.save()`가 있으면
+갱신·없으면 생성해 항상 최대 한 행만 유지한다(리뷰 upsert와 같은 패턴). 모든 페이지 헤더에서
+`@ControllerAdvice`(`SiteAnnouncementControllerAdvice`)가 매 요청마다 현재 메시지를 모델에
+채워 넣는다.
+
 ## 6. 보안 아키텍처
 
 - **두 개의 `SecurityFilterChain`으로 분리**(`SecurityConfig`) — `formLogin`과 `httpBasic`을 같은
@@ -262,9 +303,10 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    Root["/"] --> Courses["/courses"]
-    Courses --> CourseDetail["/courses/{id}"]
+    Root["/"] --> Courses["/courses<br/>검색·필터·정렬"]
+    Courses --> CourseDetail["/courses/{id}<br/>리뷰·즐겨찾기·수료증"]
     CourseDetail --> Lesson["/lessons/{id}"]
+    CourseDetail --> Certificate["/courses/{id}/certificate"]
 
     Root --> Signup["/members/new"]
     Signup --> Verify["/members/new/verify"]
@@ -272,7 +314,7 @@ flowchart LR
     Root --> LevelTest["/members/new/level-test"]
     Root --> PwReset["/password-reset (+/confirm)"]
 
-    Login --> My["/my 대시보드"]
+    Login --> My["/my 대시보드<br/>스탯·캘린더·주간목표·최근활동"]
     My --> Profile["/my/profile"]
     My --> Review["/my/review"]
     My --> Daily["/my/daily"]
@@ -280,19 +322,21 @@ flowchart LR
 
     Root --> PictureQuiz["/quiz/picture"]
 
-    Login --> Admin["/admin 대시보드 (ADMIN 전용)"]
+    Login --> Admin["/admin 대시보드<br/>운영 통계 + 콘텐츠 커버리지 (ADMIN 전용)"]
     Admin --> AdminCourses["/admin/courses (+lessons/**)"]
     Admin --> AdminQuestions["/admin/questions"]
     Admin --> AdminMembers["/admin/members"]
+    Admin --> AdminReviews["/admin/reviews"]
+    Admin --> AdminAnnouncement["/admin/announcement"]
 ```
 
 | 영역 | 경로 | 설명 |
 |------|------|------|
-| 공개 | `/`, `/courses`, `/courses/{id}`, `/lessons/{id}` | 랜딩, 코스 목록/상세(검색·필터·평점·즐겨찾기·리뷰), 레슨 학습(비회원은 1과만) |
+| 공개 | `/`, `/courses`, `/courses/{id}`, `/courses/{id}/certificate`, `/lessons/{id}` | 랜딩, 코스 목록/상세(검색·필터·정렬·평점·즐겨찾기·리뷰), 수료증(완료자만), 레슨 학습(비회원은 1과만) |
 | 계정 | `/members/new` → `/members/new/verify`, `/login`, `/members/new/level-test`, `/password-reset`(+`/confirm`) | 이메일 인증 2단계 가입, 로그인, 레벨 배치 테스트, 비밀번호 찾기 |
-| 마이페이지 | `/my`, `/my/profile`, `/my/review`, `/my/daily`, `/courses/personal/new`(+`/diagnostic-test`) | 대시보드, 프로필/비밀번호/탈퇴, 간격 반복 복습, 오늘의 단어, 개인 코스 생성 |
+| 마이페이지 | `/my`, `/my/profile`(주간 목표 포함), `/my/review`, `/my/daily`, `/courses/personal/new`(+`/diagnostic-test`) | 대시보드, 프로필/비밀번호/탈퇴, 간격 반복 복습, 오늘의 단어, 개인 코스 생성 |
 | 참여 | `/quiz/picture` | 그림 퀴즈(비회원 가능) |
-| 관리자 | `/admin`, `/admin/courses`(+`/{id}/lessons/**`), `/admin/questions`, `/admin/members` | 커버리지 대시보드, 코스·레슨 CRUD, 문항 관리, 회원 관리 |
+| 관리자 | `/admin`(통계+커버리지), `/admin/courses`(+`/{id}/lessons/**`), `/admin/questions`, `/admin/members`(+강제 탈퇴), `/admin/reviews`, `/admin/announcement` | 대시보드, 코스·레슨 CRUD, 문항 관리, 회원 관리, 리뷰 관리, 공지 관리 |
 | 개발용 | `/h2-console` | DB 콘솔(CSP 예외) |
 
 ## 8. API 설계 (REST, `/api`)
@@ -310,8 +354,10 @@ flowchart LR
 | GET | `/api/questions/diagnostic-test` | 공개 | 대상·레벨별 진단 테스트 문항(정답 인덱스 제외) |
 | POST | `/api/progress/complete` | 인증 필요 | 레슨 완료 처리 |
 
-요청/응답은 전부 DTO(record)로 분리하고 엔티티를 직접 노출하지 않는다. 코스 즐겨찾기·평점/리뷰·
-관리자 기능·복습 등은 화면 전용으로 판단해 REST API를 별도로 열지 않았다(필요해지면 후속 확장).
+요청/응답은 전부 DTO(record)로 분리하고 엔티티를 직접 노출하지 않는다. 코스 즐겨찾기·평점/리뷰
+(+도움돼요 투표·신고)·수료증·복습·주간 목표·관리자 기능(회원/리뷰/공지/통계) 전부 화면 전용으로
+판단해 REST API를 별도로 열지 않았다 — 이 프로젝트가 실제로 필요로 한 API는 처음 10개에서
+늘어나지 않았고, 나머지는 서버 렌더링 폼 제출만으로 충분했다(필요해지면 후속 확장).
 
 ## 9. 개발 단계 (완료된 로드맵)
 
@@ -337,6 +383,19 @@ Spring Security 도입, REST API의 memberId 신뢰 문제 보완, 로그인 시
 
 ### Phase 9 — UX/접근성 (완료, 최초 로드맵엔 없던 확장)
 반응형 모바일 대응, 다크모드, 웹 접근성(a11y) 점검·개선.
+
+### Phase 10 — 신뢰·커뮤니티 신호 (완료, 최초 로드맵엔 없던 확장)
+코스 평점·후기에 도움돼요 투표·신고를 더해 신뢰도 있는 후기 생태계로 발전, 코스 인기순 정렬·
+학습자 수·신규 배지·예상 학습 시간으로 코스 목록의 정보 밀도를 높임, 코스 완료 수료증으로
+성취를 남기는 장치 추가.
+
+### Phase 11 — 동기부여 고도화 (완료, 최초 로드맵엔 없던 확장)
+주간 학습 목표 설정 + 진도율, 최근 학습 활동 히스토리 — 기존 스트릭·캘린더가 "얼마나"만 보여주던
+것을 "무엇을"·"목표 대비 얼마나"까지 확장.
+
+### Phase 12 — 관리자 도구 고도화 (완료, 최초 로드맵엔 없던 확장)
+관리자 회원 강제 탈퇴, 리뷰 관리(신고 확인·삭제), 공지사항 배너, 운영 통계 대시보드(가입자·활동
+추이 그래프) — 콘텐츠 관리 중심이던 관리자 도구를 회원·커뮤니티·운영 지표 관리까지 확장.
 
 ### 다음 단계 (미착수, 의도적으로 후순위)
 - 마스코트 캐릭터 이미지 연결(사용자가 이미지 파일을 전달하면 진행).
