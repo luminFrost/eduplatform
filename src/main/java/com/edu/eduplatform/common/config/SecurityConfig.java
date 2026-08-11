@@ -90,6 +90,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/courses", "/courses/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/lessons/*").permitAll()
                         .requestMatchers("/quiz/**").permitAll()
+                        .requestMatchers("/leaderboard").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

@@ -1780,6 +1780,40 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     코스라 코스 완주 배지는 아직 안 풀림) → 같은 코스 즐겨찾기 + 5점 리뷰 작성 → "첫 후기 작성" 배지
     잠금 해제(2/13), "즐겨찾기 수집가"(3개 필요)는 여전히 잠김 확인.
 
+- 학습 리더보드 (dev 병합됨)
+  - 방금 추가한 업적 배지가 "나 혼자 얼마나 했는지"였다면, 리더보드는 "다른 회원과 비교해 지금
+    어디쯤인지" — 스트릭·완료 레슨 수를 전체 회원 기준으로 순위화. 새 추적 테이블 없이 기존
+    `LearningProgress`만으로 즉석 계산(stateless 원칙 유지).
+  - `ProgressService.getCurrentStreak(memberId)`가 회원 1명분 조회 위에서 동작해 회원 수만큼
+    반복 호출하면 N+1이 되는 걸 미리 인지 — `AdminStatsService`가 이미 쓰는 "findAll() 한 번 →
+    memberId별로 묶어 계산" 패턴을 따라 신규 `getLeaderboardStats()` 추가. 스트릭 계산(하루 유예
+    포함) 로직은 `computeStreak(Set<LocalDate>)` private static 헬퍼로 뽑아 회원 1명용/전체
+    회원용 양쪽이 공유 — 중복 없이 순수 리팩터링.
+  - 신규 `common/service/LeaderboardService` — Progress+Member를 넘나드는 집계라
+    `ContentCoverageService`/`AdminStatsService`/`BadgeService`와 같은 이유로 common에 배치.
+    정렬 기준은 스트릭 내림차순 → 완료 레슨 수 내림차순 → memberId 오름차순(항상 결정론적).
+    상위 20명을 보여주고, 로그인한 회원이 20위 밖이면 목록 끝에 본인 행을 하나 더 붙임(순위
+    자체가 없으면—완료 기록 0개—추가 안 함).
+  - `/leaderboard`는 `/quiz/**`(그림 퀴즈)와 같은 성격의 공개 참여형 기능으로 판단해 permitAll —
+    코스 리뷰가 비로그인에게도 닉네임을 보여주는 것과 같은 공개 범위 판단.
+  - 화면: 신규 `templates/leaderboard.html`(최상위, `index.html`과 같은 자리) — 관리자 리뷰
+    관리 등에서 반복 재사용된 `.lesson-list`/`.lesson-row`/`.lesson-icon`(48px 원형 타일)을
+    그대로 써서 새 CSS 최소화, 순위 1~3위는 🥇🥈🥉 메달을 아이콘 자리에. 본인 행만 구분하는
+    `.lesson-row.me` modifier 클래스 하나만 신규 추가. `fragments/layout.html` 헤더 내비의
+    "그림 퀴즈" 링크 옆에 "리더보드" 추가.
+  - Thymeleaf 중첩 조건문은 지난 대시보드 작업에서 겪은 "SpEL elvis `?:`와 Thymeleaf 자체 삼항을
+    같은 속성에 섞어 쓰지 않는다" 교훈을 그대로 지켜 순수 Thymeleaf 삼항(`? :`)만 중첩(활동
+    캘린더의 `level-N` 클래스 계산과 같은 패턴 재사용) — 메달/순위 표시에 새 버그 없음.
+  - 테스트: `ProgressServiceTest`(`getLeaderboardStats` 2개 — 회원별 집계, 완료 기록 없는 회원
+    제외), 신규 `LeaderboardServiceTest`(Mockito 5개 — 정렬 기준, 상위 20명 자르기, 본인이
+    상위권 밖이면 추가, 상위권 안이면 중복 추가 안 함, 순위 자체가 없으면 추가 안 함), 신규
+    `LeaderboardControllerTest`(MockMvc 2개 — 비로그인 접근, 로그인 회원이 레슨 완료 후 본인
+    행 표시).
+  - curl 실서버 종단 검증: 서로 다른 두 회원(리더A: 레슨 2개 완료, 리더B: 레슨 1개 완료, 둘 다
+    같은 날이라 스트릭 동률) 생성 → 비로그인으로 `/leaderboard` 접근해 완료 레슨 수 기준으로
+    리더A가 1위·리더B가 2위인 것 확인(스트릭 동률 시 완료수로 정렬되는 것 실증) → 리더A 세션으로
+    같은 페이지 재요청해 본인 행에 "나" 표시 + `class="lesson-row me"` 렌더링 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. 사용자가 마스코트 이미지 파일을 주면 `static/images/`에 넣고 레슨 인트로/코스 카드에 연결
 2. 운영 DB 전환/배포 준비 — 사용자가 우선순위 최후순위로 명시(콘텐츠·기능 개발이 아직 남아있어서 지금은 보류)

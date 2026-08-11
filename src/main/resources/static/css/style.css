@@ -1426,6 +1426,10 @@ legend.quiz-prompt {
     }
 }
 
+.lesson-row.me {
+    background: var(--color-primary-light);
+}
+
 .badge-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
