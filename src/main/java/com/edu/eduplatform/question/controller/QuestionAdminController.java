@@ -7,7 +7,10 @@ import com.edu.eduplatform.question.dto.QuestionAdminRequest;
 import com.edu.eduplatform.question.dto.QuestionAdminResponse;
 import com.edu.eduplatform.question.exception.QuestionNotFoundException;
 import com.edu.eduplatform.question.service.QuestionService;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /** 관리자 전용 진단 테스트 문항 관리 화면 — SecurityConfig가 /admin/** 을 ROLE_ADMIN으로 이미 막아둔다. */
 @Controller
@@ -28,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class QuestionAdminController {
 
     private final QuestionService questionService;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     @GetMapping
     public String list(
@@ -72,6 +79,49 @@ public class QuestionAdminController {
         }
         questionService.createQuestion(request);
         return "redirect:/admin/questions";
+    }
+
+    @GetMapping("/import")
+    public String importForm() {
+        return "admin/question-import";
+    }
+
+    @PostMapping("/import")
+    public String importQuestions(@RequestParam String json, Model model) {
+        List<QuestionAdminRequest> parsed;
+        try {
+            parsed = objectMapper.readValue(json, new TypeReference<List<QuestionAdminRequest>>() {
+            });
+        } catch (RuntimeException e) {
+            model.addAttribute("validationErrors", List.of("JSON 형식을 확인해 주세요 — 배열 형태여야 해요."));
+            model.addAttribute("rawJson", json);
+            return "admin/question-import";
+        }
+
+        List<String> errors = validateAll(parsed);
+        if (parsed.isEmpty()) {
+            errors.add("최소 1개 이상 입력해 주세요.");
+        }
+        if (!errors.isEmpty()) {
+            model.addAttribute("validationErrors", errors);
+            model.addAttribute("rawJson", json);
+            return "admin/question-import";
+        }
+
+        questionService.createQuestions(parsed);
+        return "redirect:/admin/questions";
+    }
+
+    private List<String> validateAll(List<QuestionAdminRequest> requests) {
+        List<String> errors = new ArrayList<>();
+        int rowNumber = 1;
+        for (QuestionAdminRequest request : requests) {
+            for (ConstraintViolation<QuestionAdminRequest> violation : validator.validate(request)) {
+                errors.add(rowNumber + "번째 항목: " + violation.getMessage());
+            }
+            rowNumber++;
+        }
+        return errors;
     }
 
     @GetMapping("/{id}/edit")

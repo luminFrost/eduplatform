@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>레슨 일괄 등록 - eduplatform</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <div th:replace="~{fragments/layout :: header}"></div>
+
+    <main id="main-content" class="page">
+    <h1>레슨 일괄 등록 (JSON)</h1>
+
+    <ul class="error-message" th:if="${validationErrors}">
+        <li th:each="msg : ${validationErrors}" th:text="${msg}"></li>
+    </ul>
+
+    <form th:action="@{/admin/courses/{courseId}/lessons/import(courseId=${courseId})}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div>
+            <label>레슨 배열 (JSON)
+                <textarea name="json" rows="20" th:text="${rawJson}"></textarea>
+            </label>
+            <p class="empty-state">
+                title·lessonType·content 필드를 가진 객체의 배열이에요. orderNo는 넣지 않아도
+                돼요(항상 기존 레슨 뒤에 순서대로 이어붙여요). lessonType은 VOCAB · READING ·
+                WRITING · LISTENING · SPEAKING 중 하나(대문자)여야 해요. 예시:
+            </p>
+            <pre>[
+  {
+    "title": "1과",
+    "lessonType": "VOCAB",
+    "content": "INTRO: 🦊 오늘은 인사말을 배워요!\n👋 Hi! — 안녕!"
+  },
+  {
+    "title": "2과",
+    "lessonType": "VOCAB",
+    "content": "🙋 Hello! — 안녕하세요!"
+  }
+]</pre>
+        </div>
+        <button type="submit">일괄 등록하기</button>
+    </form>
+
+    <p><a th:href="@{/admin/courses/{id}(id=${courseId})}">코스로 돌아가기</a></p>
+    </main>
+    <div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

@@ -224,6 +224,51 @@ class LessonServiceTest {
     }
 
     @Test
+    void createLessons_기존_레슨_뒤에_순서대로_이어붙인다() throws Exception {
+        Lesson existing = withLessonId(Lesson.builder().courseId(100L).orderNo(1).title("1과")
+                .content("내용").lessonType(LessonType.VOCAB).build(), 10L);
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of(existing));
+
+        List<com.edu.eduplatform.lesson.dto.LessonAdminRequest> requests = List.of(
+                new com.edu.eduplatform.lesson.dto.LessonAdminRequest("2과", 0, "내용2", LessonType.VOCAB),
+                new com.edu.eduplatform.lesson.dto.LessonAdminRequest("3과", 0, "내용3", LessonType.VOCAB));
+
+        lessonService.createLessons(100L, requests);
+
+        org.mockito.ArgumentCaptor<Lesson> captor = org.mockito.ArgumentCaptor.forClass(Lesson.class);
+        verify(lessonRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        List<Lesson> saved = captor.getAllValues();
+        assertThat(saved.get(0).getTitle()).isEqualTo("2과");
+        assertThat(saved.get(0).getOrderNo()).isEqualTo(2);
+        assertThat(saved.get(1).getTitle()).isEqualTo("3과");
+        assertThat(saved.get(1).getOrderNo()).isEqualTo(3);
+    }
+
+    @Test
+    void createLessons_레슨이_없던_코스는_orderNo가_1부터_시작한다() {
+        when(courseRepository.existsById(100L)).thenReturn(true);
+        when(lessonRepository.findByCourseIdOrderByOrderNoAsc(100L)).thenReturn(List.of());
+
+        lessonService.createLessons(100L, List.of(
+                new com.edu.eduplatform.lesson.dto.LessonAdminRequest("1과", 0, "내용", LessonType.VOCAB)));
+
+        org.mockito.ArgumentCaptor<Lesson> captor = org.mockito.ArgumentCaptor.forClass(Lesson.class);
+        verify(lessonRepository).save(captor.capture());
+        assertThat(captor.getValue().getOrderNo()).isEqualTo(1);
+    }
+
+    @Test
+    void createLessons_존재하지_않는_코스면_예외를_던지고_아무것도_저장하지_않는다() {
+        when(courseRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> lessonService.createLessons(999L, List.of(
+                new com.edu.eduplatform.lesson.dto.LessonAdminRequest("1과", 0, "내용", LessonType.VOCAB))))
+                .isInstanceOf(com.edu.eduplatform.course.exception.CourseNotFoundException.class);
+        verify(lessonRepository, never()).save(any());
+    }
+
+    @Test
     void updateLesson_존재하는_레슨이면_내용을_수정한다() throws Exception {
         Lesson lesson = withLessonId(Lesson.builder()
                 .courseId(100L).orderNo(1).title("기존 제목")

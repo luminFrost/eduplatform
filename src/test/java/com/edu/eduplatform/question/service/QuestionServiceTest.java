@@ -218,6 +218,28 @@ class QuestionServiceTest {
     }
 
     @Test
+    void createQuestions_여러_건을_한번에_저장한다() {
+        List<QuestionAdminRequest> requests = List.of(
+                new QuestionAdminRequest(MemberType.ADULT, EnglishLevel.BEGINNER, LessonType.VOCAB,
+                        "문제1", null, "보기1", "보기2", "보기3", "보기4", 0),
+                new QuestionAdminRequest(MemberType.CHILD, EnglishLevel.ELEMENTARY, LessonType.READING,
+                        "문제2", null, "a", "b", "c", "d", 1));
+
+        questionService.createQuestions(requests);
+
+        org.mockito.ArgumentCaptor<Question> captor = org.mockito.ArgumentCaptor.forClass(Question.class);
+        verify(questionRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        assertThat(captor.getAllValues()).extracting(Question::getPrompt).containsExactly("문제1", "문제2");
+    }
+
+    @Test
+    void createQuestions_빈_목록이면_아무것도_저장하지_않는다() {
+        questionService.createQuestions(List.of());
+
+        verify(questionRepository, never()).save(any());
+    }
+
+    @Test
     void updateQuestion_존재하는_문항이면_내용을_수정한다() throws Exception {
         Question question = withId(question(LessonType.VOCAB, 0), 1L);
         when(questionRepository.findById(1L)).thenReturn(java.util.Optional.of(question));

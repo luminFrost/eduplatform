@@ -58,6 +58,22 @@ public class QuestionService {
                 .build());
     }
 
+    /** 여러 문항을 한 번에 생성한다 — 관리자 JSON 일괄 등록에 쓰인다. */
+    @Transactional
+    public void createQuestions(List<QuestionAdminRequest> requests) {
+        for (QuestionAdminRequest request : requests) {
+            questionRepository.save(Question.builder()
+                    .targetType(request.targetType())
+                    .level(request.level())
+                    .lessonType(request.lessonType())
+                    .prompt(request.prompt())
+                    .audioText(request.audioText())
+                    .options(request.options())
+                    .correctOptionIndex(request.correctOptionIndex())
+                    .build());
+        }
+    }
+
     @Transactional
     public void updateQuestion(Long id, QuestionAdminRequest request) {
         Question question = questionRepository.findById(id)

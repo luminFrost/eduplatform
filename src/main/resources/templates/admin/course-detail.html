@@ -19,7 +19,8 @@
     </div>
 
     <p><a th:href="@{/admin/courses/{id}/edit(id=${course.id})}">코스 정보 수정</a></p>
-    <p><a th:href="@{/admin/courses/{courseId}/lessons/new(courseId=${course.id})}">+ 새 레슨 추가</a></p>
+    <p><a th:href="@{/admin/courses/{courseId}/lessons/new(courseId=${course.id})}">+ 새 레슨 추가</a>
+        · <a th:href="@{/admin/courses/{courseId}/lessons/import(courseId=${course.id})}">+ JSON 일괄 등록</a></p>
 
     <p class="empty-state" th:if="${#lists.isEmpty(lessons)}">아직 등록된 레슨이 없습니다.</p>
 

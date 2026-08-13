@@ -3,6 +3,8 @@ package com.edu.eduplatform.question.dto;
 import com.edu.eduplatform.lesson.domain.LessonType;
 import com.edu.eduplatform.member.domain.EnglishLevel;
 import com.edu.eduplatform.member.domain.MemberType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -35,6 +37,8 @@ public record QuestionAdminRequest(
         @NotBlank(message = "보기 4를 입력해 주세요.")
         String option4,
 
+        @Min(value = 0, message = "정답 보기를 선택해 주세요.")
+        @Max(value = 3, message = "정답 보기를 선택해 주세요.")
         int correctOptionIndex
 ) {
     public List<String> options() {

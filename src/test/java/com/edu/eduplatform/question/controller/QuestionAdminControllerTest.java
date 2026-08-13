@@ -126,6 +126,79 @@ class QuestionAdminControllerTest {
                 .andExpect(content().string(containsString("문제를 입력해 주세요")));
     }
 
+    @Test
+    void 일반_회원은_문항_일괄_등록에_접근하면_403이다() throws Exception {
+        MockHttpSession session = loginAs("question-import-member@example.com", "일반회원", MemberRole.USER);
+
+        mockMvc.perform(post("/admin/questions/import").session(session).with(csrf())
+                        .param("json", "[]"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 관리자는_JSON_배열로_문항_여러개를_한번에_등록할_수_있다() throws Exception {
+        MockHttpSession session = loginAs("question-import-admin@example.com", "관리자", MemberRole.ADMIN);
+
+        String json = """
+                [
+                  {
+                    "targetType": "ADULT", "level": "BEGINNER", "lessonType": "VOCAB",
+                    "prompt": "문제1", "option1": "a", "option2": "b", "option3": "c", "option4": "d",
+                    "correctOptionIndex": 0
+                  },
+                  {
+                    "targetType": "CHILD", "level": "ELEMENTARY", "lessonType": "READING",
+                    "prompt": "문제2", "option1": "a", "option2": "b", "option3": "c", "option4": "d",
+                    "correctOptionIndex": 3
+                  }
+                ]
+                """;
+
+        mockMvc.perform(post("/admin/questions/import").session(session).with(csrf())
+                        .param("json", json))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/questions"));
+
+        assertThat(questionRepository.findAll()).extracting(q -> q.getPrompt())
+                .contains("문제1", "문제2");
+    }
+
+    @Test
+    void 잘못된_JSON_형식이면_에러를_보여주고_아무것도_저장하지_않는다() throws Exception {
+        MockHttpSession session = loginAs("question-import-malformed@example.com", "관리자", MemberRole.ADMIN);
+        long before = questionRepository.count();
+
+        mockMvc.perform(post("/admin/questions/import").session(session).with(csrf())
+                        .param("json", "이건 JSON이 아니에요"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("JSON 형식을 확인해 주세요")));
+
+        assertThat(questionRepository.count()).isEqualTo(before);
+    }
+
+    @Test
+    void correctOptionIndex가_범위를_벗어나면_행_번호와_함께_에러를_보여준다() throws Exception {
+        MockHttpSession session = loginAs("question-import-range@example.com", "관리자", MemberRole.ADMIN);
+        long before = questionRepository.count();
+
+        String json = """
+                [
+                  {
+                    "targetType": "ADULT", "level": "BEGINNER", "lessonType": "VOCAB",
+                    "prompt": "문제1", "option1": "a", "option2": "b", "option3": "c", "option4": "d",
+                    "correctOptionIndex": 9
+                  }
+                ]
+                """;
+
+        mockMvc.perform(post("/admin/questions/import").session(session).with(csrf())
+                        .param("json", json))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("1번째 항목")));
+
+        assertThat(questionRepository.count()).isEqualTo(before);
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

@@ -1814,6 +1814,53 @@ MVP = 회원가입/로그인 + 코스·레슨 학습(텍스트 활동 우선) + 
     리더A가 1위·리더B가 2위인 것 확인(스트릭 동률 시 완료수로 정렬되는 것 실증) → 리더A 세션으로
     같은 페이지 재요청해 본인 행에 "나" 표시 + `class="lesson-row me"` 렌더링 확인.
 
+- 관리자 콘텐츠 일괄 가져오기 (JSON) (dev 병합됨)
+  - 지금까지 코스·레슨·문항 콘텐츠는 항상 배경 에이전트가 텍스트를 만들면 사람이 관리자 폼에 한
+    개씩 손으로 옮겨 적는 방식으로 늘려왔음(관리자 CRUD 화면이 생기기 전엔 `SampleDataInitializer.
+    java`에 직접 붙여넣다가 실제 데이터 유실 버그까지 난 적 있음). 레슨/문항을 JSON 배열로 붙여넣어
+    한 번에 여러 개 등록하는 관리자 화면을 추가해 이 반복을 없앰.
+  - `LessonService.createLessons(courseId, requests)`/`QuestionService.createQuestions(requests)`
+    신규 — 레슨은 항상 기존 레슨 뒤에 orderNo를 순서대로 이어붙여(요청의 orderNo는 무시) 충돌
+    가능성을 구조적으로 없앰. 문항은 단순 반복 저장.
+  - JSON 파싱은 이 프로젝트가 이미 `POST /api/members`/`POST /api/courses`에서 record를 JSON
+    요청 본문으로 역직렬화해온 것과 같은 `tools.jackson.databind.ObjectMapper`(Jackson 3.x,
+    `com.fasterxml.jackson` 아님) 재사용. 검증은 `jakarta.validation.Validator`를 컨트롤러에
+    직접 주입해 파싱된 레코드마다 `validate()` 호출 — 폼의 `@NotBlank`/`@NotNull` 메시지를 그대로
+    재사용해 검증 로직 중복을 없앰(예: `"2번째 항목: 레슨 제목을 입력해 주세요."`). 검증은 전부
+    통과해야만 저장이 시작되므로 부분 저장(일부만 생성)은 구조적으로 불가능.
+  - **버그 발견·수정(실서버 curl 검증 중 잡음, 유닛 테스트는 몰랐음)**: 처음엔
+    `LessonAdminRequest`를 그대로 `List<LessonAdminRequest>>`로 역직렬화하려 했는데, JSON에서
+    `orderNo`를 생략하게 설계해뒀더니(항상 서버가 재계산해 덮어쓰므로) 매번 "JSON 형식을 확인해
+    주세요"로 실패함 — `orderNo`가 primitive `int`인데 **Jackson 3의 record 역직렬화가 누락된
+    필수 생성자 프로퍼티를 `null`이 아니라 명시적 예외로 처리**해서(`PropertyValueBuffer.
+    _findMissing` → `handleNullForPrimitives`), 값을 아예 안 주면 조용히 0이 되는 게 아니라 매번
+    던짐(과거 이 프로젝트가 REST API에서 record를 역직렬화할 때는 필드를 전부 채워 보냈어서 한
+    번도 마주친 적 없던 경로). Mockito 단위 테스트는 항상 `LessonAdminRequest` 객체를 직접
+    만들어 넘겨서 이 경로를 안 탐 — curl로 실제 JSON 문자열을 보내보고서야 발견. 해결: `orderNo`가
+    없는 전용 `LessonDraft(title, content, lessonType)` private record를 컨트롤러 안에 따로 두고
+    거기로 먼저 역직렬화한 뒤 `orderNo=0`(어차피 서비스가 무시)으로 `LessonAdminRequest`를 조립.
+  - **테스트 실수 발견·수정**: 문항 일괄 등록 실패 케이스 테스트가 `questionRepository.findAll()
+    .isEmpty()`로 "아무것도 저장 안 됨"을 확인하려 했는데, `QuestionDataInitializer`가 매 서버
+    기동마다 80문항을 이미 시딩해두고 있어서(+ 같은 스위트의 다른 테스트가 추가한 문항들) 항상
+    실패할 뻔함 — `count()`를 호출 전후로 비교하는 방식으로 바꿔 해결(레슨 쪽은 새로 만든 코스
+    기준으로 조회해서 애초에 이 문제가 없었음).
+  - `QuestionAdminRequest.correctOptionIndex`에 `@Min(0) @Max(3)` 추가(드라이브바이 수정) — 기존
+    단일 문항 생성 폼도 지금까지 범위 검증이 전혀 없던 갭이었음, 일괄 등록에서 잘못된 인덱스가
+    생성되면 진단 테스트 채점 시점에야 문제가 드러날 수 있어 원천 차단.
+  - 화면: 신규 `admin/lesson-import.html`/`admin/question-import.html` — 텍스트 영역에 JSON
+    붙여넣기 + 제출 버튼, 기존 4개 관리자 폼이 공유하는 `error-message` 렌더링 컨벤션 재사용,
+    JSON 예시를 `<pre>` 블록으로 안내(이 프로젝트 첫 `<pre>` 사용이라 `overflow-x: auto` 스타일
+    한 줄 추가). 코스 상세·문항 목록의 "+ 새로 만들기" 링크 옆에 "+ JSON 일괄 등록" 추가.
+  - 테스트: `LessonServiceTest`(`createLessons` 3개), `QuestionServiceTest`(`createQuestions` 2개),
+    `LessonAdminControllerTest`(신규 4개 — 정상 등록, 일반 회원 403, 잘못된 JSON, 행 검증 실패),
+    `QuestionAdminControllerTest`(신규 4개, `correctOptionIndex` 범위 밖 케이스 포함).
+  - curl 실서버 종단 검증(포트 충돌로 8099에서 임시로 띄워 확인 — 8080은 이 세션과 무관한 다른
+    프로젝트(`cortex`)가 이미 점유 중이라 건드리지 않음): 관리자 로그인 → 레슨 7개짜리 코스에
+    JSON 배열 2개 항목 제출 → 기존 레슨 뒤에 순서대로(8·9번째) 정확히 이어붙는 것 확인 → 배열이
+    아닌 문자열 제출 시 에러+레슨 수 그대로 확인 → 항목 중 하나만 제목 누락 시 "2번째 항목" 에러+
+    아무것도 안 만들어짐 확인 → 문항도 동일 패턴 확인, `correctOptionIndex=9` 제출 시 "1번째 항목:
+    정답 보기를 선택해 주세요" 에러 확인.
+
 **다음 단계 (예시, 우선순위 순)**
 1. **AI 기반 콘텐츠 초안 생성(제안, 미구현) — Anthropic API 키 대기 중, 착수 보류**. 관리자
    화면에서 실제 LLM API(Anthropic)를 호출해 레슨/문항/코스 초안을 만들고 검토 후 저장하는 기능.

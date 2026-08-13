@@ -127,6 +127,83 @@ class LessonAdminControllerTest {
         assertThat(lessonRepository.findById(lesson1.getId()).orElseThrow().getOrderNo()).isEqualTo(2);
     }
 
+    @Test
+    void 일반_회원은_레슨_일괄_등록에_접근하면_403이다() throws Exception {
+        MockHttpSession session = loginAs("lesson-import-member@example.com", "일반회원", MemberRole.USER);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(post("/admin/courses/" + course.getId() + "/lessons/import").session(session).with(csrf())
+                        .param("json", "[]"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 관리자는_JSON_배열로_레슨_여러개를_한번에_등록할_수_있다() throws Exception {
+        MockHttpSession session = loginAs("lesson-import-admin@example.com", "관리자", MemberRole.ADMIN);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+        lessonRepository.save(Lesson.builder()
+                .courseId(course.getId()).title("1과").orderNo(1).content("내용").lessonType(LessonType.VOCAB).build());
+
+        String json = """
+                [
+                  {"title": "2과", "lessonType": "VOCAB", "content": "Hi. — 안녕."},
+                  {"title": "3과", "lessonType": "READING", "content": "Bye. — 잘가."}
+                ]
+                """;
+
+        mockMvc.perform(post("/admin/courses/" + course.getId() + "/lessons/import").session(session).with(csrf())
+                        .param("json", json))
+                .andExpect(status().is3xxRedirection());
+
+        var lessons = lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId());
+        assertThat(lessons).hasSize(3);
+        assertThat(lessons).extracting(Lesson::getTitle).containsExactly("1과", "2과", "3과");
+        assertThat(lessons).extracting(Lesson::getOrderNo).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void 잘못된_JSON_형식이면_에러를_보여주고_아무것도_저장하지_않는다() throws Exception {
+        MockHttpSession session = loginAs("lesson-import-malformed@example.com", "관리자", MemberRole.ADMIN);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        mockMvc.perform(post("/admin/courses/" + course.getId() + "/lessons/import").session(session).with(csrf())
+                        .param("json", "이건 JSON이 아니에요"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("JSON 형식을 확인해 주세요")));
+
+        assertThat(lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId())).isEmpty();
+    }
+
+    @Test
+    void 항목중_하나가_검증에_실패하면_행_번호와_함께_에러를_보여주고_아무것도_저장하지_않는다() throws Exception {
+        MockHttpSession session = loginAs("lesson-import-invalid@example.com", "관리자", MemberRole.ADMIN);
+        Course course = courseRepository.save(Course.builder()
+                .title("코스").description("설명")
+                .targetType(MemberType.ADULT).level(EnglishLevel.BEGINNER).build());
+
+        String json = """
+                [
+                  {"title": "1과", "lessonType": "VOCAB", "content": "Hi. — 안녕."},
+                  {"title": "", "lessonType": "VOCAB", "content": "Bye. — 잘가."}
+                ]
+                """;
+
+        mockMvc.perform(post("/admin/courses/" + course.getId() + "/lessons/import").session(session).with(csrf())
+                        .param("json", json))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("2번째 항목")));
+
+        assertThat(lessonRepository.findByCourseIdOrderByOrderNoAsc(course.getId())).isEmpty();
+    }
+
     private MockHttpSession loginAs(String email, String nickname, MemberRole role) throws Exception {
         memberRepository.save(Member.builder()
                 .email(email).nickname(nickname)

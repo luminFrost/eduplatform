@@ -120,6 +120,32 @@ public class LessonService {
                 .build());
     }
 
+    /**
+     * 여러 레슨을 한 번에 생성한다 — 관리자 JSON 일괄 등록에 쓰인다. orderNo는 항상 서버가
+     * 재계산해(기존 레슨 뒤에 순서대로 이어붙임) 요청의 orderNo는 무시한다 — 단일 생성
+     * (createLesson)과 달리 충돌 가능성 자체를 구조적으로 없앤다.
+     */
+    @Transactional
+    public void createLessons(Long courseId, List<LessonAdminRequest> requests) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new CourseNotFoundException(courseId);
+        }
+        int nextOrderNo = lessonRepository.findByCourseIdOrderByOrderNoAsc(courseId).stream()
+                .mapToInt(Lesson::getOrderNo)
+                .max()
+                .orElse(0) + 1;
+        for (LessonAdminRequest request : requests) {
+            lessonRepository.save(Lesson.builder()
+                    .courseId(courseId)
+                    .title(request.title())
+                    .orderNo(nextOrderNo)
+                    .content(request.content())
+                    .lessonType(request.lessonType())
+                    .build());
+            nextOrderNo++;
+        }
+    }
+
     @Transactional
     public void updateLesson(Long lessonId, LessonAdminRequest request) {
         Lesson lesson = lessonRepository.findById(lessonId)

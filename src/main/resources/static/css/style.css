@@ -185,6 +185,15 @@ ul {
     padding-left: 20px;
 }
 
+pre {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
 /* ---------- site header ---------- */
 
 .skip-link {
