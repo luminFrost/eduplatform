@@ -42,11 +42,11 @@
 
 ```
 com.edu.eduplatform
-├── common/        JPA Auditing, WebMvc 설정, SecurityConfig, 샘플 데이터 시더, 관리자 통계·커버리지 대시보드, 랜딩 페이지
+├── common/        JPA Auditing, WebMvc 설정, SecurityConfig, 샘플 데이터 시더, 관리자 통계·커버리지 대시보드, 랜딩 페이지, 업적 배지·리더보드(Progress+Course/Member를 넘나드는 집계)
 ├── member/        회원, 인증(로그인/가입/탈퇴/비밀번호), 이메일 인증·재설정 토큰, 관리자 회원 관리(강제 탈퇴 포함)
 ├── course/        코스(공식/개인), 즐겨찾기, 평점/리뷰(+도움돼요 투표·신고), 관리자 코스·리뷰 관리, 수료증
 ├── lesson/        레슨, 콘텐츠 파싱·아이콘 매핑, 이해도 퀴즈, 관리자 레슨 관리
-├── progress/      학습 진행, 대시보드 집계, 스트릭·캘린더·주간 목표·최근 활동, 간격 반복 복습(+헤더 배지)
+├── progress/      학습 진행, 대시보드 집계, 스트릭·캘린더·주간 목표·최근 활동, 간격 반복 복습(+헤더 배지), 리더보드용 회원별 스트릭 집계
 ├── question/      진단 테스트/레벨 배치 문항, 관리자 문항 관리
 ├── quiz/          그림 퀴즈, 매일 단어장/단어 퀴즈 (모두 저장 없이 그때그때 생성하는 stateless 설계)
 └── announcement/  사이트 전체 공지 배너(단일 슬롯 upsert), 관리자 공지 관리
@@ -314,13 +314,14 @@ flowchart LR
     Root --> LevelTest["/members/new/level-test"]
     Root --> PwReset["/password-reset (+/confirm)"]
 
-    Login --> My["/my 대시보드<br/>스탯·캘린더·주간목표·최근활동"]
+    Login --> My["/my 대시보드<br/>스탯·업적 배지·캘린더·주간목표·최근활동"]
     My --> Profile["/my/profile"]
     My --> Review["/my/review"]
     My --> Daily["/my/daily"]
     My --> PersonalNew["/courses/personal/new (+/diagnostic-test)"]
 
     Root --> PictureQuiz["/quiz/picture"]
+    Root --> Leaderboard["/leaderboard<br/>스트릭 순위, 비회원 가능"]
 
     Login --> Admin["/admin 대시보드<br/>운영 통계 + 콘텐츠 커버리지 (ADMIN 전용)"]
     Admin --> AdminCourses["/admin/courses (+lessons/**)"]
@@ -334,8 +335,8 @@ flowchart LR
 |------|------|------|
 | 공개 | `/`, `/courses`, `/courses/{id}`, `/courses/{id}/certificate`, `/lessons/{id}` | 랜딩, 코스 목록/상세(검색·필터·정렬·평점·즐겨찾기·리뷰), 수료증(완료자만), 레슨 학습(비회원은 1과만) |
 | 계정 | `/members/new` → `/members/new/verify`, `/login`, `/members/new/level-test`, `/password-reset`(+`/confirm`) | 이메일 인증 2단계 가입, 로그인, 레벨 배치 테스트, 비밀번호 찾기 |
-| 마이페이지 | `/my`, `/my/profile`(주간 목표 포함), `/my/review`, `/my/daily`, `/courses/personal/new`(+`/diagnostic-test`) | 대시보드, 프로필/비밀번호/탈퇴, 간격 반복 복습, 오늘의 단어, 개인 코스 생성 |
-| 참여 | `/quiz/picture` | 그림 퀴즈(비회원 가능) |
+| 마이페이지 | `/my`(업적 배지 포함), `/my/profile`(주간 목표 포함), `/my/review`, `/my/daily`, `/courses/personal/new`(+`/diagnostic-test`) | 대시보드, 프로필/비밀번호/탈퇴, 간격 반복 복습, 오늘의 단어, 개인 코스 생성 |
+| 참여 | `/quiz/picture`, `/leaderboard` | 그림 퀴즈, 학습 리더보드(둘 다 비회원 가능) |
 | 관리자 | `/admin`(통계+커버리지), `/admin/courses`(+`/{id}/lessons/**`), `/admin/questions`, `/admin/members`(+강제 탈퇴), `/admin/reviews`, `/admin/announcement` | 대시보드, 코스·레슨 CRUD, 문항 관리, 회원 관리, 리뷰 관리, 공지 관리 |
 | 개발용 | `/h2-console` | DB 콘솔(CSP 예외) |
 
@@ -355,9 +356,9 @@ flowchart LR
 | POST | `/api/progress/complete` | 인증 필요 | 레슨 완료 처리 |
 
 요청/응답은 전부 DTO(record)로 분리하고 엔티티를 직접 노출하지 않는다. 코스 즐겨찾기·평점/리뷰
-(+도움돼요 투표·신고)·수료증·복습·주간 목표·관리자 기능(회원/리뷰/공지/통계) 전부 화면 전용으로
-판단해 REST API를 별도로 열지 않았다 — 이 프로젝트가 실제로 필요로 한 API는 처음 10개에서
-늘어나지 않았고, 나머지는 서버 렌더링 폼 제출만으로 충분했다(필요해지면 후속 확장).
+(+도움돼요 투표·신고)·수료증·복습·주간 목표·업적 배지·리더보드·관리자 기능(회원/리뷰/공지/통계)
+전부 화면 전용으로 판단해 REST API를 별도로 열지 않았다 — 이 프로젝트가 실제로 필요로 한 API는
+처음 10개에서 늘어나지 않았고, 나머지는 서버 렌더링 폼 제출/조회만으로 충분했다(필요해지면 후속 확장).
 
 ## 9. 개발 단계 (완료된 로드맵)
 
@@ -396,6 +397,12 @@ Spring Security 도입, REST API의 memberId 신뢰 문제 보완, 로그인 시
 ### Phase 12 — 관리자 도구 고도화 (완료, 최초 로드맵엔 없던 확장)
 관리자 회원 강제 탈퇴, 리뷰 관리(신고 확인·삭제), 공지사항 배너, 운영 통계 대시보드(가입자·활동
 추이 그래프) — 콘텐츠 관리 중심이던 관리자 도구를 회원·커뮤니티·운영 지표 관리까지 확장.
+
+### Phase 13 — 업적·경쟁 동기부여 (완료, 최초 로드맵엔 없던 확장)
+학습 업적 배지(13종, 완료 레슨·코스 완주·스트릭·주간목표·리뷰·즐겨찾기·개인 코스 기준으로 즉석
+계산) + 학습 리더보드(스트릭 기준 전체 회원 순위, 비회원도 열람 가능) — 개인 지표 중심이던
+동기부여 장치에 "나 혼자 vs 남들과 비교"라는 두 축을 완성. 둘 다 새 추적 테이블 없이 기존
+`LearningProgress`만으로 계산하는 stateless 설계를 그대로 유지.
 
 ### 다음 단계 (미착수, 의도적으로 후순위)
 - 마스코트 캐릭터 이미지 연결(사용자가 이미지 파일을 전달하면 진행).
